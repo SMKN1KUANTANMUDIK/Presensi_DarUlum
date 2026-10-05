@@ -589,7 +589,9 @@ function renderSiswaTable() {
         s.wali +
         "</td><td>" +
         s.email +
-        '</td><td><button class="action-btn" onclick="deleteSiswa(\'' +
+        '</td><td style="display:flex;gap:5px"><button class="action-btn" onclick="editSiswa(\'' +
+        s.nama +
+        '\')" title="Edit"><i data-lucide="edit" style="width:18px"></i></button><button class="action-btn" onclick="deleteSiswa(\'' +
         s.nama +
         '\')" title="Hapus"><i data-lucide="trash-2" style="width:18px"></i></button></td></tr>';
     } else {
@@ -823,6 +825,16 @@ function submitAdd() {
 }
 
 function editSiswa(id) {
+  if (activeType === "kelas") {
+    var s = students.find(function(x) { return x.nama === id; });
+    if (!s) return;
+    var m = document.getElementById("modal");
+    m.innerHTML =
+      '<div class="modal"><div class="modal-header"><span class="modal-title">Edit Unit / Kelas</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><input type="hidden" id="edit-old-nama" value="' + s.nama + '"><div class="form-group"><label class="form-label">Nama Unit / Kelas</label><input type="text" class="form-input" id="edit-kelas-nama" value="' + s.nama + '"></div><div class="form-group"><label class="form-label">Nama Wali Kelas</label><input type="text" class="form-input" id="edit-kelas-wali" value="' + s.wali + '"></div><div class="form-group"><label class="form-label">Email Wali Kelas</label><input type="email" class="form-input" id="edit-kelas-email" value="' + (s.email || "") + '"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitEdit(\'kelas\')">Update</button></div></div>';
+    m.classList.add("active");
+    return;
+  }
+
   var s = students.find(function(x) { return x.id === id; });
   if (!s) return;
   var m = document.getElementById("modal");
@@ -843,6 +855,23 @@ function editSiswa(id) {
 }
 
 function submitEdit(id) {
+  if (id === 'kelas') {
+    var oldN = document.getElementById("edit-old-nama").value;
+    var n = document.getElementById("edit-kelas-nama").value;
+    var w = document.getElementById("edit-kelas-wali").value;
+    var e = document.getElementById("edit-kelas-email").value;
+    if (!n || !w) {
+      showToast("Lengkapi field wajib", "error");
+      return;
+    }
+    window.callGasAPI("editClass", { old_nama: oldN, nama: n, wali: w, email: e }, function (r) {
+      showToast("Kelas berhasil diupdate", "success");
+      closeModal();
+      loadData();
+    });
+    return;
+  }
+
   var bc = document.getElementById("edit-bc").value;
   var nm = document.getElementById("edit-nama").value;
   var kl = document.getElementById("edit-kelas").value;
