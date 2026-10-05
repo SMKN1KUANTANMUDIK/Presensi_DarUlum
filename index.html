@@ -23,6 +23,9 @@
       </div>
       <div class='att-body' id='student-content'></div>
     </div>
+    <div style="position:absolute; bottom:15px; right:15px; cursor:pointer; opacity:0.3; padding:10px;" onclick="checkAdmin()">
+      <i data-lucide="lock" style="width:16px; color:#fff;"></i>
+    </div>
   </div>
   <div class='toast-container' id='toasts'></div>
 
@@ -35,6 +38,16 @@
           .then(reg => console.log('SW terdaftar!', reg.scope))
           .catch(err => console.error('SW gagal:', err));
       });
+    }
+
+    function checkAdmin() {
+      var pin = prompt("Masukkan PIN Admin:");
+      // PIN sementara adalah 123456 (Bisa Anda ganti nanti di skrip jika perlu)
+      if (pin === "123456") {
+        window.location.href = "admin.html";
+      } else if (pin !== null) {
+        alert("PIN Salah!");
+      }
     }
   </script>
 </body>
