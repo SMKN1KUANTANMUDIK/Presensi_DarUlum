@@ -6,10 +6,10 @@ document.addEventListener("DOMContentLoaded", function () {
   lucide.createIcons();
   showOptions();
   loadFace(); // Pre-load FaceAPI models
-  
+
   // Load settings for logo
-  window.callGasAPI("getSettings", {}, function(r) {
-    if(r.settings && r.settings.logoUrl) {
+  window.callGasAPI("getSettings", {}, function (r) {
+    if (r.settings && r.settings.logoUrl) {
       var cont = document.getElementById("student-logo-container");
       cont.style.display = "block";
       cont.innerHTML = '<img src="' + r.settings.logoUrl + '" style="height:100%;object-fit:contain">';
@@ -41,7 +41,7 @@ function startScanner() {
         stopScan();
         findByCode(t);
       },
-      function () {},
+      function () { },
     );
   } catch (e) {
     showToast("Error", "error");
@@ -52,7 +52,7 @@ function stopScan() {
   if (window.scanner) {
     try {
       window.scanner.stop();
-    } catch (e) {}
+    } catch (e) { }
   }
 }
 function findStudent() {
@@ -83,18 +83,18 @@ function showSelfie() {
   locationData = { lat: "", lng: "", alamat: "" };
   getLoc();
   var c = document.getElementById("student-content");
-    var kStr = String(currentStudent.kelas);
-    var roleHTML = "";
-    if (kStr.indexOf(",") > -1) {
-      var roles = kStr.split(",");
-      roleHTML = '<select id="role-select" style="margin:5px auto 15px; width:90%; display:block; padding:8px; border-radius:8px; border:1px solid #e2e8f0; font-family:inherit; font-size:14px;">';
-      for (var i=0; i<roles.length; i++) {
-         roleHTML += '<option value="'+roles[i].trim()+'">'+roles[i].trim()+'</option>';
-      }
-      roleHTML += '</select>';
-    } else {
-      roleHTML = '<p style="color:var(--gray)">' + currentStudent.kelas + '</p>';
+  var kStr = String(currentStudent.kelas);
+  var roleHTML = "";
+  if (kStr.indexOf(",") > -1) {
+    var roles = kStr.split(",");
+    roleHTML = '<select id="role-select" style="margin:5px auto 15px; width:90%; display:block; padding:8px; border-radius:8px; border:1px solid #e2e8f0; font-family:inherit; font-size:14px;">';
+    for (var i = 0; i < roles.length; i++) {
+      roleHTML += '<option value="' + roles[i].trim() + '">' + roles[i].trim() + '</option>';
     }
+    roleHTML += '</select>';
+  } else {
+    roleHTML = '<p style="color:var(--gray)">' + currentStudent.kelas + '</p>';
+  }
 
   c.innerHTML =
     '<div style="text-align:center;margin-bottom:20px"><div class="avatar blue" style="width:60px;height:60px;font-size:20px;margin:0 auto 10px">' +
@@ -166,9 +166,9 @@ function getLoc() {
         locationData.altitude = p.coords.altitude;
         fetch(
           "https://nominatim.openstreetmap.org/reverse?format=json&lat=" +
-            p.coords.latitude +
-            "&lon=" +
-            p.coords.longitude,
+          p.coords.latitude +
+          "&lon=" +
+          p.coords.longitude,
         )
           .then(function (r) {
             return r.json();

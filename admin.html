@@ -14,8 +14,9 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class='sidebar-overlay' id='sidebar-overlay' onclick='toggleSidebar()'></div>
 <div class='app'>
-    <aside class='sidebar'>
+    <aside class='sidebar' id='sidebar'>
         <div class='sidebar-header'>
             <div class='logo-icon' id='app-logo-container'><i data-lucide='graduation-cap' style='width:22px;height:22px'></i></div>
             <div class='logo-text'><h1 id='app-title'>Darul Ulum Islamiyyah</h1><p>Admin Portal</p></div>
@@ -36,7 +37,10 @@
     </aside>
     <main class='main'>
         <div class='topbar'>
-            <h2 id='page-title'>Dashboard</h2>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button class='mobile-toggle' onclick='toggleSidebar()'><i data-lucide='menu' style='width:24px; height:24px;'></i></button>
+                <h2 id='page-title'>Dashboard</h2>
+            </div>
             <div class='topbar-right'>
                 <div class='search-box'><i data-lucide='search' style='width:16px;color:var(--gray)'></i><input type='text' placeholder='Cari nama...'></div>
                 <div class='topbar-icon'><i data-lucide='bell' style='width:20px'></i></div>

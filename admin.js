@@ -14,6 +14,13 @@ document.addEventListener("DOMContentLoaded", function () {
   loadData();
 });
 
+function toggleSidebar() {
+  var sb = document.getElementById("sidebar");
+  var ov = document.getElementById("sidebar-overlay");
+  if(sb) sb.classList.toggle("mobile-open");
+  if(ov) ov.classList.toggle("active");
+}
+
 function loadSettings() {
   window.callGasAPI("getSettings", {}, function(r) {
     if(r.settings) {
@@ -154,6 +161,15 @@ function showPage(p) {
     pengaturan: "Pengaturan",
   };
   document.getElementById("page-title").textContent = t[p];
+  
+  // Close sidebar on mobile
+  var sb = document.getElementById("sidebar");
+  var ov = document.getElementById("sidebar-overlay");
+  if(sb && sb.classList.contains("mobile-open")) {
+    sb.classList.remove("mobile-open");
+    ov.classList.remove("active");
+  }
+
   renderPage();
 }
 function renderPage() {
@@ -607,7 +623,9 @@ function renderSiswaTable() {
         stBadge +
         '">' +
         (s.status || "Aktif") +
-        '</span></td><td><button class="action-btn" onclick="deleteSiswa(\'' +
+        '</span></td><td style="display:flex;gap:5px"><button class="action-btn" onclick="editSiswa(\'' +
+        s.id +
+        '\')" title="Edit"><i data-lucide="edit" style="width:18px"></i></button><button class="action-btn" onclick="deleteSiswa(\'' +
         s.id +
         '\')" title="Hapus"><i data-lucide="trash-2" style="width:18px"></i></button></td></tr>';
     }
@@ -797,6 +815,58 @@ function submitAdd() {
       { barcode: bc, nama: nm, kelas: kl, email: em },
       function (r) {
         showToast("Siswa berhasil ditambahkan", "success");
+        closeModal();
+        loadData();
+      },
+    );
+  }
+}
+
+function editSiswa(id) {
+  var s = students.find(function(x) { return x.id === id; });
+  if (!s) return;
+  var m = document.getElementById("modal");
+  var lblCode = activeType == "guru" ? "NIP" : "Barcode / NIS";
+  var lblSub = activeType == "guru" ? "Jabatan" : "Unit / Kelas";
+  var code = activeType == "guru" ? s.nip : s.barcode;
+  var sub = activeType == "guru" ? s.jabatan : s.kelas;
+  
+  m.innerHTML =
+    '<div class="modal"><div class="modal-header"><span class="modal-title">Edit ' +
+    (activeType == "guru" ? "Pegawai" : "Siswa") +
+    '</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><div class="form-group"><label class="form-label">' +
+    lblCode +
+    '</label><input type="text" class="form-input" id="edit-bc" value="' + (code || "") + '"></div><div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" class="form-input" id="edit-nama" value="' + s.nama + '"></div><div class="form-group"><label class="form-label">' +
+    lblSub +
+    '</label><input type="text" class="form-input" id="edit-kelas" value="' + (sub || "") + '"></div><div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="edit-email" value="' + (s.email || "") + '"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitEdit(\'' + id + '\')">Update</button></div></div>';
+  m.classList.add("active");
+}
+
+function submitEdit(id) {
+  var bc = document.getElementById("edit-bc").value;
+  var nm = document.getElementById("edit-nama").value;
+  var kl = document.getElementById("edit-kelas").value;
+  var em = document.getElementById("edit-email").value;
+  if (!bc || !nm || !kl) {
+    showToast("Lengkapi semua field", "error");
+    return;
+  }
+  if (activeType === "guru") {
+    window.callGasAPI(
+      "editTeacher",
+      { id: id, nip: bc, nama: nm, jabatan: kl, email: em },
+      function (r) {
+        showToast("Pegawai berhasil diupdate", "success");
+        closeModal();
+        loadData();
+      },
+    );
+  } else {
+    window.callGasAPI(
+      "editStudent",
+      { id: id, barcode: bc, nama: nm, kelas: kl, email: em },
+      function (r) {
+        showToast("Siswa berhasil diupdate", "success");
         closeModal();
         loadData();
       },
