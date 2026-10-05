@@ -1,4 +1,4 @@
-const CACHE_NAME = 'absensi-cache-v2';
+const CACHE_NAME = 'absensi-cache-v3';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -10,7 +10,7 @@ const PRECACHE_URLS = [
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting();
+  self.skipWaiting(); // Force new Service Worker to activate immediately
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(PRECACHE_URLS))
@@ -31,35 +31,40 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Hanya simpan request GET (Hindari POST seperti kirim absen)
   if (event.request.method !== 'GET') return;
-  
-  // Jangan simpan response dari API Google Script (Karena isinya dinamis)
   if (event.request.url.indexOf('script.google.com') !== -1) return;
 
-  event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      // 1. Jika ada di cache (misal: model AI dari jsdelivr), langsung pakai dari Cache!
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      
-      // 2. Jika tidak ada di cache, minta ke internet lalu simpan
-      return fetch(event.request).then(response => {
-        // Validasi response (200 OK atau 0 untuk opaque CORS)
-        if (!response || (response.status !== 200 && response.status !== 0)) {
+  // 1. Cache-First Strategy untuk Model AI (CDN)
+  if (event.request.url.indexOf('jsdelivr.net') !== -1) {
+    event.respondWith(
+      caches.match(event.request).then(cachedResponse => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then(response => {
+          if (!response || response.status !== 200) return response;
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
           return response;
-        }
+        });
+      })
+    );
+    return;
+  }
 
+  // 2. Network-First Strategy untuk HTML/JS/CSS Lokal
+  // Ini akan mencegah isu aplikasi tersangkut di versi lawas (cache)
+  event.respondWith(
+    fetch(event.request).then(response => {
+      // Jika berhasil ambil versi terbaru dari internet, simpan ke cache
+      if (response && response.status === 200) {
         const responseToCache = response.clone();
         caches.open(CACHE_NAME).then(cache => {
           cache.put(event.request, responseToCache);
         });
-
-        return response;
-      }).catch(() => {
-        // Bisa tambahkan fallback offline di sini jika diperlukan
-      });
+      }
+      return response;
+    }).catch(() => {
+      // Jika koneksi internet putus (Offline), fallback ke data cache
+      return caches.match(event.request);
     })
   );
 });

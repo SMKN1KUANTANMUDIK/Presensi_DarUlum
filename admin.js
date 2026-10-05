@@ -25,7 +25,16 @@ function loadSettings() {
   window.callGasAPI("getSettings", {}, function(r) {
     if(r.settings) {
       appSettings = r.settings;
-      applySettingsToUI();
+      // Ambil nama pimpinan yayasan dari data guru/pegawai secara otomatis
+      window.callGasAPI("getTeacherList", {}, function(r2) {
+          if (r2.teachers) {
+              var pimp = r2.teachers.find(function(t) { return t.jabatan && t.jabatan.toLowerCase().indexOf("kepala yayasan") !== -1; });
+              if (pimp) {
+                  appSettings.kepalaYayasan = pimp.nama;
+              }
+          }
+          applySettingsToUI();
+      });
     }
   });
 }
@@ -638,7 +647,7 @@ function renderSiswaTable() {
 function renderPengaturan() {
   var c = document.getElementById("main-content");
   c.innerHTML =
-    '<div class="page-header"><h1>Pengaturan</h1><p>Konfigurasi jam terlambat dan parameter sistem.</p></div><div class="card"><div class="card-body"><div style="max-width:400px"><div class="form-group"><label class="form-label">Nama Admin</label><input type="text" class="form-input" id="set-admin-nama" value="'+(appSettings.adminName || 'Budi Santoso')+'"></div><div class="form-group"><label class="form-label">Jabatan Admin</label><input type="text" class="form-input" id="set-admin-role" value="'+(appSettings.adminRole || 'Administrator')+'"></div><div class="form-group"><label class="form-label">Nama Pimpinan Yayasan</label><input type="text" class="form-input" id="set-kepala" value="'+(appSettings.kepalaYayasan || 'Pimpinan Yayasan')+'"></div><div class="form-group"><label class="form-label">URL Logo Web (Opsional)</label><input type="url" class="form-input" id="set-logo" value="'+(appSettings.logoUrl || '')+'" placeholder="https://..."></div><div class="form-group"><label class="form-label">Jam Batas Terlambat</label><input type="time" class="form-input" id="set-jam" value="'+(appSettings.jamTerlambat || '07:15')+'"></div><div class="form-group"><label class="form-label">Threshold Face Match (0-1)</label><input type="number" class="form-input" id="set-th" value="'+(appSettings.faceMatchThreshold || '0.5')+'" min="0" max="1" step="0.1"></div><button class="btn btn-primary" onclick="saveSettings()"><i data-lucide="save" style="width:16px"></i> Simpan Pengaturan</button></div></div></div>';
+    '<div class="page-header"><h1>Pengaturan</h1><p>Konfigurasi parameter sistem.</p></div><div class="card"><div class="card-body"><div style="max-width:400px"><div class="form-group"><label class="form-label">Nama Admin</label><input type="text" class="form-input" id="set-admin-nama" value="'+(appSettings.adminName || 'Budi Santoso')+'"></div><div class="form-group"><label class="form-label">Jabatan Admin</label><input type="text" class="form-input" id="set-admin-role" value="'+(appSettings.adminRole || 'Administrator')+'"></div><div class="form-group"><label class="form-label">URL Logo Web (Opsional)</label><input type="url" class="form-input" id="set-logo" value="'+(appSettings.logoUrl || '')+'" placeholder="https://..."></div><div class="form-group"><label class="form-label">Jam Batas Terlambat</label><input type="time" class="form-input" id="set-jam" value="'+(appSettings.jamTerlambat || '07:15')+'"></div><div class="form-group"><label class="form-label">Threshold Face Match (0-1)</label><input type="number" class="form-input" id="set-th" value="'+(appSettings.faceMatchThreshold || '0.5')+'" min="0" max="1" step="0.1"></div><button class="btn btn-primary" onclick="saveSettings()"><i data-lucide="save" style="width:16px"></i> Simpan Pengaturan</button></div></div></div>';
   lucide.createIcons();
 }
 
@@ -650,6 +659,26 @@ function showAddModal() {
   } else {
     var lblCode = activeType == "guru" ? "NIP" : "Barcode / NIS";
     var lblSub = activeType == "guru" ? "Jabatan" : "Unit / Kelas";
+    
+    var subInput = "";
+    if (activeType === "guru") {
+      subInput = '<select class="form-select" id="add-kelas" multiple style="height:120px">' +
+                 '<option value="Kepala Yayasan">Kepala Yayasan</option>' +
+                 '<option value="Kepala Sekolah">Kepala Sekolah</option>' +
+                 '<option value="Wali Kelas">Wali Kelas</option>' +
+                 '<option value="Guru Kelas">Guru Kelas</option>' +
+                 '<option value="Guru Bidang Studi">Guru Bidang Studi</option>' +
+                 '<option value="Guru Rumah Quran">Guru Rumah Quran</option>' +
+                 '<option value="Staf Tata Usaha">Staf Tata Usaha</option>' +
+                 '<option value="Bendahara">Bendahara</option>' +
+                 '<option value="Operator">Operator</option>' +
+                 '<option value="Keamanan">Keamanan</option>' +
+                 '<option value="Kebersihan">Kebersihan</option>' +
+                 '</select><small style="color:var(--gray);font-size:11px">Tahan Ctrl (Windows) atau Cmd (Mac) untuk memilih lebih dari satu.</small>';
+    } else {
+      subInput = '<input type="text" class="form-input" id="add-kelas" placeholder="Misal: TK, SDIT (Pisahkan dg koma jika >1)">';
+    }
+
     m.innerHTML =
       '<div class="modal"><div class="modal-header"><span class="modal-title">Tambah ' +
       (activeType == "guru" ? "Pegawai" : "Siswa") +
@@ -659,7 +688,7 @@ function showAddModal() {
       lblCode +
       '"></div><div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" class="form-input" id="add-nama" placeholder="Nama Lengkap"></div><div class="form-group"><label class="form-label">' +
       lblSub +
-      '</label><input type="text" class="form-input" id="add-kelas" placeholder="Misal: TK, SDIT (Pisahkan dg koma jika >1)"></div><div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="add-email" placeholder="email@domain.com"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAdd()">Simpan</button></div></div>';
+      '</label>' + subInput + '</div><div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="add-email" placeholder="email@domain.com"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAdd()">Simpan</button></div></div>';
   }
   m.classList.add("active");
 }
@@ -795,7 +824,17 @@ function submitAdd() {
   }
   var bc = document.getElementById("add-bc").value;
   var nm = document.getElementById("add-nama").value;
-  var kl = document.getElementById("add-kelas").value;
+  var klEl = document.getElementById("add-kelas");
+  var kl = "";
+  if (klEl.multiple) {
+    var vals = [];
+    for(var i=0; i<klEl.options.length; i++) {
+        if(klEl.options[i].selected) vals.push(klEl.options[i].value);
+    }
+    kl = vals.join(", ");
+  } else {
+    kl = klEl.value;
+  }
   var em = document.getElementById("add-email").value;
   if (!bc || !nm || !kl) {
     showToast("Lengkapi semua field", "error");
@@ -843,6 +882,29 @@ function editSiswa(id) {
   var code = activeType == "guru" ? s.nip : s.barcode;
   var sub = activeType == "guru" ? s.jabatan : s.kelas;
   
+  var subInput = "";
+  if (activeType === "guru") {
+    var opts = ["Kepala Yayasan", "Kepala Sekolah", "Wali Kelas", "Guru Kelas", "Guru Bidang Studi", "Guru Rumah Quran", "Staf Tata Usaha", "Bendahara", "Operator", "Keamanan", "Kebersihan", "Lainnya"];
+    subInput = '<select class="form-select" id="edit-kelas" multiple style="height:120px">';
+    var selectedSubs = (sub || "").split(",").map(function(s){ return s.trim() });
+    
+    for(var i=0; i<opts.length; i++) {
+        var sel = (selectedSubs.indexOf(opts[i]) !== -1) ? "selected" : "";
+        subInput += '<option value="' + opts[i] + '" ' + sel + '>' + opts[i] + '</option>';
+    }
+    
+    // Add custom ones that aren't in opts
+    for(var i=0; i<selectedSubs.length; i++) {
+        if(selectedSubs[i] && opts.indexOf(selectedSubs[i]) === -1) {
+            subInput += '<option value="' + selectedSubs[i] + '" selected>' + selectedSubs[i] + '</option>';
+        }
+    }
+    
+    subInput += '</select><small style="color:var(--gray);font-size:11px">Tahan Ctrl/Cmd untuk multiseleksi.</small>';
+  } else {
+    subInput = '<input type="text" class="form-input" id="edit-kelas" value="' + (sub || "") + '">';
+  }
+
   m.innerHTML =
     '<div class="modal"><div class="modal-header"><span class="modal-title">Edit ' +
     (activeType == "guru" ? "Pegawai" : "Siswa") +
@@ -850,7 +912,7 @@ function editSiswa(id) {
     lblCode +
     '</label><input type="text" class="form-input" id="edit-bc" value="' + (code || "") + '"></div><div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" class="form-input" id="edit-nama" value="' + s.nama + '"></div><div class="form-group"><label class="form-label">' +
     lblSub +
-    '</label><input type="text" class="form-input" id="edit-kelas" value="' + (sub || "") + '"></div><div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="edit-email" value="' + (s.email || "") + '"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitEdit(\'' + id + '\')">Update</button></div></div>';
+    '</label>' + subInput + '</div><div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="edit-email" value="' + (s.email || "") + '"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitEdit(\'' + id + '\')">Update</button></div></div>';
   m.classList.add("active");
 }
 
@@ -874,7 +936,17 @@ function submitEdit(id) {
 
   var bc = document.getElementById("edit-bc").value;
   var nm = document.getElementById("edit-nama").value;
-  var kl = document.getElementById("edit-kelas").value;
+  var klEl = document.getElementById("edit-kelas");
+  var kl = "";
+  if (klEl.multiple) {
+    var vals = [];
+    for(var i=0; i<klEl.options.length; i++) {
+        if(klEl.options[i].selected) vals.push(klEl.options[i].value);
+    }
+    kl = vals.join(", ");
+  } else {
+    kl = klEl.value;
+  }
   var em = document.getElementById("edit-email").value;
   if (!bc || !nm || !kl) {
     showToast("Lengkapi semua field", "error");
@@ -936,8 +1008,7 @@ function saveSettings() {
   var l = document.getElementById("set-logo").value;
   var j = document.getElementById("set-jam").value;
   var t = document.getElementById("set-th").value;
-  var k = document.getElementById("set-kepala").value;
-  var payload = { adminName: n, adminRole: r, logoUrl: l, jamTerlambat: j, faceMatchThreshold: t, kepalaYayasan: k };
+  var payload = { adminName: n, adminRole: r, logoUrl: l, jamTerlambat: j, faceMatchThreshold: t };
   
   window.callGasAPI(
     "updateSettings",
