@@ -188,6 +188,7 @@ function getLoc() {
             lucide.createIcons();
           });
       },
+      function (err) {
         document.getElementById("li").innerHTML =
           '<i data-lucide="map-pin" style="width:14px;color:var(--danger)"></i>Lokasi tidak tersedia / Ditolak';
         lucide.createIcons();
