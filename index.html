@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Yayasan Darul Ulum Islamiyyah - Portal Absensi</title>
+  <link rel="manifest" href="manifest.json">
+  <link href='https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap' rel='stylesheet'>
+  <script src='https://unpkg.com/lucide@latest'></script>
+  <script src='https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js'></script>
+  <script src='https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js'></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class='student-page'>
+    <div class='att-box'>
+      <div class='att-header' id='student-header'>
+        <div id='student-logo-container' style='display:none; height:60px; margin-bottom:10px;'></div>
+        <h1>Yayasan Darul Ulum Islamiyyah</h1>
+        <p>Portal Absensi Digital</p>
+      </div>
+      <div class='att-body' id='student-content'></div>
+    </div>
+  </div>
+  <div class='toast-container' id='toasts'></div>
+
+  <script src="api_connector.js"></script>
+  <script src="student.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW terdaftar!', reg.scope))
+          .catch(err => console.error('SW gagal:', err));
+      });
+    }
+  </script>
+</body>
+
+</html>

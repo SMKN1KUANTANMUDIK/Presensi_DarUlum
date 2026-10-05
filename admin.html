@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Yayasan Darul Ulum Islamiyyah - Admin Portal</title>
+  <link rel="manifest" href="manifest.json">
+  <link href='https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap' rel='stylesheet'>
+  <script src='https://unpkg.com/lucide@latest'></script>
+  <script src='https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js'></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js'></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class='app'>
+    <aside class='sidebar'>
+        <div class='sidebar-header'>
+            <div class='logo-icon' id='app-logo-container'><i data-lucide='graduation-cap' style='width:22px;height:22px'></i></div>
+            <div class='logo-text'><h1 id='app-title'>Darul Ulum Islamiyyah</h1><p>Admin Portal</p></div>
+        </div>
+        <nav class='nav'>
+            <div class='nav-item active' data-page='dashboard' onclick='showPage("dashboard")'><i data-lucide='home'></i><span>Dashboard</span></div>
+            <div class='nav-item' data-page='laporan' onclick='showPage("laporan")'><i data-lucide='clipboard-check'></i><span>Laporan Kehadiran</span></div>
+            <div class='nav-item' data-page='rekap' onclick='showPage("rekap")'><i data-lucide='calendar-range'></i><span>Rekap Bulanan</span></div>
+            <div class='nav-item' data-page='siswa' onclick='showPage("siswa")'><i data-lucide='users'></i><span>Data Pegawai</span></div>
+            <div class='nav-item' data-page='pengaturan' onclick='showPage("pengaturan")'><i data-lucide='settings'></i><span>Pengaturan</span></div>
+        </nav>
+        <div class='sidebar-footer'>
+            <div class='user'>
+                <div class='user-avatar' id='admin-avatar'>BS</div>
+                <div class='user-info'><span id='admin-name'>Budi Santoso</span><p id='admin-role'>Administrator</p></div>
+            </div>
+        </div>
+    </aside>
+    <main class='main'>
+        <div class='topbar'>
+            <h2 id='page-title'>Dashboard</h2>
+            <div class='topbar-right'>
+                <div class='search-box'><i data-lucide='search' style='width:16px;color:var(--gray)'></i><input type='text' placeholder='Cari nama...'></div>
+                <div class='topbar-icon'><i data-lucide='bell' style='width:20px'></i></div>
+                <div class='topbar-icon'><i data-lucide='message-square' style='width:20px'></i></div>
+            </div>
+        </div>
+        <div class='content' id='main-content'></div>
+    </main>
+</div>
+<div class='modal-overlay' id='modal'></div>
+<div class='toast-container' id='toasts'></div>
+
+<script src="api_connector.js"></script>
+<script src="admin.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('SW terdaftar di admin!', reg.scope))
+                .catch(err => console.error('SW gagal:', err));
+        });
+    }
+</script>
+</body>
+</html>
