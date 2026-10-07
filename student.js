@@ -239,7 +239,7 @@ function captureSubmit() {
 
   var v = document.getElementById("selfie-video");
   var cv = document.createElement("canvas");
-  var maxWidth = 400;
+  var maxWidth = 200;
   var scale = maxWidth / v.videoWidth;
   cv.width = maxWidth;
   cv.height = v.videoHeight * scale;
@@ -276,7 +276,7 @@ function captureSubmit() {
         fm = 1.0;
         newDesc = Array.from(desc);
       }
-      var photo = cv.toDataURL("image/jpeg", 0.4);
+      var photo = cv.toDataURL("image/jpeg", 0.3);
       stopCam();
 
       var selectedRole = currentStudent.kelas;
