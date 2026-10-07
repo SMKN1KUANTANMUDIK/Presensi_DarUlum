@@ -1,6 +1,6 @@
 // Konektor API ke Google Apps Script
 // Ganti URL ini dengan URL "Execute as Me" -> "Anyone" dari Deployment Google Script Anda.
-const GAS_URL = "https://script.google.com/macros/s/AKfycbygLmOulICnWJDkPdAeyeFKQYRa-5w6ijZ66CbADxg2IBvnh09-qyN11hn3iF6oyG0/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzSgFHFxbQ7qJGKx7cy8JDTMjfoUvhtpavQOfPCTzLDVCUJppJ2zRS7_xywrHuUjdA/exec";
 
 window.callGasAPI = function (action, payload, onSuccess, onError) {
     if (!payload) payload = {};
