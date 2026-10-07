@@ -58,6 +58,12 @@ function applySettingsToUI() {
 
 function loadData(dt) {
   if (dt) currentFilterDate = dt;
+
+  // Reset counter dan buat token baru untuk request ini
+  // Callback dari loadData() sebelumnya yang masih "in-flight" akan diabaikan
+  renderCalls = 0;
+  var token = ++loadToken;
+
   var contentBox = document.getElementById("main-content");
   if (!contentBox.innerHTML.includes("Memuat data")) {
     contentBox.innerHTML =
@@ -71,11 +77,11 @@ function loadData(dt) {
     { type: activeType },
     function (r) {
       stats = r.stats;
-      tryRender();
+      tryRender(token);
     },
     function (err) {
       console.error("Stats Error:", err);
-      tryRender();
+      tryRender(token);
     }
   );
   // Load Attendance
@@ -85,11 +91,11 @@ function loadData(dt) {
     function (r) {
       attendance = r.attendance;
       if (r.date) currentFilterDate = r.date;
-      tryRender();
+      tryRender(token);
     },
     function (err) {
       console.error("Attendance Error:", err);
-      tryRender();
+      tryRender(token);
     }
   );
   // Load People Data
@@ -99,11 +105,11 @@ function loadData(dt) {
       {},
       function (r) {
         students = r.teachers;
-        tryRender();
+        tryRender(token);
       },
       function (err) {
         console.error("Teacher API Error:", err);
-        tryRender();
+        tryRender(token);
       }
     );
   } else if (activeType === "kelas") {
@@ -112,11 +118,11 @@ function loadData(dt) {
       {},
       function (r) {
         students = r.classes;
-        tryRender();
+        tryRender(token);
       },
       function (err) {
         console.error("Class API Error:", err);
-        tryRender();
+        tryRender(token);
       }
     );
   } else {
@@ -125,17 +131,21 @@ function loadData(dt) {
       {},
       function (r) {
         students = r.students;
-        tryRender();
+        tryRender(token);
       },
       function (err) {
         console.error("Student API Error:", err);
-        tryRender();
+        tryRender(token);
       }
     );
   }
 }
 var renderCalls = 0;
-function tryRender() {
+var loadToken = 0; // Token unik per loadData() — mencegah callback lama mencemari render baru
+
+function tryRender(token) {
+  // Abaikan callback dari request loadData() sebelumnya
+  if (token !== loadToken) return;
   renderCalls++;
   if (renderCalls >= 3) {
     renderPage();
@@ -1059,7 +1069,8 @@ function exportPDF() {
 
     for (var i = 0; i < filteredData.length; i++) {
       var a = filteredData[i];
-      var v = a.verified ? "Terverifikasi Wajah" : "TIDAK VALID";
+      // Gunakan faceMatch (konsisten dengan seluruh codebase), bukan a.verified yang tidak pernah diset
+      var v = a.faceMatch > 0.5 ? "Terverifikasi Wajah" : "Tidak Terverifikasi";
       data.push([i + 1, a.nama, a.kelas, currentFilterDate, a.waktu, a.status, v]);
     }
 
@@ -1138,7 +1149,13 @@ function exportExcel() {
 function showToast(m, t) {
   var tc = document.getElementById("toasts");
   var d = document.createElement("div");
-  d.className = "toast " + (t === "error" ? "error" : "");
+  // Terapkan class sesuai tipe: error=merah, warning=kuning, info=biru, default=hijau (success)
+  var cls = "toast";
+  if (t === "error")   cls += " error";
+  else if (t === "warning") cls += " warning";
+  else if (t === "info")    cls += " info";
+  // t === "success" atau tidak diisi → pakai style default (hijau)
+  d.className = cls;
   d.textContent = m;
   tc.appendChild(d);
   setTimeout(function () {

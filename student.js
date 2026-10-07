@@ -128,12 +128,25 @@ function stopCam() {
   }
 }
 function loadFace() {
+  // Helper: update UI hanya jika elemen selfie sudah dirender oleh showSelfie()
+  function setFaceStatus(cls, text) {
+    var fsEl = document.getElementById("fs");
+    var sbtnEl = document.getElementById("sbtn");
+    if (fsEl) {
+      fsEl.className = "face-status " + cls;
+      fsEl.textContent = text;
+    }
+    if (sbtnEl && cls === "success") {
+      sbtnEl.disabled = false;
+    }
+  }
+
+  // Jika model sudah pernah dimuat sebelumnya, langsung update UI (jika ada)
   if (faceLoaded) {
-    document.getElementById("fs").className = "face-status success";
-    document.getElementById("fs").textContent = "Siap!";
-    document.getElementById("sbtn").disabled = false;
+    setFaceStatus("success", "Siap!");
     return;
   }
+
   Promise.all([
     faceapi.nets.tinyFaceDetector.loadFromUri(
       "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model",
@@ -147,13 +160,13 @@ function loadFace() {
   ])
     .then(function () {
       faceLoaded = true;
-      document.getElementById("fs").className = "face-status success";
-      document.getElementById("fs").textContent = "Siap!";
-      document.getElementById("sbtn").disabled = false;
+      // Update UI hanya jika halaman selfie sedang aktif
+      setFaceStatus("success", "Siap!");
     })
-    .catch(function () {
-      document.getElementById("fs").className = "face-status error";
-      document.getElementById("fs").textContent = "Gagal model";
+    .catch(function (err) {
+      console.error("FaceAPI load error:", err);
+      // Hanya tampilkan error di UI jika elemen selfie sudah ada
+      setFaceStatus("error", "Gagal memuat model wajah");
     });
 }
 function getLoc() {
@@ -290,6 +303,17 @@ function captureSubmit() {
           showOptions();
         },
       );
+    })
+    .catch(function (err) {
+      // Tangani error tak terduga dari FaceAPI (model belum siap, canvas rusak, dll)
+      console.error("FaceAPI detection error:", err);
+      var fsEl = document.getElementById("fs");
+      var sbtnEl = document.getElementById("sbtn");
+      if (fsEl) {
+        fsEl.className = "face-status error";
+        fsEl.textContent = "Error deteksi wajah, coba lagi";
+      }
+      if (sbtnEl) sbtnEl.disabled = false;
     });
 }
 
