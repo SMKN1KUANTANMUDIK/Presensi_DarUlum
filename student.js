@@ -232,7 +232,7 @@ function captureSubmit() {
   var targetLng = 101.37821257931239;
   var distance = getDistanceFromLatLonInM(targetLat, targetLng, locationData.lat, locationData.lng);
 
-  if (distance > 100) {
+  if (distance > 1000) {
     showToast("Gagal: Anda berada di luar radius absensi (" + Math.round(distance) + " meter dari target)", "error");
     return;
   }
@@ -259,12 +259,17 @@ function captureSubmit() {
         return;
       }
       var desc = d.descriptor;
+      var targetDesc = currentStudent.faceDescriptor;
+      if (typeof targetDesc === 'string') {
+        try { targetDesc = JSON.parse(targetDesc); } catch(e) { targetDesc = null; }
+      }
+
       var fm = 0;
       var newDesc = null;
-      if (currentStudent.faceDescriptor && currentStudent.faceDescriptor.length > 0) {
+      if (targetDesc && targetDesc.length > 0) {
         var dist = faceapi.euclideanDistance(
           desc,
-          currentStudent.faceDescriptor,
+          targetDesc,
         );
         fm = Math.max(0, 1 - dist);
       } else {
@@ -289,7 +294,7 @@ function captureSubmit() {
         latitude: locationData.lat,
         longitude: locationData.lng,
         alamat: locationData.alamat,
-        newDescriptor: newDesc
+        newDescriptor: newDesc ? JSON.stringify(newDesc) : null
       };
 
       window.callGasAPI(
