@@ -1,4 +1,4 @@
-const CACHE_NAME = 'absensi-cache-v3';
+const CACHE_NAME = 'absensi-cache-v4';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -6,7 +6,10 @@ const PRECACHE_URLS = [
   './style.css',
   './student.js',
   './admin.js',
-  './api_connector.js'
+  './api_connector.js',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -34,8 +37,11 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (event.request.url.indexOf('script.google.com') !== -1) return;
 
-  // 1. Cache-First Strategy untuk Model AI (CDN)
-  if (event.request.url.indexOf('jsdelivr.net') !== -1) {
+  // 1. Cache-First Strategy untuk CDN dan Web Fonts
+  if (event.request.url.indexOf('jsdelivr.net') !== -1 || 
+      event.request.url.indexOf('unpkg.com') !== -1 ||
+      event.request.url.indexOf('fonts.googleapis.com') !== -1 ||
+      event.request.url.indexOf('fonts.gstatic.com') !== -1) {
     event.respondWith(
       caches.match(event.request).then(cachedResponse => {
         if (cachedResponse) return cachedResponse;
