@@ -225,9 +225,11 @@ function renderDashboard() {
             ? '<span class="feed-badge late">TERLAMBAT</span>'
             : '<span class="feed-badge verified">TERVERIFIKASI</span>'
           : "";
-      var photoSrc = a.fotoAbsen ? a.fotoAbsen : "";
+      var photoSrc = a.fotoAbsen ? formatPhotoUrl(a.fotoAbsen) : "";
       var photoHtml = photoSrc
-        ? '<img class="feed-photo" src="' + photoSrc + '">'
+        ? '<img class="feed-photo" src="' + photoSrc + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="feed-photo" style="display:none;align-items:center;justify-content:center;font-size:48px;font-weight:700;color:var(--primary)">' +
+          getInit(a.nama) +
+          "</div>"
         : '<div class="feed-photo" style="display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:700;color:var(--primary)">' +
           getInit(a.nama) +
           "</div>";
@@ -245,7 +247,7 @@ function renderDashboard() {
         '</div><div class="feed-time' +
         timeClass +
         '"><i data-lucide="clock" style="width:12px"></i> ' +
-        a.waktu +
+        formatTime(a.waktu) +
         " WIB</div></div></div>";
     }
   } else {
@@ -384,10 +386,11 @@ function renderLapTable() {
       a.faceMatch > 0.5
         ? '<button class="verify-btn verified"><i data-lucide="camera" style="width:16px"></i></button>'
         : '<button class="verify-btn not-verified"><i data-lucide="camera-off" style="width:16px"></i></button>';
-    var thumb = a.fotoAbsen
+    var photoSrc = a.fotoAbsen ? formatPhotoUrl(a.fotoAbsen) : "";
+    var thumb = photoSrc
       ? '<img src="' +
-        a.fotoAbsen +
-        '" style="width:36px;height:36px;border-radius:50%;object-fit:cover">'
+        photoSrc +
+        '" style="width:36px;height:36px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="avatar ' + getColor(i) + '" style="display:none">' + getInit(a.nama) + "</div>"
       : '<div class="avatar ' + getColor(i) + '">' + getInit(a.nama) + "</div>";
     h +=
       '<tr><td><div class="student-cell">' +
@@ -401,7 +404,7 @@ function renderLapTable() {
       "</td><td" +
       tc +
       ">" +
-      (a.waktu || "--:--") +
+      (formatTime(a.waktu) || "--:--") +
       '</td><td><span class="badge badge-' +
       bc +
       '">' +
@@ -415,7 +418,9 @@ function renderLapTable() {
 }
 function formatDate(d) {
   if (!d) return "-";
-  var p = String(d).split("-");
+  var s = String(d).trim();
+  if (s.indexOf("'") === 0) s = s.substring(1);
+  var p = s.split("-");
   var m = [
     "Jan",
     "Feb",
@@ -430,7 +435,27 @@ function formatDate(d) {
     "Nov",
     "Des",
   ];
-  return p.length === 3 ? p[2] + " " + m[parseInt(p[1]) - 1] + " " + p[0] : d;
+  return p.length === 3 ? p[2] + " " + m[parseInt(p[1]) - 1] + " " + p[0] : s;
+}
+
+function formatTime(w) {
+  if (!w) return "--:--";
+  var s = String(w).trim();
+  if (s.indexOf("'") === 0) s = s.substring(1);
+  // Bersihkan format Date string / ISO jika ada
+  var match = s.match(/(\d{1,2}:\d{2}(?::\d{2})?)/);
+  if (match) return match[1];
+  return s;
+}
+
+function formatPhotoUrl(url) {
+  if (!url) return "";
+  // Konversi link Drive uc?export=view lama menjadi direct thumbnail agar tidak diblokir browser
+  var match = String(url).match(/id=([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return "https://drive.google.com/thumbnail?id=" + match[1] + "&sz=w400";
+  }
+  return url;
 }
 function renderRekap() {
   var c = document.getElementById("main-content");
@@ -1097,7 +1122,7 @@ function exportPDF() {
       var a = filteredData[i];
       // Gunakan faceMatch (konsisten dengan seluruh codebase), bukan a.verified yang tidak pernah diset
       var v = a.faceMatch > 0.5 ? "Terverifikasi Wajah" : "Tidak Terverifikasi";
-      data.push([i + 1, a.nama, a.kelas, currentFilterDate, a.waktu, a.status, v]);
+      data.push([i + 1, a.nama, a.kelas, currentFilterDate, formatTime(a.waktu), a.status, v]);
     }
 
     doc.autoTable({
@@ -1162,7 +1187,7 @@ function exportExcel() {
       a.nama,
       a.kelas,
       a.tanggal || "-",
-      a.waktu,
+      formatTime(a.waktu),
       a.status,
       a.faceMatch > 0.5 ? "Ya" : "Tidak",
     ]);
