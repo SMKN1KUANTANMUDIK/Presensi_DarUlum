@@ -261,11 +261,11 @@ function captureSubmit() {
       var desc = d.descriptor;
       var targetDesc = currentStudent.faceDescriptor;
       while (typeof targetDesc === 'string') {
-        try { 
-          targetDesc = JSON.parse(targetDesc); 
-        } catch(e) { 
-          targetDesc = null; 
-          break; 
+        try {
+          targetDesc = JSON.parse(targetDesc);
+        } catch (e) {
+          targetDesc = null;
+          break;
         }
       }
 
@@ -359,7 +359,7 @@ function submitSick() {
           showSuccess(r2.status, r2.time, 0);
         },
         function (e2) {
-          showToast("Gagal kirim izin", "error");
+          showToast("Gagal kirim izin: " + e2, "error");
         },
       );
     },

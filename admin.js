@@ -829,6 +829,8 @@ function submitAdd() {
       showToast("Kelas berhasil ditambahkan", "success");
       closeModal();
       loadData();
+    }, function(err) {
+      showToast("Gagal menambah kelas: " + err, "error");
     });
     return;
   }
@@ -859,6 +861,9 @@ function submitAdd() {
         closeModal();
         loadData();
       },
+      function(err) {
+        showToast("Gagal menambah pegawai: " + err, "error");
+      }
     );
   } else {
     window.callGasAPI(
@@ -869,6 +874,9 @@ function submitAdd() {
         closeModal();
         loadData();
       },
+      function(err) {
+        showToast("Gagal menambah siswa: " + err, "error");
+      }
     );
   }
 }
@@ -940,6 +948,8 @@ function submitEdit(id) {
       showToast("Kelas berhasil diupdate", "success");
       closeModal();
       loadData();
+    }, function(err) {
+      showToast("Gagal update kelas: " + err, "error");
     });
     return;
   }
@@ -971,6 +981,9 @@ function submitEdit(id) {
         closeModal();
         loadData();
       },
+      function(err) {
+        showToast("Gagal update pegawai: " + err, "error");
+      }
     );
   } else {
     window.callGasAPI(
@@ -981,15 +994,21 @@ function submitEdit(id) {
         closeModal();
         loadData();
       },
+      function(err) {
+        showToast("Gagal update siswa: " + err, "error");
+      }
     );
   }
 }
 function deleteSiswa(id) {
   if (confirm("Yakin ingin menghapus?")) {
     if (activeType === "kelas") {
-      window.callGasAPI("deleteClass", { id: id }, function (r) {
+      // Untuk kelas, id yang dikirim adalah nama kelas (bukan angka)
+      window.callGasAPI("deleteClass", { nama: id }, function (r) {
         showToast("Kelas dihapus", "success");
         loadData();
+      }, function(err) {
+        showToast("Gagal hapus kelas: " + err, "error");
       });
       return;
     }
@@ -997,11 +1016,15 @@ function deleteSiswa(id) {
       window.callGasAPI("deleteTeacher", { id: id }, function (r) {
         showToast("Pegawai dihapus", "success");
         loadData();
+      }, function(err) {
+        showToast("Gagal hapus pegawai: " + err, "error");
       });
     } else {
       window.callGasAPI("deleteStudent", { id: id }, function (r) {
         showToast("Siswa dihapus", "success");
         loadData();
+      }, function(err) {
+        showToast("Gagal hapus siswa: " + err, "error");
       });
     }
   }
@@ -1028,6 +1051,9 @@ function saveSettings() {
       appSettings = payload;
       applySettingsToUI();
     },
+    function(err) {
+      showToast("Gagal simpan pengaturan: " + err, "error");
+    }
   );
 }
 function exportPDF() {
