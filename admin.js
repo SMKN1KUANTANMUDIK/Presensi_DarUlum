@@ -269,9 +269,9 @@ function renderDashboard() {
     lblTelat +
     '</h3><div class="value">' +
     (stats.totalTerlambat || 0) +
-    '</div><div class="trend down">-2% Membaik</div></div><div class="stat-icon orange"><i data-lucide="clock"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Belum Absen</h3><div class="value">' +
+    '</div><div class="trend down">-2% Membaik</div></div><div class="stat-icon orange"><i data-lucide="clock"></i></div></div><div class="stat-card" style="cursor:pointer" onclick="showUnattendedModal()" title="Klik untuk lihat nama yang belum absen"><div class="stat-info"><h3>Belum Absen</h3><div class="value">' +
     (stats.belumAbsen || 0) +
-    '</div><div class="trend down">Perlu Cek Manual</div></div><div class="stat-icon red"><i data-lucide="user-x"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Akurasi Selfie</h3><div class="value">' +
+    '</div><div class="trend down" style="color:var(--primary);text-decoration:underline;cursor:pointer">Klik Lihat Daftar</div></div><div class="stat-icon red"><i data-lucide="user-x"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Akurasi Selfie</h3><div class="value">' +
     pct +
     '%</div><div class="trend up">AI Verification</div></div><div class="stat-icon blue"><i data-lucide="scan-face"></i></div></div></div><div class="feed-header"><div class="feed-title">Feed Absensi Real-time <span class="live-badge"><span class="live-dot"></span> LIVE</span></div><div style="display:flex;gap:10px"><button class="btn btn-outline" onclick="loadData()"><i data-lucide="filter" style="width:14px"></i> Refresh</button><button class="btn btn-primary" onclick="exportExcel()"><i data-lucide="download" style="width:14px"></i> Export Log</button></div></div><div class="feed-grid">' +
     feed +
@@ -282,6 +282,42 @@ function renderDashboard() {
     " " +
     targetType +
     "</div></div>";
+  lucide.createIcons();
+}
+
+function showUnattendedModal() {
+  var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
+  var attendedIds = {};
+  for (var i = 0; i < attendance.length; i++) {
+    var a = attendance[i];
+    var isType = (activeType == "guru" ? a.type === "Guru" : (!a.type || a.type === "Siswa"));
+    if (isType) {
+      if (a.studentId) attendedIds[String(a.studentId)] = true;
+      if (a.id) attendedIds[String(a.id)] = true;
+    }
+  }
+
+  var unattended = students.filter(function (s) {
+    if (s.status && s.status !== "Aktif") return false;
+    return !attendedIds[String(s.id)];
+  });
+
+  var m = document.getElementById("modal");
+  var listHtml = "";
+  if (unattended.length === 0) {
+    listHtml = '<div style="text-align:center;padding:30px;color:var(--gray)"><i data-lucide="check-circle" style="width:48px;height:48px;color:var(--success);margin-bottom:10px"></i><p>Luar biasa! Semua ' + targetType + ' aktif sudah melakukan absensi hari ini.</p></div>';
+  } else {
+    listHtml = '<div style="max-height:350px;overflow-y:auto"><table class="table" style="width:100%"><thead><tr><th>No</th><th>Nama</th><th>' + (activeType == "guru" ? "Jabatan" : "Kelas") + '</th><th>Status</th></tr></thead><tbody>';
+    for (var j = 0; j < unattended.length; j++) {
+      var u = unattended[j];
+      listHtml += '<tr><td>' + (j + 1) + '</td><td><strong>' + u.nama + '</strong></td><td>' + (u.jabatan || u.kelas || "-") + '</td><td><span class="badge badge-danger">Belum Absen</span></td></tr>';
+    }
+    listHtml += '</tbody></table></div>';
+  }
+
+  m.innerHTML =
+    '<div class="modal"><div class="modal-header"><span class="modal-title">Daftar ' + targetType + ' Belum Absen (' + unattended.length + ')</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body">' + listHtml + '</div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Tutup</button></div></div>';
+  m.classList.add("active");
   lucide.createIcons();
 }
 function renderLaporan() {
