@@ -260,8 +260,13 @@ function captureSubmit() {
       }
       var desc = d.descriptor;
       var targetDesc = currentStudent.faceDescriptor;
-      if (typeof targetDesc === 'string') {
-        try { targetDesc = JSON.parse(targetDesc); } catch(e) { targetDesc = null; }
+      while (typeof targetDesc === 'string') {
+        try { 
+          targetDesc = JSON.parse(targetDesc); 
+        } catch(e) { 
+          targetDesc = null; 
+          break; 
+        }
       }
 
       var fm = 0;
@@ -294,7 +299,7 @@ function captureSubmit() {
         latitude: locationData.lat,
         longitude: locationData.lng,
         alamat: locationData.alamat,
-        newDescriptor: newDesc ? JSON.stringify(newDesc) : null
+        newDescriptor: newDesc
       };
 
       window.callGasAPI(
