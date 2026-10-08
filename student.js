@@ -83,21 +83,28 @@ function showSelfie() {
   locationData = { lat: "", lng: "", alamat: "" };
   getLoc();
   var c = document.getElementById("student-content");
-  var kStr = String(currentStudent.kelas);
+  var kStr = String(currentStudent.kelas || "");
   var roleHTML = "";
+  var isTeacher = (currentStudent.type === "guru" || (currentStudent.id && String(currentStudent.id).indexOf("TCH") === 0));
+  var labelText = isTeacher ? "Jabatan / Unit" : "Kelas / Unit";
+  var catBadge = isTeacher 
+    ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="briefcase" style="width:12px;height:12px"></i> PEGAWAI / GURU</span>'
+    : '<span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="graduation-cap" style="width:12px;height:12px"></i> SISWA</span>';
+
   if (kStr.indexOf(",") > -1) {
     var roles = kStr.split(",");
-    roleHTML = '<select id="role-select" style="margin:5px auto 15px; width:90%; display:block; padding:8px; border-radius:8px; border:1px solid #e2e8f0; font-family:inherit; font-size:14px;">';
+    roleHTML = '<div style="margin:8px auto 14px; max-width:280px; text-align:left;"><label style="font-size:12px; font-weight:600; color:var(--gray); display:block; margin-bottom:4px;">Pilih ' + labelText + ' Saat Absen:</label><select id="role-select" style="width:100%; display:block; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; font-family:inherit; font-size:14px; background:#fff;">';
     for (var i = 0; i < roles.length; i++) {
-      roleHTML += '<option value="' + roles[i].trim() + '">' + roles[i].trim() + '</option>';
+      var rClean = roles[i].trim();
+      roleHTML += '<option value="' + rClean + '">' + rClean + '</option>';
     }
-    roleHTML += '</select>';
+    roleHTML += '</select></div>';
   } else {
-    roleHTML = '<p style="color:var(--gray)">' + currentStudent.kelas + '</p>';
+    roleHTML = '<p style="color:var(--gray); margin-top:4px;"><span style="display:inline-block; background:#e0f2fe; color:#0369a1; padding:3px 12px; border-radius:12px; font-size:13px; font-weight:600;">' + (currentStudent.kelas || "-") + '</span></p>';
   }
 
   c.innerHTML =
-    '<div style="text-align:center;margin-bottom:20px"><div class="avatar blue" style="width:60px;height:60px;font-size:20px;margin:0 auto 10px">' +
+    '<div style="text-align:center;margin-bottom:20px">' + catBadge + '<div class="avatar blue" style="width:60px;height:60px;font-size:20px;margin:0 auto 10px">' +
     getInit(currentStudent.nama) +
     "</div><h3>" +
     currentStudent.nama +
@@ -306,6 +313,7 @@ function captureSubmit() {
         "recordAttendance",
         payload,
         function (r) {
+          currentStudent.activeRole = selectedRole;
           showSuccess(r.status, r.time, fm);
         },
         function (err) {
@@ -330,62 +338,126 @@ function captureSubmit() {
 function showSick() {
   var c = document.getElementById("student-content");
   c.innerHTML =
-    '<div class="form-group"><label class="form-label">Barcode / NIS / NIP</label><input type="text" class="form-input" id="sbc"></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" id="sst"><option value="Sakit">Sakit</option><option value="Izin">Izin</option></select></div><div class="form-group"><label class="form-label">Keterangan</label><textarea class="form-input" id="skt" rows="3"></textarea></div><button class="btn btn-primary" style="width:100%" onclick="submitSick()">Kirim</button><button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showOptions()">Batal</button>';
+    '<div style="text-align:center;margin-bottom:15px"><div class="opt-icon purple" style="margin:0 auto 10px"><i data-lucide="thermometer"></i></div><h3>Form Sakit / Izin</h3><p style="color:var(--gray);font-size:13px">Masukkan ID untuk memverifikasi data Anda</p></div><div class="form-group"><label class="form-label">Barcode / NIS / NIP</label><input type="text" class="form-input" id="sbc" placeholder="Masukkan Barcode / NIS / NIP"></div><button class="btn btn-primary" style="width:100%" onclick="checkSickStudent()"><i data-lucide="search" style="width:16px"></i> Periksa Data</button><button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showOptions()">Kembali</button>';
+  lucide.createIcons();
 }
-function submitSick() {
+
+function checkSickStudent() {
   var bc = document.getElementById("sbc").value.trim();
-  var st = document.getElementById("sst").value;
-  var kt = document.getElementById("skt").value;
   if (!bc) {
-    showToast("Isi barcode", "error");
+    showToast("Masukkan barcode / NIS / NIP", "error");
     return;
   }
+  var c = document.getElementById("student-content");
+  c.innerHTML = "<div style='text-align:center;padding:30px;'><p>Memeriksa data...</p></div>";
 
   window.callGasAPI(
     "getStudentByBarcode",
     { barcode: bc },
     function (r) {
       currentStudent = r.student;
-      window.callGasAPI(
-        "submitSickLeave",
-        {
-          studentId: currentStudent.id,
-          nama: currentStudent.nama,
-          kelas: currentStudent.kelas,
-          status: st,
-          keterangan: kt,
-        },
-        function (r2) {
-          showSuccess(r2.status, r2.time, 0);
-        },
-        function (e2) {
-          showToast("Gagal kirim izin: " + e2, "error");
-        },
-      );
+      showSickForm();
     },
     function (err) {
-      showToast("Tidak ditemukan", "error");
-    },
+      showToast("Data tidak ditemukan", "error");
+      showSick();
+    }
   );
 }
+
+function showSickForm() {
+  var c = document.getElementById("student-content");
+  var isTeacher = (currentStudent.type === "guru" || (currentStudent.id && String(currentStudent.id).indexOf("TCH") === 0));
+  var labelText = isTeacher ? "Jabatan / Unit" : "Kelas / Unit";
+  var catBadge = isTeacher 
+    ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="briefcase" style="width:12px;height:12px"></i> PEGAWAI / GURU</span>'
+    : '<span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="graduation-cap" style="width:12px;height:12px"></i> SISWA</span>';
+
+  var kStr = String(currentStudent.kelas || "");
+  var roleHTML = "";
+  if (kStr.indexOf(",") > -1) {
+    var roles = kStr.split(",");
+    roleHTML = '<div class="form-group"><label class="form-label">Pilih ' + labelText + '</label><select class="form-select" id="sick-role-select">';
+    for (var i = 0; i < roles.length; i++) {
+      var rClean = roles[i].trim();
+      roleHTML += '<option value="' + rClean + '">' + rClean + '</option>';
+    }
+    roleHTML += '</select></div>';
+  } else {
+    roleHTML = '<div class="form-group"><label class="form-label">' + labelText + '</label><input type="text" class="form-input" value="' + (currentStudent.kelas || "-") + '" disabled style="background:var(--bg)"></div>';
+  }
+
+  c.innerHTML =
+    '<div style="text-align:center;margin-bottom:15px">' + catBadge + '<div class="avatar blue" style="width:50px;height:50px;font-size:18px;margin:0 auto 8px">' +
+    getInit(currentStudent.nama) +
+    "</div><h3 style='margin:0;'>" +
+    currentStudent.nama +
+    "</h3></div>" +
+    roleHTML +
+    '<div class="form-group"><label class="form-label">Jenis Pengajuan</label><select class="form-select" id="sst"><option value="Sakit">Sakit</option><option value="Izin">Izin</option></select></div>' +
+    '<div class="form-group"><label class="form-label">Keterangan / Alasan</label><textarea class="form-input" id="skt" rows="3" placeholder="Contoh: Demam tinggi / Keperluan keluarga"></textarea></div>' +
+    '<button class="btn btn-primary" style="width:100%" onclick="submitSick()"><i data-lucide="send" style="width:16px"></i> Kirim Pengajuan</button>' +
+    '<button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showSick()">Ganti Barcode</button>';
+  lucide.createIcons();
+}
+
+function submitSick() {
+  var st = document.getElementById("sst").value;
+  var kt = document.getElementById("skt").value.trim();
+  var selectedRole = currentStudent.kelas;
+  var rSel = document.getElementById("sick-role-select");
+  if (rSel) selectedRole = rSel.value;
+
+  var c = document.getElementById("student-content");
+  c.innerHTML = "<div style='text-align:center;padding:30px;'><p>Mengirim pengajuan izin/sakit...</p></div>";
+
+  window.callGasAPI(
+    "submitSickLeave",
+    {
+      studentId: currentStudent.id,
+      nama: currentStudent.nama,
+      kelas: selectedRole,
+      status: st,
+      keterangan: kt,
+    },
+    function (r2) {
+      currentStudent.activeRole = selectedRole;
+      showSuccess(r2.status, r2.time, 0);
+    },
+    function (e2) {
+      showToast("Gagal kirim izin: " + e2, "error");
+      showSickForm();
+    }
+  );
+}
+
 function showSuccess(st, tm, fm) {
   var c = document.getElementById("student-content");
-  var col = st === "Terlambat" ? "var(--warning)" : "var(--success)";
+  var col = st === "Terlambat" ? "var(--warning)" : (st === "Hadir" ? "var(--success)" : "var(--info)");
+  var isTeacher = (currentStudent.type === "guru" || (currentStudent.id && String(currentStudent.id).indexOf("TCH") === 0));
+  var catBadge = isTeacher 
+    ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="briefcase" style="width:12px;height:12px"></i> PEGAWAI / GURU</span>'
+    : '<span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="graduation-cap" style="width:12px;height:12px"></i> SISWA</span>';
+
+  var roleDisplay = currentStudent.activeRole || currentStudent.kelas || "-";
+
   c.innerHTML =
     '<div class="success-screen"><div class="success-icon" style="background:' +
     col +
     '"><i data-lucide="check" style="width:40px;height:40px"></i></div><h2 style="color:' +
     col +
-    ';margin-bottom:10px">Berhasil!</h2><strong>' +
+    ';margin-bottom:8px">Berhasil!</h2>' +
+    catBadge +
+    '<br><strong>' +
     currentStudent.nama +
-    '</strong><p style="color:var(--gray)">' +
-    currentStudent.kelas +
+    '</strong><p style="color:var(--gray);margin-top:2px;">' +
+    roleDisplay +
     '</p><div style="background:var(--bg);padding:15px;border-radius:8px;margin:20px 0;text-align:left"><p><strong>Status:</strong> ' +
     st +
     "</p><p><strong>Waktu:</strong> " +
     tm +
     "</p><p><strong>Verifikasi:</strong> " +
-    (fm > 0.5 ? "Cocok" : "Tidak") +
+    (fm > 0.5 ? "Wajah Cocok" : (st === "Hadir" || st === "Terlambat" ? "Bypass / Pertama Kali" : "Pengajuan Izin/Sakit")) +
     '</p></div><button class="btn btn-primary" style="width:100%" onclick="showOptions()">Selesai</button></div>';
   lucide.createIcons();
 }

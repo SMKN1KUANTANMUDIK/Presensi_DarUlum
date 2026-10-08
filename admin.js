@@ -8,9 +8,18 @@ var rekapData = null;
 var filterKelas = "Semua";
 var colors = ["blue", "green", "orange", "purple", "cyan"];
 var appSettings = {}; // NEW
+var availableClasses = []; // Master data unit / kelas
+var currentRekapMonth = new Date().getMonth() + 1;
+var currentRekapYear = new Date().getFullYear();
+
+function getAuthAlertHtml() {
+  if (!window.lastApiError) return "";
+  return '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;"><i data-lucide="alert-triangle" style="width:24px;height:24px;color:#d97706;flex-shrink:0;margin-top:2px;"></i><div><strong style="color:#b45309;font-size:14px;display:block;margin-bottom:4px;">Status Koneksi Database (Google Apps Script)</strong><p style="color:#78350f;font-size:13px;line-height:1.5;margin:0;">' + window.lastApiError + '</p></div></div>';
+}
 document.addEventListener("DOMContentLoaded", function () {
   lucide.createIcons();
   loadSettings(); // NEW
+  loadAvailableClasses();
   loadData();
 });
 
@@ -19,6 +28,12 @@ function toggleSidebar() {
   var ov = document.getElementById("sidebar-overlay");
   if(sb) sb.classList.toggle("mobile-open");
   if(ov) ov.classList.toggle("active");
+}
+
+function loadAvailableClasses() {
+  window.callGasAPI("getClassList", {}, function(r) {
+    if (r && r.classes) availableClasses = r.classes;
+  });
 }
 
 function loadSettings() {
@@ -61,6 +76,7 @@ function loadData(dt) {
 
   // Reset counter dan buat token baru untuk request ini
   // Callback dari loadData() sebelumnya yang masih "in-flight" akan diabaikan
+  if (availableClasses.length === 0) loadAvailableClasses();
   renderCalls = 0;
   var token = ++loadToken;
 
@@ -118,6 +134,7 @@ function loadData(dt) {
       {},
       function (r) {
         students = r.classes;
+        availableClasses = r.classes;
         tryRender(token);
       },
       function (err) {
@@ -167,29 +184,32 @@ function getColor(i) {
 }
 function showPage(p) {
   currentPage = p;
-  if (p !== "siswa") activeType = "guru";
+  if (p !== "siswa" && activeType === "kelas") {
+    activeType = "guru";
+  }
   document.querySelectorAll(".nav-item").forEach(function (n) {
     n.classList.remove("active");
   });
-  document.querySelector('[data-page="' + p + '"]').classList.add("active");
+  var navEl = document.querySelector('[data-page="' + p + '"]');
+  if (navEl) navEl.classList.add("active");
   var t = {
     dashboard: "Dashboard",
     laporan: "Laporan Kehadiran",
     rekap: "Rekap Bulanan",
-    siswa: "Data Pegawai",
+    siswa: "Data Master",
     pengaturan: "Pengaturan",
   };
-  document.getElementById("page-title").textContent = t[p];
+  var pageTitle = document.getElementById("page-title");
+  if (pageTitle) pageTitle.textContent = t[p] || "Admin Portal";
   
-  // Close sidebar on mobile
   var sb = document.getElementById("sidebar");
   var ov = document.getElementById("sidebar-overlay");
-  if(sb && sb.classList.contains("mobile-open")) {
+  if (sb && sb.classList.contains("mobile-open")) {
     sb.classList.remove("mobile-open");
     ov.classList.remove("active");
   }
 
-  renderPage();
+  loadData();
 }
 function renderPage() {
   if (currentPage === "dashboard") renderDashboard();
@@ -259,9 +279,18 @@ function renderDashboard() {
   var lblHadir = "Total " + targetType + " Hadir";
   var lblTelat = targetType + " Terlambat";
   c.innerHTML =
-    '<div class="page-header"><h1>Dashboard ' +
+    '<div class="page-header"><div><h1>Dashboard ' +
     targetType +
-    '</h1></div><div class="stats-grid"><div class="stat-card"><div class="stat-info"><h3>' +
+    '</h1><p>Pantau kehadiran ' +
+    (activeType == "guru" ? "pegawai dan guru" : "seluruh siswa") +
+    ' secara real-time.</p></div><div class="header-actions">' +
+    '<button class="btn ' +
+    btnG +
+    '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
+    '<button class="btn ' +
+    btnS +
+    '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Siswa</button>' +
+    '</div></div>' + getAuthAlertHtml() + '<div class="stats-grid"><div class="stat-card"><div class="stat-info"><h3>' +
     lblHadir +
     '</h3><div class="value">' +
     (stats.totalHadir || 0) +
@@ -324,17 +353,33 @@ function renderLaporan() {
   var c = document.getElementById("main-content");
   var btnS = activeType == "siswa" ? "btn-primary" : "btn-outline";
   var btnG = activeType == "guru" ? "btn-primary" : "btn-outline";
+  var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
+  var sendWaliBtn = activeType == "siswa" 
+    ? '<button class="btn btn-primary" onclick="propagateEmail()"><i data-lucide="mail" style="width:16px"></i> Kirim ke Wali Kelas</button>' 
+    : '';
+
   c.innerHTML =
-    '<div class="page-header"><h1>Laporan Kehadiran ' +
-    (activeType == "guru" ? "Pegawai" : "Siswa") +
+    '<div class="page-header"><div><h1>Laporan Kehadiran ' +
+    targetType +
     "</h1><p>Kelola dan pantau data kehadiran harian " +
-    (activeType == "guru" ? "pegawai" : "siswa") +
-    ' dengan verifikasi selfie.</p><div class="header-actions" style="margin-top:10px"><button class="btn btn-outline" onclick="window.print()"><i data-lucide="printer" style="width:16px"></i> Cetak Laporan</button><button class="btn btn-danger" onclick="exportPDF()"><i data-lucide="file-text" style="width:16px"></i> Export PDF</button><button class="btn btn-success" onclick="exportExcel()"><i data-lucide="file-spreadsheet" style="width:16px"></i> Export Excel</button><button class="btn btn-primary" onclick="propagateEmail()"><i data-lucide="mail" style="width:16px"></i> Kirim ke Wali Kelas</button></div></div><div class="card"><div class="card-body"><div class="filters"><div class="filter-group"><div class="filter-label">Filter ' +
+    (activeType == "guru" ? "pegawai dan guru" : "siswa") +
+    ' dengan verifikasi selfie.</p></div><div class="header-actions">' +
+    '<button class="btn ' +
+    btnG +
+    '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
+    '<button class="btn ' +
+    btnS +
+    '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Siswa</button>' +
+    '</div></div>' +
+    getAuthAlertHtml() +
+    '<div class="header-actions" style="margin-bottom:15px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-outline" onclick="window.print()"><i data-lucide="printer" style="width:16px"></i> Cetak Laporan</button><button class="btn btn-danger" onclick="exportPDF()"><i data-lucide="file-text" style="width:16px"></i> Export PDF</button><button class="btn btn-success" onclick="exportExcel()"><i data-lucide="file-spreadsheet" style="width:16px"></i> Export Excel</button>' +
+    sendWaliBtn +
+    '</div><div class="card"><div class="card-body"><div class="filters"><div class="filter-group"><div class="filter-label">Filter ' +
     (activeType == "guru" ? "Jabatan" : "Unit / Kelas") +
     '</div><div class="filter-tabs" id="filter-tabs"></div></div><div class="filter-group"><div class="filter-label">Tanggal Laporan</div><input type="date" class="form-input" value="' +
     (currentFilterDate || "") +
     '" onchange="changeDate(this.value)" style="max-width:200px"></div></div>' +
-    '<div class="print-header print-only"><img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo"><div class="print-header-text"><h1>LAPORAN KEHADIRAN PEGAWAI</h1><p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p><p>Tanggal: ' + currentFilterDate + '</p></div></div>' +
+    '<div class="print-header print-only"><img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo"><div class="print-header-text"><h1>LAPORAN KEHADIRAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h1><p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p><p>Tanggal: ' + currentFilterDate + '</p></div></div>' +
     '<table class="table"><thead><tr><th>Nama</th><th>' +
     (activeType == "guru" ? "Jabatan" : "Unit / Kelas") +
     '</th><th>Tanggal</th><th>Jam Masuk</th><th>Status</th><th>Verifikasi</th><th>Aksi</th></tr></thead><tbody id="lap-table"></tbody></table>' +
@@ -346,43 +391,63 @@ function renderLaporan() {
 }
 function renderFilters() {
   var t = document.getElementById("filter-tabs");
+  if (!t) return;
+  var roles = ["Semua"];
   if (activeType == "siswa") {
-    t.innerHTML =
-      '<button class="filter-tab ' +
-      (filterKelas == "Semua" ? "active" : "") +
-      '" onclick="setFilter(this,\'Semua\')">Semua</button><button class="filter-tab ' +
-      (filterKelas == "X" ? "active" : "") +
-      '" onclick="setFilter(this,\'X\')">Kelas X</button><button class="filter-tab ' +
-      (filterKelas == "XI" ? "active" : "") +
-      '" onclick="setFilter(this,\'XI\')">Kelas XI</button><button class="filter-tab ' +
-      (filterKelas == "XII" ? "active" : "") +
-      '" onclick="setFilter(this,\'XII\')">Kelas XII</button>';
-  } else {
-    var roles = ["Semua"];
+    if (availableClasses && availableClasses.length > 0) {
+      for (var c = 0; c < availableClasses.length; c++) {
+        var clsName = (availableClasses[c].nama || "").trim();
+        if (clsName && roles.indexOf(clsName) === -1) roles.push(clsName);
+      }
+    }
     if (students && students.length > 0) {
-      var u = {};
+      for (var s = 0; s < students.length; s++) {
+        var sk = (students[s].kelas || "").trim();
+        if (sk && roles.indexOf(sk) === -1) roles.push(sk);
+      }
+    }
+    if (attendance && attendance.length > 0) {
+      for (var a = 0; a < attendance.length; a++) {
+        if (!attendance[a].type || attendance[a].type === "Siswa") {
+          var ak = (attendance[a].kelas || "").trim();
+          if (ak && roles.indexOf(ak) === -1) roles.push(ak);
+        }
+      }
+    }
+  } else {
+    if (students && students.length > 0) {
       for (var i = 0; i < students.length; i++) {
-        if (students[i].jabatan) {
-          var jbs = students[i].jabatan.split(',');
+        var jbStr = students[i].jabatan || students[i].kelas || "";
+        if (jbStr) {
+          var jbs = jbStr.split(',');
           for (var x = 0; x < jbs.length; x++) {
-            if (jbs[x].trim()) u[jbs[x].trim()] = 1;
+            var jbClean = jbs[x].trim();
+            if (jbClean && roles.indexOf(jbClean) === -1) roles.push(jbClean);
           }
         }
       }
-      for (var k in u) roles.push(k);
     }
-    var h = "";
-    for (var j = 0; j < roles.length; j++)
-      h +=
-        '<button class="filter-tab ' +
-        (filterKelas == roles[j] ? "active" : "") +
-        '" onclick="setFilter(this,\'' +
-        roles[j] +
-        "')\">" +
-        roles[j] +
-        "</button>";
-    t.innerHTML = h;
+    if (attendance && attendance.length > 0) {
+      for (var a2 = 0; a2 < attendance.length; a2++) {
+        if (attendance[a2].type === "Guru") {
+          var ak2 = (attendance[a2].kelas || "").trim();
+          if (ak2 && roles.indexOf(ak2) === -1) roles.push(ak2);
+        }
+      }
+    }
   }
+  var h = "";
+  for (var j = 0; j < roles.length; j++) {
+    h +=
+      '<button class="filter-tab ' +
+      (filterKelas == roles[j] ? "active" : "") +
+      '" onclick="setFilter(this,\'' +
+      roles[j] +
+      "')\">" +
+      roles[j] +
+      "</button>";
+  }
+  t.innerHTML = h;
 }
 function setFilter(el, f) {
   filterKelas = f;
@@ -497,23 +562,81 @@ function renderRekap() {
   var c = document.getElementById("main-content");
   var btnS = activeType == "siswa" ? "btn-primary" : "btn-outline";
   var btnG = activeType == "guru" ? "btn-primary" : "btn-outline";
+  var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
+
+  var monthOptions = "";
+  var monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  for (var mIdx = 1; mIdx <= 12; mIdx++) {
+    var mSel = (mIdx === currentRekapMonth) ? "selected" : "";
+    monthOptions += '<option value="' + mIdx + '" ' + mSel + '>' + monthNames[mIdx - 1] + '</option>';
+  }
+
+  var yearOptions = "";
+  var thisYear = new Date().getFullYear();
+  for (var y = thisYear - 1; y <= thisYear + 1; y++) {
+    var ySel = (y === currentRekapYear) ? "selected" : "";
+    yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
+  }
+
   c.innerHTML =
-    '<div class="page-header"><h1>Rekap Bulanan</h1><p>Rekap kehadiran ' +
-    activeType +
-    ' per bulan dengan status harian.</p><div class="header-actions"><button class="btn btn-outline" onclick="window.print()"><i data-lucide="printer" style="width:16px"></i> Cetak Rekap</button></div></div><div class="card"><div class="card-body" id="rekap-content"><p style="text-align:center;padding:30px;color:var(--gray)">Memuat data ' +
-    activeType +
+    '<div class="page-header"><div><h1>Rekap Bulanan ' +
+    targetType +
+    '</h1><p>Rekap kehadiran ' +
+    (activeType == "guru" ? "pegawai dan guru" : "siswa") +
+    ' per bulan dengan status harian.</p></div><div class="header-actions">' +
+    '<button class="btn ' +
+    btnG +
+    '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
+    '<button class="btn ' +
+    btnS +
+    '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Siswa</button>' +
+    '</div></div>' +
+    getAuthAlertHtml() +
+    '<div class="card" style="margin-bottom:15px;"><div class="card-body" style="padding:15px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;">' +
+    '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+    '<span style="font-weight:600;font-size:13px;color:var(--gray);">Pilih Periode:</span>' +
+    '<select class="form-select" id="rekap-month" style="width:140px;display:inline-block;" onchange="changeRekapPeriod()">' + monthOptions + '</select>' +
+    '<select class="form-select" id="rekap-year" style="width:100px;display:inline-block;" onchange="changeRekapPeriod()">' + yearOptions + '</select>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;">' +
+    '<button class="btn btn-outline" onclick="window.print()"><i data-lucide="printer" style="width:16px"></i> Cetak Rekap</button>' +
+    '</div>' +
+    '</div></div>' +
+    '<div class="card"><div class="card-body" id="rekap-content"><p style="text-align:center;padding:30px;color:var(--gray)">Memuat data ' +
+    targetType +
     "...</p></div></div>";
+  lucide.createIcons();
+  loadRekapData();
+}
+
+function changeRekapPeriod() {
+  var mEl = document.getElementById("rekap-month");
+  var yEl = document.getElementById("rekap-year");
+  if (mEl) currentRekapMonth = parseInt(mEl.value, 10);
+  if (yEl) currentRekapYear = parseInt(yEl.value, 10);
+  loadRekapData();
+}
+
+function loadRekapData() {
+  var rc = document.getElementById("rekap-content");
+  if (rc) {
+    rc.innerHTML = '<p style="text-align:center;padding:30px;color:var(--gray);"><i data-lucide="loader" class="rotating" style="width:24px;height:24px;animation:spin 1s linear infinite;"></i><br><br>Memuat rekap...</p>';
+    lucide.createIcons();
+  }
   window.callGasAPI(
     "getMonthlyRecap",
     {
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
+      month: currentRekapMonth,
+      year: currentRekapYear,
       type: activeType,
     },
     function (r) {
       rekapData = r;
       showRekapTable();
     },
+    function (err) {
+      if (rc) rc.innerHTML = '<p style="text-align:center;padding:30px;color:var(--danger)">Gagal memuat rekap: ' + err + '</p>';
+    }
   );
 }
 function showRekapTable() {
@@ -526,23 +649,31 @@ function showRekapTable() {
   // Extract unique roles for filtering
   var roles = ["Semua"];
   var u = {};
+  if (activeType === "siswa" && availableClasses && availableClasses.length > 0) {
+    for (var cIdx = 0; cIdx < availableClasses.length; cIdx++) {
+      var cName = (availableClasses[cIdx].nama || "").trim();
+      if (cName) u[cName] = 1;
+    }
+  }
   for (var i = 0; i < rekapData.students.length; i++) {
     if (rekapData.students[i].kelas) {
       var jbs = rekapData.students[i].kelas.split(',');
       for (var x = 0; x < jbs.length; x++) {
-        if (jbs[x].trim()) u[jbs[x].trim()] = 1;
+        var cln = jbs[x].trim();
+        if (cln) u[cln] = 1;
       }
     }
   }
   for (var key in u) roles.push(key);
 
-  var filterHtml = '<div class="filters" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid var(--border)"><div class="filter-group"><div class="filter-label">Filter Kategori / Unit</div><div class="filter-tabs">';
+  var filterLabel = activeType === "guru" ? "Filter Jabatan" : "Filter Unit / Kelas";
+  var filterHtml = '<div class="filters" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid var(--border)"><div class="filter-group"><div class="filter-label">' + filterLabel + '</div><div class="filter-tabs">';
   for (var j = 0; j < roles.length; j++) {
     filterHtml += '<button class="filter-tab ' + (filterKelas == roles[j] ? "active" : "") + '" onclick="filterRekap(\'' + roles[j] + '\')">' + roles[j] + '</button>';
   }
   filterHtml += '</div></div></div>';
 
-  var printHeader = '<div class="print-header print-only"><img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo"><div class="print-header-text"><h1>REKAPITULASI KEHADIRAN PEGAWAI</h1><p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p><p>Kategori: ' + filterKelas + ' | Bulan: ' + new Date().toLocaleString('id-ID', {month: 'long', year: 'numeric'}) + '</p></div></div>';
+  var printHeader = '<div class="print-header print-only"><img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo"><div class="print-header-text"><h1>REKAPITULASI KEHADIRAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h1><p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p><p>Kategori: ' + filterKelas + ' | Bulan: ' + new Date().toLocaleString('id-ID', {month: 'long', year: 'numeric'}) + '</p></div></div>';
 
   var h = filterHtml + printHeader + '<div class="table-responsive"><table class="table rekap-table"><thead><tr><th style="text-align:left;min-width:150px">Nama</th>';
   for (var d = 1; d <= rekapData.daysInMonth; d++) h += "<th>" + d + "</th>";
@@ -625,12 +756,21 @@ function renderSiswa() {
   var btnS = activeType == "siswa" ? "btn-primary" : "btn-outline";
   var btnG = activeType == "guru" ? "btn-primary" : "btn-outline";
   var btnK = activeType == "kelas" ? "btn-primary" : "btn-outline";
+  var title = activeType == "guru" ? "Data Pegawai" : (activeType == "siswa" ? "Data Siswa" : "Data Unit / Kelas");
+  var desc = activeType == "guru" ? "Kelola data Pegawai, Guru, dan Jabatan." : (activeType == "siswa" ? "Kelola data Siswa dan Unit / Kelas." : "Kelola data Unit, Kelas, dan Wali Kelas.");
+
   c.innerHTML =
-    '<div class="page-header"><h1>Data Pegawai</h1><p>Kelola data Pegawai dan Unit/Departemen.</p><div class="header-actions"><button class="btn ' +
+    '<div class="page-header"><div><h1>' + title + '</h1><p>' + desc + '</p></div><div class="header-actions">' +
+    '<button class="btn ' +
     btnG +
-    '" onclick="switchType(\'guru\')">Data Pegawai</button><button class="btn ' +
+    '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Data Pegawai</button>' +
+    '<button class="btn ' +
+    btnS +
+    '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Data Siswa</button>' +
+    '<button class="btn ' +
     btnK +
-    '" onclick="switchType(\'kelas\')">Data Unit / Kelas</button></div><div class="header-actions" style="margin-top:10px"><button class="btn btn-primary" onclick="showAddModal()"><i data-lucide="plus" style="width:16px"></i> Tambah ' +
+    '" onclick="switchType(\'kelas\')"><i data-lucide="building-2" style="width:16px"></i> Data Unit / Kelas</button>' +
+    '</div></div>' + getAuthAlertHtml() + '<div class="header-actions" style="margin-top:10px"><button class="btn btn-primary" onclick="showAddModal()"><i data-lucide="plus" style="width:16px"></i> Tambah ' +
     (activeType == "guru"
       ? "Pegawai"
       : activeType == "kelas"
@@ -747,7 +887,17 @@ function showAddModal() {
                  '<option value="Kebersihan">Kebersihan</option>' +
                  '</select><small style="color:var(--gray);font-size:11px">Tahan Ctrl (Windows) atau Cmd (Mac) untuk memilih lebih dari satu.</small>';
     } else {
-      subInput = '<input type="text" class="form-input" id="add-kelas" placeholder="Misal: TK, SDIT (Pisahkan dg koma jika >1)">';
+      var classOptions = "";
+      if (availableClasses && availableClasses.length > 0) {
+        for (var cIdx = 0; cIdx < availableClasses.length; cIdx++) {
+          var cName = (availableClasses[cIdx].nama || "").trim();
+          if (cName) classOptions += '<option value="' + cName + '">' + cName + '</option>';
+        }
+      }
+      if (!classOptions) {
+        classOptions = '<option value="Rumah Quran">Rumah Quran</option><option value="TK">TK</option><option value="SDIT Kelas 1">SDIT Kelas 1</option><option value="SDIT Kelas 2">SDIT Kelas 2</option><option value="SMP">SMP</option>';
+      }
+      subInput = '<select class="form-select" id="add-kelas">' + classOptions + '</select><small style="color:var(--gray);font-size:11px">Pilihan Unit / Kelas diambil otomatis dari master Data Unit / Kelas.</small>';
     }
 
     m.innerHTML =
@@ -981,7 +1131,23 @@ function editSiswa(id) {
     
     subInput += '</select><small style="color:var(--gray);font-size:11px">Tahan Ctrl/Cmd untuk multiseleksi.</small>';
   } else {
-    subInput = '<input type="text" class="form-input" id="edit-kelas" value="' + (sub || "") + '">';
+    var classOptions = "";
+    var currentClass = (sub || "").trim();
+    var foundCurrent = false;
+    if (availableClasses && availableClasses.length > 0) {
+      for (var c2 = 0; c2 < availableClasses.length; c2++) {
+        var cName2 = (availableClasses[c2].nama || "").trim();
+        if (cName2) {
+          var isSel = cName2 === currentClass ? "selected" : "";
+          if (isSel) foundCurrent = true;
+          classOptions += '<option value="' + cName2 + '" ' + isSel + '>' + cName2 + '</option>';
+        }
+      }
+    }
+    if (!foundCurrent && currentClass) {
+      classOptions = '<option value="' + currentClass + '" selected>' + currentClass + '</option>' + classOptions;
+    }
+    subInput = '<select class="form-select" id="edit-kelas">' + classOptions + '</select><small style="color:var(--gray);font-size:11px">Pilihan Unit / Kelas sinkron dengan master Data Kelas.</small>';
   }
 
   m.innerHTML =
@@ -1130,7 +1296,7 @@ function exportPDF() {
     // Kop Surat (Sebagai Judul Laporan)
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
-    var docTitle = "LAPORAN KEHADIRAN PEGAWAI";
+    var docTitle = "LAPORAN KEHADIRAN " + (activeType === "guru" ? "PEGAWAI" : "SISWA");
     if (filterKelas !== "Semua") docTitle += " (" + filterKelas.toUpperCase() + ")";
     doc.text(docTitle, pageWidth / 2, 40, { align: "center" });
     doc.setFontSize(10);
@@ -1230,7 +1396,8 @@ function exportExcel() {
   }
   var ws = XLSX.utils.aoa_to_sheet(data);
   XLSX.utils.book_append_sheet(wb, ws, "Kehadiran");
-  XLSX.writeFile(wb, "laporan.xlsx");
+  var fileName = "laporan_kehadiran_" + (activeType === "guru" ? "pegawai" : "siswa") + "_" + (currentFilterDate || "hari_ini") + ".xlsx";
+  XLSX.writeFile(wb, fileName);
   showToast("Excel diunduh", "success");
 }
 function showToast(m, t) {
