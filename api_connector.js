@@ -38,9 +38,13 @@ window.callGasAPI = function (action, payload, onSuccess, onError) {
             }
         })
         .catch(err => {
-            var errMsg = "Koneksi ke backend gagal: " + err.toString();
-            window.lastApiError = errMsg;
-            console.error("API Call Error:", err);
-            if (onError) onError(errMsg);
+            var errMsg = err.toString();
+            var detail = "Koneksi ke backend gagal: " + errMsg;
+            if (errMsg.includes("Failed to fetch") || errMsg.includes("NetworkError")) {
+                detail = "Google Apps Script meminta Login Google (Redirect 302). Solusi: Di Google Script Editor, pilih Deploy > Manage deployments > Edit > Ubah 'Who has access' (Siapa yang memiliki akses) menjadi 'Anyone' (Siapa saja). Jika memakai akun belajar.id / sekolah, gunakan akun Gmail biasa (@gmail.com) karena akun instansi membatasi akses publik.";
+            }
+            window.lastApiError = detail;
+            console.error("API Call Error:", detail, err);
+            if (onError) onError(detail);
         });
 };

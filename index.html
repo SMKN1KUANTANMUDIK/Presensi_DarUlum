@@ -10,7 +10,9 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap"
+    rel="stylesheet">
   <script src='https://unpkg.com/lucide@latest'></script>
   <script src='https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js'></script>
   <script src='https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js'></script>
@@ -21,13 +23,18 @@
   <div class='student-page'>
     <div class='att-box'>
       <div class='att-header' id='student-header'>
-        <div id='student-logo-container' style='display:none; height:60px; margin-bottom:10px;'></div>
+        <div id='student-logo-container'
+          style='display:flex; justify-content:center; align-items:center; margin-bottom:14px;'>
+          <img src='icon-192.png' alt='Logo Yayasan Darul Ulum Islamiyyah'
+            style='width:72px; height:72px; object-fit:contain; border-radius:16px; box-shadow:0 6px 16px rgba(0,0,0,0.08); background:#ffffff; padding:5px;'>
+        </div>
         <h1>Yayasan Darul Ulum Islamiyyah</h1>
         <p>Portal Absensi Digital</p>
       </div>
       <div class='att-body' id='student-content'></div>
     </div>
-    <div style="position:absolute; bottom:15px; right:15px; cursor:pointer; opacity:0.3; padding:10px;" onclick="checkAdmin()">
+    <div style="position:absolute; bottom:15px; right:15px; cursor:pointer; opacity:0.3; padding:10px;"
+      onclick="checkAdmin()">
       <i data-lucide="lock" style="width:16px; color:#fff;"></i>
     </div>
   </div>
