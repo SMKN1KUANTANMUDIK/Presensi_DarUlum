@@ -6,16 +6,6 @@ document.addEventListener("DOMContentLoaded", function () {
   lucide.createIcons();
   showOptions();
   loadFace(); // Pre-load FaceAPI models
-
-  // Load settings for logo (jika ada logo kustom dari pengaturan, perbarui src gambar)
-  window.callGasAPI("getSettings", {}, function (r) {
-    if (r.settings && r.settings.logoUrl) {
-      var cont = document.getElementById("student-logo-container");
-      if (cont) {
-        cont.innerHTML = '<img src="' + r.settings.logoUrl + '" alt="Logo Yayasan" style="width:72px; height:72px; object-fit:contain; border-radius:16px; box-shadow:0 6px 16px rgba(0,0,0,0.08); background:#ffffff; padding:5px;">';
-      }
-    }
-  });
 });
 function showOptions() {
   stopCam();

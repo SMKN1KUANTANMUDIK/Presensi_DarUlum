@@ -1050,10 +1050,10 @@ h1, h2, h3, h4, h5, h6 {
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* Paksa posisi atas (align to top) */
   justify-content: center;
-  padding: 20px;
-  overflow: hidden;
+  padding: 24px 16px 50px;
+  overflow-y: auto;
 }
 
 .student-page::before {
@@ -1079,12 +1079,13 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(212, 175, 55, 0.3); /* Gold border hint */
   position: relative;
   z-index: 10;
+  margin-top: 6px;
 }
 
 .att-header {
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   color: #fff;
-  padding: 40px 30px;
+  padding: 28px 24px 24px;
   text-align: center;
   position: relative;
 }
