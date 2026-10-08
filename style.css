@@ -1201,6 +1201,40 @@ h1, h2, h3, h4, h5, h6 {
   display: block;
 }
 
+.camera-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(5, 150, 105, 0.95);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  z-index: 5;
+  animation: fadeIn 0.3s ease;
+}
+
+.camera-flash {
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  transition: opacity 0.2s ease;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .face-status {
   padding: 14px;
   border-radius: var(--radius-md);

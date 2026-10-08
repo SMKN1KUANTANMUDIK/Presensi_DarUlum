@@ -236,14 +236,59 @@ function captureSubmit() {
   }
 
   var v = document.getElementById("selfie-video");
+  if (!v || !v.videoWidth) {
+    showToast("Kamera belum siap, mohon tunggu sebentar...", "error");
+    return;
+  }
+
+  // 1. Ambil capture resolusi tinggi dari video sebelum kamera dimatikan
+  var previewCanvas = document.createElement("canvas");
+  previewCanvas.width = v.videoWidth;
+  previewCanvas.height = v.videoHeight;
+  var pctx = previewCanvas.getContext("2d");
+  pctx.drawImage(v, 0, 0, previewCanvas.width, previewCanvas.height);
+  var previewUrl = previewCanvas.toDataURL("image/jpeg", 0.9);
+
+  // 2. Bekukan tampilan kamera dengan foto capturean (Layar TIDAK akan menjadi hitam!)
+  var camBox = document.querySelector(".camera-box");
+  if (camBox) {
+    camBox.innerHTML = 
+      '<img id="frozen-capture" src="' + previewUrl + '" class="camera-video" style="object-fit:cover; display:block;">' +
+      '<div class="camera-badge"><i data-lucide="camera" style="width:14px;height:14px;"></i> Foto Terambil</div>' +
+      '<div class="camera-flash" id="cam-flash"></div>';
+    lucide.createIcons();
+
+    // Efek flash kamera saat memotret
+    var flashEl = document.getElementById("cam-flash");
+    if (flashEl) {
+      flashEl.style.opacity = "0.75";
+      setTimeout(function() { flashEl.style.opacity = "0"; }, 150);
+    }
+  }
+
+  // Hentikan hardware kamera fisik di background (preview foto tetap tampak jelas)
+  stopCam();
+
+  var fsEl = document.getElementById("fs");
+  var sbtnEl = document.getElementById("sbtn");
+  if (fsEl) {
+    fsEl.className = "face-status loading";
+    fsEl.innerHTML = '<i data-lucide="loader" style="width:14px;height:14px;display:inline-block;animation:spin 1s linear infinite;margin-right:6px;vertical-align:-2px;"></i> Memverifikasi wajah...';
+    lucide.createIcons();
+  }
+  if (sbtnEl) {
+    sbtnEl.disabled = true;
+    sbtnEl.innerHTML = '<i data-lucide="loader" style="width:16px;height:16px;display:inline-block;animation:spin 1s linear infinite;margin-right:6px;vertical-align:-2px;"></i> Memproses Absen...';
+    lucide.createIcons();
+  }
+
+  // 3. Canvas untuk FaceAPI & data upload ke Google Drive
   var cv = document.createElement("canvas");
   var maxWidth = 200;
-  var scale = maxWidth / v.videoWidth;
+  var scale = maxWidth / previewCanvas.width;
   cv.width = maxWidth;
-  cv.height = v.videoHeight * scale;
-  cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height);
-  document.getElementById("fs").textContent = "Mengirim data...";
-  document.getElementById("sbtn").disabled = true;
+  cv.height = previewCanvas.height * scale;
+  cv.getContext("2d").drawImage(previewCanvas, 0, 0, cv.width, cv.height);
 
   faceapi
     .detectSingleFace(cv, new faceapi.TinyFaceDetectorOptions())
@@ -251,9 +296,20 @@ function captureSubmit() {
     .withFaceDescriptor()
     .then(function (d) {
       if (!d) {
-        document.getElementById("fs").className = "face-status error";
-        document.getElementById("fs").textContent = "Wajah tidak terdeteksi";
-        document.getElementById("sbtn").disabled = false;
+        if (fsEl) {
+          fsEl.className = "face-status error";
+          fsEl.textContent = "Wajah tidak terdeteksi. Silakan coba lagi.";
+        }
+        if (sbtnEl) {
+          sbtnEl.disabled = false;
+          sbtnEl.innerHTML = '<i data-lucide="camera" style="width:16px;"></i> Absen Sekarang';
+          lucide.createIcons();
+        }
+        // Kembalikan video aktif jika tidak terdeteksi
+        if (camBox) {
+          camBox.innerHTML = '<video id="selfie-video" class="camera-video" autoplay playsinline></video>';
+          startSelfie();
+        }
         return;
       }
       var desc = d.descriptor;
@@ -280,7 +336,6 @@ function captureSubmit() {
         newDesc = Array.from(desc);
       }
       var photo = cv.toDataURL("image/jpeg", 0.3);
-      stopCam();
 
       var selectedRole = currentStudent.kelas;
       var roleSelect = document.getElementById("role-select");
@@ -300,6 +355,12 @@ function captureSubmit() {
         newDescriptor: newDesc
       };
 
+      if (fsEl) {
+        fsEl.className = "face-status loading";
+        fsEl.innerHTML = '<i data-lucide="loader" style="width:14px;height:14px;display:inline-block;animation:spin 1s linear infinite;margin-right:6px;vertical-align:-2px;"></i> Menyimpan absensi ke database...';
+        lucide.createIcons();
+      }
+
       window.callGasAPI(
         "recordAttendance",
         payload,
@@ -314,15 +375,21 @@ function captureSubmit() {
       );
     })
     .catch(function (err) {
-      // Tangani error tak terduga dari FaceAPI (model belum siap, canvas rusak, dll)
+      // Tangani error tak terduga dari FaceAPI
       console.error("FaceAPI detection error:", err);
-      var fsEl = document.getElementById("fs");
-      var sbtnEl = document.getElementById("sbtn");
       if (fsEl) {
         fsEl.className = "face-status error";
-        fsEl.textContent = "Error deteksi wajah, coba lagi";
+        fsEl.textContent = "Error deteksi wajah, silakan coba lagi";
       }
-      if (sbtnEl) sbtnEl.disabled = false;
+      if (sbtnEl) {
+        sbtnEl.disabled = false;
+        sbtnEl.innerHTML = '<i data-lucide="camera" style="width:16px;"></i> Absen Sekarang';
+        lucide.createIcons();
+      }
+      if (camBox) {
+        camBox.innerHTML = '<video id="selfie-video" class="camera-video" autoplay playsinline></video>';
+        startSelfie();
+      }
     });
 }
 
