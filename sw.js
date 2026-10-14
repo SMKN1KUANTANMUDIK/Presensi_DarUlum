@@ -1,9 +1,10 @@
-const CACHE_NAME = 'absensi-cache-v6';
+const CACHE_NAME = 'absensi-cache-v8';
 const PRECACHE_URLS = [
   './',
   './index.html',
   './admin.html',
   './style.css',
+  './holidays.js',
   './student.js',
   './admin.js',
   './api_connector.js',

@@ -324,9 +324,22 @@ function renderDashboard() {
     lblTelat +
     '</h3><div class="value">' +
     (stats.totalTerlambat || 0) +
-    '</div><div class="trend down">-2% Membaik</div></div><div class="stat-icon orange"><i data-lucide="clock"></i></div></div><div class="stat-card" style="cursor:pointer" onclick="showUnattendedModal()" title="Klik untuk lihat nama yang belum absen"><div class="stat-info"><h3>Belum Absen</h3><div class="value">' +
-    (stats.belumAbsen || 0) +
-    '</div><div class="trend down" style="color:var(--primary);text-decoration:underline;cursor:pointer">Klik Lihat Daftar</div></div><div class="stat-icon red"><i data-lucide="user-x"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Akurasi Selfie</h3><div class="value">' +
+    '</div><div class="trend down">-2% Membaik</div></div><div class="stat-icon orange"><i data-lucide="clock"></i></div></div>';
+
+  var todayInfo = getDayInfo();
+  var isTodayLibur = todayInfo.isHoliday;
+  var pendingValue = isTodayLibur ? 'Libur' : (stats.belumAbsen || 0);
+  var pendingTrend = todayInfo.isNationalHoliday 
+    ? ('Libur: ' + (todayInfo.holidayName.length > 20 ? todayInfo.holidayName.substring(0, 18) + '...' : todayInfo.holidayName))
+    : (todayInfo.isWeekend ? 'Hari Libur Akhir Pekan' : 'Klik Lihat Daftar');
+  var pendingIcon = isTodayLibur ? 'calendar' : 'user-x';
+  var pendingColor = isTodayLibur ? 'green' : 'red';
+
+  c.innerHTML += '<div class="stat-card" style="cursor:pointer" onclick="showUnattendedModal()" title="Klik untuk lihat nama yang belum absen"><div class="stat-info"><h3>Belum Absen</h3><div class="value">' +
+    pendingValue +
+    '</div><div class="trend down" style="color:var(--primary);text-decoration:underline;cursor:pointer">' +
+    pendingTrend +
+    '</div></div><div class="stat-icon ' + pendingColor + '"><i data-lucide="' + pendingIcon + '"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Akurasi Selfie</h3><div class="value">' +
     pct +
     '%</div><div class="trend up">AI Verification</div></div><div class="stat-icon blue"><i data-lucide="scan-face"></i></div></div></div><div class="feed-header"><div class="feed-title">Feed Absensi Real-time <span class="live-badge"><span class="live-dot"></span> LIVE</span></div><div style="display:flex;gap:10px"><button class="btn btn-outline" onclick="loadData()"><i data-lucide="filter" style="width:14px"></i> Refresh</button><button class="btn btn-primary" onclick="exportExcel()"><i data-lucide="download" style="width:14px"></i> Export Log</button></div></div><div class="feed-grid">' +
     feed +
@@ -340,8 +353,83 @@ function renderDashboard() {
   lucide.createIcons();
 }
 
+function getDayInfo(dStr) {
+  var dt;
+  if (dStr) {
+    var s = String(dStr).trim();
+    if (s.indexOf("'") === 0) s = s.substring(1);
+    var p = s.split("-");
+    if (p.length === 3) {
+      dt = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+    }
+  }
+  if (!dt || isNaN(dt.getTime())) {
+    dt = new Date();
+  }
+  var dow = dt.getDay(); // 0 = Minggu, 6 = Sabtu
+  var dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  var isWeekend = (dow === 0 || dow === 6);
+  var y = dt.getFullYear();
+  var m = String(dt.getMonth() + 1).padStart(2, '0');
+  var d = String(dt.getDate()).padStart(2, '0');
+  var isoDate = y + '-' + m + '-' + d;
+
+  var holidayInfo = null;
+  if (window.HolidayManager && typeof window.HolidayManager.getHoliday === "function") {
+    holidayInfo = window.HolidayManager.getHoliday(isoDate);
+  }
+  var isNationalHoliday = !!(holidayInfo && holidayInfo.isHoliday);
+  var holidayName = holidayInfo ? (holidayInfo.name || "") : "";
+  var isHoliday = isWeekend || isNationalHoliday;
+
+  return {
+    dayOfWeek: dow,
+    isWeekend: isWeekend,
+    isNationalHoliday: isNationalHoliday,
+    isHoliday: isHoliday,
+    holidayName: holidayName,
+    holidayObj: holidayInfo,
+    dayName: dayNames[dow],
+    dateObj: dt,
+    isoDate: isoDate
+  };
+}
+
+function setFilterDateToday() {
+  var now = new Date();
+  var y = now.getFullYear();
+  var m = String(now.getMonth() + 1).padStart(2, '0');
+  var d = String(now.getDate()).padStart(2, '0');
+  changeDate(y + '-' + m + '-' + d);
+}
+
 function showUnattendedModal() {
   var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
+  var todayInfo = getDayInfo();
+
+  if (todayInfo.isHoliday) {
+    var m = document.getElementById("modal");
+    var title = todayInfo.isNationalHoliday ? ('Hari Libur: ' + todayInfo.holidayName) : ('Hari Libur Akhir Pekan (' + todayInfo.dayName + ')');
+    var heading = todayInfo.isNationalHoliday ? ('Libur: ' + todayInfo.holidayName) : 'Sabtu & Minggu: Hari Libur';
+    var iconName = todayInfo.isNationalHoliday ? 'party-popper' : 'sun';
+    var desc = todayInfo.isNationalHoliday 
+      ? ('Hari ini merupakan hari libur resmi (' + todayInfo.holidayName + ') sesuai Kalender Libur Indonesia. Siswa reguler dan Pegawai tidak diwajibkan melakukan absensi, dan ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>.<br><br><em>Catatan: Siswa unit Rumah Qur\'an memiliki <strong>Jadwal Bebas (Fleksibel)</strong> dan tetap dapat melakukan absensi secara mandiri kapan saja.</em>')
+      : ('Siswa reguler dan Pegawai tidak diwajibkan melakukan absensi pada hari libur akhir pekan, dan ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>.<br><br><em>Catatan: Siswa unit Rumah Qur\'an memiliki <strong>Jadwal Bebas (Fleksibel)</strong> dan tetap dapat melakukan absensi secara mandiri kapan saja.</em>');
+
+    m.innerHTML =
+      '<div class="modal"><div class="modal-header"><span class="modal-title">' + title + '</span><button class="modal-close" onclick="closeModal()">&times;</button></div>' +
+      '<div class="modal-body" style="padding:25px;text-align:center;">' +
+      '<div style="width:56px;height:56px;border-radius:50%;background:#fef3c7;display:inline-flex;align-items:center;justify-content:center;margin-bottom:15px;"><i data-lucide="' + iconName + '" style="width:28px;height:28px;color:#d97706;"></i></div>' +
+      '<h3 style="color:#b45309;margin-bottom:8px;">' + heading + '</h3>' +
+      '<p style="color:var(--text-muted);font-size:13px;line-height:1.6;max-width:440px;margin:0 auto 15px;">' +
+      desc +
+      '</p>' +
+      '</div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Tutup</button></div></div>';
+    m.classList.add("active");
+    lucide.createIcons();
+    return;
+  }
+
   var attendedIds = {};
   for (var i = 0; i < attendance.length; i++) {
     var a = attendance[i];
@@ -354,6 +442,8 @@ function showUnattendedModal() {
 
   var unattended = students.filter(function (s) {
     if (s.status && s.status !== "Aktif") return false;
+    var isRQ = String(s.kelas || "").toLowerCase().indexOf("rumah quran") > -1;
+    if (isRQ) return false; // Rumah Qur'an jadwal bebas, tidak dicatat alpa/belum absen
     return !attendedIds[String(s.id)];
   });
 
@@ -369,52 +459,163 @@ function showUnattendedModal() {
     }
     listHtml += '</tbody></table></div>';
   }
+  listHtml += '<div style="margin-top:12px;padding:8px 12px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;"><i data-lucide="info" style="width:14px;height:14px;color:var(--primary);"></i> Unit Rumah Qur\'an tidak dimasukkan ke dalam daftar belum absen karena menerapkan Jadwal Bebas.</div>';
 
   m.innerHTML =
     '<div class="modal"><div class="modal-header"><span class="modal-title">Daftar ' + targetType + ' Belum Absen (' + unattended.length + ')</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body">' + listHtml + '</div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Tutup</button></div></div>';
   m.classList.add("active");
   lucide.createIcons();
 }
+
 function renderLaporan() {
   var c = document.getElementById("main-content");
   var btnS = activeType == "siswa" ? "btn-primary" : "btn-outline";
   var btnG = activeType == "guru" ? "btn-primary" : "btn-outline";
   var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
   var sendWaliBtn = activeType == "siswa" 
-    ? '<button class="btn btn-primary" onclick="propagateEmail()"><i data-lucide="mail" style="width:16px"></i> Kirim ke Wali Kelas</button>' 
+    ? '<button class="btn btn-primary btn-sm" onclick="propagateEmail()"><i data-lucide="mail" style="width:15px"></i> Kirim ke Wali Kelas</button>' 
     : '';
 
+  var dayInfo = getDayInfo(currentFilterDate);
+
+  // Status Badge Tanggal
+  var dateBadgeHtml = "";
+  if (dayInfo.isNationalHoliday) {
+    dateBadgeHtml = '<span class="badge badge-libur" style="gap:5px;font-size:12px;padding:6px 12px;"><i data-lucide="party-popper" style="width:14px;height:14px;"></i> ' + dayInfo.dayName + ' • Libur: ' + dayInfo.holidayName + '</span>';
+  } else if (dayInfo.isWeekend) {
+    dateBadgeHtml = '<span class="badge badge-libur" style="gap:5px;font-size:12px;padding:6px 12px;"><i data-lucide="calendar-off" style="width:14px;height:14px;"></i> ' + dayInfo.dayName + ' • Libur Akhir Pekan</span>';
+  } else {
+    dateBadgeHtml = '<span class="badge badge-success" style="gap:5px;font-size:12px;padding:6px 12px;"><i data-lucide="check-circle-2" style="width:14px;height:14px;"></i> ' + dayInfo.dayName + ' • Hari Efektif Belajar</span>';
+  }
+
+  // Banner Libur Nasional atau Libur Akhir Pekan
+  var holidayBannerHtml = "";
+  if (dayInfo.isNationalHoliday) {
+    holidayBannerHtml = '<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#92400e;">' +
+      '<i data-lucide="party-popper" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
+      '<div style="font-size:13px;line-height:1.5;">' +
+      '<strong style="color:#b45309;">Hari Libur Resmi: ' + dayInfo.holidayName + '</strong>' +
+      '<p style="margin:2px 0 0;color:#78350f;">Sesuai Kalender Libur Indonesia (SKB 3 Menteri), hari ini adalah hari libur nasional / cuti bersama. Presensi reguler tidak diwajibkan dan default ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>.' +
+      (activeType === 'siswa' ? '<br><em>Siswa Rumah Qur\'an dapat tetap absen secara mandiri karena menerapkan Jadwal Bebas.</em>' : '') +
+      '</p></div></div>';
+  } else if (dayInfo.isWeekend) {
+    holidayBannerHtml = '<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#92400e;">' +
+      '<i data-lucide="info" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
+      '<div style="font-size:13px;line-height:1.5;">' +
+      '<strong style="color:#b45309;">Sabtu & Minggu adalah Hari Libur Akhir Pekan</strong>' +
+      '<p style="margin:2px 0 0;color:#78350f;">Pada hari libur akhir pekan, presensi reguler tidak diwajibkan dan default ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>. Alpa hanya dihitung jika pada hari efektif belajar (Senin s/d Jumat) tidak mengisi absensi sama sekali.' +
+      (activeType === 'siswa' ? '<br><em>Siswa Rumah Qur\'an dapat tetap absen secara mandiri karena menerapkan Jadwal Bebas.</em>' : '') +
+      '</p></div></div>';
+  }
+
+  // Banner Rumah Qur'an jika sedang memfilter Rumah Qur'an atau unit bebas
+  var isFilteringRQ = String(filterKelas || "").toLowerCase().indexOf("rumah quran") > -1;
+  var rumahQuranBannerHtml = isFilteringRQ
+    ? '<div id="rq-banner-box" style="margin-top:14px;padding:12px 16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#065f46;">' +
+      '<i data-lucide="sparkles" style="width:20px;height:20px;color:#059669;flex-shrink:0;margin-top:2px;"></i>' +
+      '<div style="font-size:13px;line-height:1.5;">' +
+      '<strong style="color:#047857;">Unit Rumah Qur\'an — Jadwal Bebas (Fleksibel)</strong>' +
+      '<p style="margin:2px 0 0;color:#064e3b;">Rumah Qur\'an tidak terikat dengan jadwal absensi reguler lainnya. Siswa dapat hadir kapan saja tanpa batasan terlambat, dan ketidakhadiran <strong>tidak pernah dikenakan status Alpa</strong>.</p>' +
+      '</div></div>'
+    : '<div id="rq-banner-box" style="display:none;margin-top:14px;padding:12px 16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;align-items:flex-start;gap:12px;color:#065f46;"><i data-lucide="sparkles" style="width:20px;height:20px;color:#059669;flex-shrink:0;margin-top:2px;"></i><div style="font-size:13px;line-height:1.5;"><strong style="color:#047857;">Unit Rumah Qur\'an — Jadwal Bebas (Fleksibel)</strong><p style="margin:2px 0 0;color:#064e3b;">Rumah Qur\'an tidak terikat dengan jadwal absensi reguler lainnya. Siswa dapat hadir kapan saja tanpa batasan terlambat, dan ketidakhadiran <strong>tidak pernah dikenakan status Alpa</strong>.</p></div></div>';
+
   c.innerHTML =
-    '<div class="page-header"><div><h1>Laporan Kehadiran ' +
-    targetType +
-    "</h1><p>Kelola dan pantau data kehadiran harian " +
-    (activeType == "guru" ? "pegawai dan guru" : "siswa") +
-    ' dengan verifikasi selfie.</p></div><div class="header-actions">' +
-    '<button class="btn ' +
-    btnG +
-    '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
-    '<button class="btn ' +
-    btnS +
-    '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Siswa</button>' +
-    '</div></div>' +
+    '<div class="page-header">' +
+      '<div>' +
+        '<h1>Laporan Kehadiran ' + targetType + '</h1>' +
+        '<p>Kelola dan pantau data kehadiran harian ' + (activeType == "guru" ? "pegawai dan guru" : "siswa") + ' dengan verifikasi selfie.</p>' +
+      '</div>' +
+      '<div class="header-actions">' +
+        '<button class="btn ' + btnG + '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
+        '<button class="btn ' + btnS + '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Siswa</button>' +
+      '</div>' +
+    '</div>' +
     getAuthAlertHtml() +
-    '<div class="header-actions" style="margin-bottom:15px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-outline" onclick="window.print()"><i data-lucide="printer" style="width:16px"></i> Cetak Laporan</button><button class="btn btn-danger" onclick="exportPDF()"><i data-lucide="file-text" style="width:16px"></i> Export PDF</button><button class="btn btn-success" onclick="exportExcel()"><i data-lucide="file-spreadsheet" style="width:16px"></i> Export Excel</button>' +
-    sendWaliBtn +
-    '</div><div class="card"><div class="card-body"><div class="filters"><div class="filter-group"><div class="filter-label">Filter ' +
-    (activeType == "guru" ? "Jabatan" : "Unit / Kelas") +
-    '</div><div class="filter-tabs" id="filter-tabs"></div></div><div class="filter-group"><div class="filter-label">Tanggal Laporan</div><input type="date" class="form-input" value="' +
-    (currentFilterDate || "") +
-    '" onchange="changeDate(this.value)" style="max-width:200px"></div></div>' +
-    '<div class="print-header print-only"><img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo"><div class="print-header-text"><h1>LAPORAN KEHADIRAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h1><p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p><p>Tanggal: ' + currentFilterDate + '</p></div></div>' +
-    '<table class="table"><thead><tr><th>Nama</th><th>' +
-    (activeType == "guru" ? "Jabatan" : "Unit / Kelas") +
-    '</th><th>Tanggal</th><th>Jam Masuk</th><th>Status</th><th>Verifikasi</th><th>Aksi</th></tr></thead><tbody id="lap-table"></tbody></table>' +
-    '<div class="print-footer print-only"><div class="print-signature">Kamang Baru, ' + currentFilterDate + '<br>Mengetahui,<br>Kepala Yayasan<p></p><b>' + (appSettings.kepalaYayasan || "Pimpinan Yayasan") + '</b></div></div>' +
-    '<div class="pagination"><div class="pagination-info" id="pg-info"></div><div class="pagination-btns"><button class="page-btn">&lt;</button><button class="page-btn active">1</button><button class="page-btn">&gt;</button></div></div></div></div>';
+    '<div class="card" style="margin-bottom:20px;">' +
+      '<div class="card-body" style="padding:20px;">' +
+        '<!-- Baris 1: Aksi Cepat -->' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
+          '<div class="report-actions">' +
+            '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;">Aksi Cepat:</span>' +
+            '<button class="btn btn-outline btn-sm" onclick="window.print()"><i data-lucide="printer" style="width:15px"></i> Cetak</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="exportPDF()"><i data-lucide="file-text" style="width:15px"></i> Export PDF</button>' +
+            '<button class="btn btn-success btn-sm" onclick="exportExcel()"><i data-lucide="file-spreadsheet" style="width:15px"></i> Export Excel</button>' +
+            sendWaliBtn +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
+            '<button class="btn btn-outline btn-sm" onclick="loadData()"><i data-lucide="refresh-cw" style="width:14px"></i> Segarkan Data</button>' +
+          '</div>' +
+        '</div>' +
+        '<!-- Baris 2: Filter Tabs Kategori / Kelas -->' +
+        '<div style="margin-bottom:16px;">' +
+          '<div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;font-weight:700;letter-spacing:0.5px;margin-bottom:8px;">Filter ' + (activeType == "guru" ? "Jabatan" : "Unit / Kelas") + ':</div>' +
+          '<div class="filter-tabs" id="filter-tabs"></div>' +
+        '</div>' +
+        '<!-- Baris 3: Tanggal, Quick Hari Ini, Badge Status, Search -->' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:var(--bg);padding:12px 16px;border-radius:var(--radius-md);border:1px solid var(--border);">' +
+          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+            '<div style="display:flex;align-items:center;gap:6px;"><i data-lucide="calendar" style="width:16px;color:var(--primary);"></i><span style="font-size:13px;font-weight:600;color:var(--text);">Pilih Tanggal:</span></div>' +
+            '<input type="date" class="form-input" id="lap-date-picker" value="' + (currentFilterDate || "") + '" onchange="changeDate(this.value)" style="width:auto;min-width:150px;height:38px;padding:6px 12px;font-size:13px;">' +
+            '<button class="btn btn-outline btn-sm" onclick="setFilterDateToday()" style="height:38px;padding:0 14px;font-size:13px;"><i data-lucide="clock" style="width:14px"></i> Hari Ini</button>' +
+            dateBadgeHtml +
+          '</div>' +
+          '<div style="flex:1;min-width:200px;max-width:320px;">' +
+            '<div class="search-box" style="display:flex;width:100%;height:38px;background:var(--surface);">' +
+              '<i data-lucide="search" style="width:15px;color:var(--gray);"></i>' +
+              '<input type="text" id="lap-search-input" value="' + (globalSearchQuery || "") + '" placeholder="Cari nama / NIS / barcode..." oninput="handleGlobalSearch(this.value)" style="font-size:13px;">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        holidayBannerHtml +
+        rumahQuranBannerHtml +
+      '</div>' +
+    '</div>' +
+    '<!-- Card Tabel Kehadiran -->' +
+    '<div class="card">' +
+      '<div class="card-body" style="padding:0;">' +
+        '<div class="print-header print-only">' +
+          '<img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo">' +
+          '<div class="print-header-text">' +
+            '<h1>LAPORAN KEHADIRAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h1>' +
+            '<p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p>' +
+            '<p>Tanggal: ' + currentFilterDate + ' (' + dayInfo.dayName + ')' + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="table-responsive">' +
+          '<table class="table">' +
+            '<thead>' +
+              '<tr>' +
+                '<th style="padding-left:20px;">Siswa / Pegawai</th>' +
+                '<th>' + (activeType == "guru" ? "Jabatan" : "Unit / Kelas") + '</th>' +
+                '<th>Hari & Tanggal</th>' +
+                '<th>Jam Masuk</th>' +
+                '<th>Status</th>' +
+                '<th>Verifikasi Wajah</th>' +
+                '<th style="text-align:center;padding-right:20px;">Aksi</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody id="lap-table"></tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div class="print-footer print-only">' +
+          '<div class="print-signature">Kamang Baru, ' + currentFilterDate + '<br>Mengetahui,<br>Kepala Yayasan<p></p><b>' + (appSettings.kepalaYayasan || "Pimpinan Yayasan") + '</b></div>' +
+        '</div>' +
+        '<div class="pagination" style="padding:16px 20px;">' +
+          '<div class="pagination-info" id="pg-info"></div>' +
+          '<div class="pagination-btns">' +
+            '<button class="page-btn">&lt;</button>' +
+            '<button class="page-btn active">1</button>' +
+            '<button class="page-btn">&gt;</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
   renderFilters();
   renderLapTable();
   lucide.createIcons();
 }
+
 function renderFilters() {
   var t = document.getElementById("filter-tabs");
   if (!t) return;
@@ -464,22 +665,32 @@ function renderFilters() {
   }
   var h = "";
   for (var j = 0; j < roles.length; j++) {
+    var rName = roles[j];
+    var isRQ = rName.toLowerCase().indexOf("rumah quran") > -1;
+    var label = isRQ ? '📖 ' + rName + ' (Bebas)' : rName;
     h +=
       '<button class="filter-tab ' +
-      (filterKelas == roles[j] ? "active" : "") +
+      (filterKelas == rName ? "active" : "") +
       '" onclick="setFilter(this,\'' +
-      roles[j] +
+      rName +
       "')\">" +
-      roles[j] +
+      label +
       "</button>";
   }
   t.innerHTML = h;
 }
+
 function setFilter(el, f) {
   filterKelas = f;
   renderFilters();
   renderLapTable();
+  var bannerRQ = document.getElementById("rq-banner-box");
+  if (bannerRQ) {
+    var isFilterRQ = String(filterKelas || "").toLowerCase().indexOf("rumah quran") > -1;
+    bannerRQ.style.display = isFilterRQ ? "flex" : "none";
+  }
 }
+
 function renderLapTable() {
   var tb = document.getElementById("lap-table");
   if (!tb) return;
@@ -506,15 +717,41 @@ function renderLapTable() {
   }
 
   if (data.length === 0) {
+    var dayInfo = getDayInfo(currentFilterDate);
+    var emptyTitle = "";
+    var emptySub = "";
+
+    if (dayInfo.isNationalHoliday) {
+      emptyTitle = "Hari Libur Resmi (" + dayInfo.holidayName + ")";
+      emptySub = "Presensi reguler tidak diwajibkan pada hari libur nasional / cuti bersama (bukan Alpa). Siswa Rumah Qur'an berjadwal bebas.";
+    } else if (dayInfo.isWeekend) {
+      emptyTitle = "Hari Libur Akhir Pekan (" + dayInfo.dayName + ")";
+      emptySub = "Presensi reguler tidak diwajibkan pada hari Sabtu & Minggu, dan ketidakhadiran bukan Alpa. Siswa Rumah Qur'an berjadwal bebas.";
+    } else if (attendance.length === 0) {
+      emptyTitle = "Belum Ada Presensi Tercatat";
+      emptySub = "Tidak ada data presensi pada tanggal " + formatDate(currentFilterDate) + ".";
+    } else {
+      emptyTitle = "Tidak Ada Data yang Cocok";
+      emptySub = "Tidak ditemukan data yang sesuai dengan filter kelas atau kata kunci pencarian.";
+    }
+
     tb.innerHTML =
-      '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--gray)">' +
-      (attendance.length === 0 ? "Tidak ada data absensi hari ini." : "Tidak ada data yang cocok dengan filter pencarian.") +
+      '<tr><td colspan="7" style="text-align:center;padding:45px 20px;color:var(--gray)">' +
+      '<i data-lucide="' + (dayInfo.isHoliday ? 'calendar-off' : 'search-x') + '" style="width:40px;height:40px;margin-bottom:12px;opacity:0.4;"></i>' +
+      '<div style="font-weight:600;font-size:15px;color:var(--text);margin-bottom:4px;">' + emptyTitle + '</div>' +
+      '<div style="font-size:13px;color:var(--text-muted);max-width:480px;margin:0 auto;">' + emptySub + '</div>' +
       '</td></tr>';
+    lucide.createIcons();
     return;
   }
+
   var h = "";
   for (var i = 0; i < data.length; i++) {
     var a = data[i];
+    var isRQ = String(a.kelas || "").toLowerCase().indexOf("rumah quran") > -1;
+    var rqTag = isRQ ? ' <span class="badge badge-free" style="font-size:10px;padding:2px 6px;margin-left:4px;">Jadwal Bebas</span>' : '';
+    var dateFormatted = getDayInfo(a.tanggal).dayName + ', ' + formatDate(a.tanggal);
+
     var bc =
       a.status === "Hadir"
         ? "success"
@@ -522,7 +759,7 @@ function renderLapTable() {
           ? "warning"
           : a.status === "Izin"
             ? "info"
-            : "danger";
+            : (a.status === "Libur" ? "libur" : "danger");
     var tc = a.status === "Terlambat" ? ' class="time-late"' : "";
     var v =
       a.faceMatch > 0.5
@@ -534,15 +771,17 @@ function renderLapTable() {
         photoSrc +
         '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="showAttendanceDetail(' + i + ')" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="avatar ' + getColor(i) + '" style="display:none;cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' + getInit(a.nama) + "</div>"
       : '<div class="avatar ' + getColor(i) + '" style="cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' + getInit(a.nama) + "</div>";
+    
     h +=
-      '<tr><td><div class="student-cell" style="cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' +
+      '<tr><td style="padding-left:20px;"><div class="student-cell" style="cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' +
       thumb +
-      '<span style="font-weight:500">' +
+      '<div><span style="font-weight:600;display:block;">' +
       a.nama +
-      "</span></div></td><td>" +
-      (a.kelas || "-") +
+      '</span><small style="color:var(--gray)">' + (a.studentId || a.id || "-") + '</small></div>' +
+      "</div></td><td>" +
+      (a.kelas || "-") + rqTag +
       "</td><td>" +
-      formatDate(a.tanggal) +
+      dateFormatted +
       "</td><td" +
       tc +
       ">" +
@@ -553,7 +792,7 @@ function renderLapTable() {
       a.status +
       "</span></td><td>" +
       v +
-      '</td><td><button class="action-btn" onclick="showAttendanceDetail(' + i + ')" title="Lihat Detail Absensi (Titik Tiga)"><i data-lucide="more-vertical" style="width:18px"></i></button></td></tr>';
+      '</td><td style="text-align:center;padding-right:20px;"><button class="action-btn" onclick="showAttendanceDetail(' + i + ')" title="Lihat Detail Absensi (Titik Tiga)"><i data-lucide="more-vertical" style="width:18px"></i></button></td></tr>';
   }
   tb.innerHTML = h;
   lucide.createIcons();
@@ -748,6 +987,67 @@ function loadRekapData() {
     }
   );
 }
+function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
+  var isRumahQuran = String(s.kelas || "").toLowerCase().indexOf("rumah quran") > -1;
+  var totals = { H: 0, T: 0, S: 0, I: 0, A: 0 };
+  var days = {};
+  var todayObj = new Date();
+  var todayYear = todayObj.getFullYear();
+  var todayMonth = todayObj.getMonth() + 1;
+  var todayDay = todayObj.getDate();
+
+  for (var d = 1; d <= rekapData.daysInMonth; d++) {
+    var rawCode = (s.days && s.days[d]) ? s.days[d] : null;
+    var dDate = new Date(targetYear, targetMonth - 1, d);
+    var dow = dDate.getDay(); // 0 = Minggu, 6 = Sabtu
+    var isWeekend = (dow === 0 || dow === 6);
+    var isoKey = targetYear + '-' + String(targetMonth).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    var holidayInfo = window.HolidayManager ? window.HolidayManager.getHoliday(isoKey) : null;
+    var isNationalHoliday = !!(holidayInfo && holidayInfo.isHoliday);
+    var isHoliday = isWeekend || isNationalHoliday;
+
+    var isPastOrToday = false;
+    if (targetYear < todayYear) {
+      isPastOrToday = true;
+    } else if (targetYear === todayYear) {
+      if (targetMonth < todayMonth) {
+        isPastOrToday = true;
+      } else if (targetMonth === todayMonth && d <= todayDay) {
+        isPastOrToday = true;
+      }
+    }
+
+    var finalCode = "-";
+    if (rawCode && rawCode !== "-" && rawCode !== "A") {
+      // Kehadiran tercatat: Hadir (H), Terlambat (T), Sakit (S), Izin (I)
+      finalCode = rawCode;
+    } else if (isRumahQuran) {
+      // Rumah Qur'an adalah jadwal bebas (tidak pernah otomatis dicatat Alpa)
+      finalCode = "-";
+    } else if (isHoliday) {
+      // Sabtu, Minggu, atau Hari Libur Nasional/Cuti Bersama (default bukan Alpa)
+      finalCode = "-";
+    } else if (isPastOrToday) {
+      // Alpa HANYA jika pada hari efektif belajar (Senin-Jumat non-libur) tidak mengisi absensi sama sekali
+      finalCode = "A";
+    } else {
+      // Hari masa depan yang belum berjalan
+      finalCode = "-";
+    }
+
+    days[d] = finalCode;
+    if (totals[finalCode] !== undefined) {
+      totals[finalCode]++;
+    }
+  }
+
+  return {
+    days: days,
+    totals: totals,
+    isRumahQuran: isRumahQuran
+  };
+}
+
 function showRekapTable() {
   var rc = document.getElementById("rekap-content");
   if (!rekapData || !rekapData.students || rekapData.students.length === 0) {
@@ -776,18 +1076,62 @@ function showRekapTable() {
   for (var key in u) roles.push(key);
 
   var filterLabel = activeType === "guru" ? "Filter Jabatan" : "Filter Unit / Kelas";
-  var filterHtml = '<div class="filters" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid var(--border)"><div class="filter-group"><div class="filter-label">' + filterLabel + '</div><div class="filter-tabs">';
+  var filterHtml = '<div class="filters" style="margin-bottom:16px; padding:15px; border-radius:var(--radius-md);"><div class="filter-group"><div class="filter-label">' + filterLabel + '</div><div class="filter-tabs">';
   for (var j = 0; j < roles.length; j++) {
-    filterHtml += '<button class="filter-tab ' + (filterKelas == roles[j] ? "active" : "") + '" onclick="filterRekap(\'' + roles[j] + '\')">' + roles[j] + '</button>';
+    var rName = roles[j];
+    var isRQ = rName.toLowerCase().indexOf("rumah quran") > -1;
+    var label = isRQ ? '📖 ' + rName + ' (Bebas)' : rName;
+    filterHtml += '<button class="filter-tab ' + (filterKelas == rName ? "active" : "") + '" onclick="filterRekap(\'' + rName + '\')">' + label + '</button>';
   }
   filterHtml += '</div></div></div>';
 
-  var printHeader = '<div class="print-header print-only"><img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo"><div class="print-header-text"><h1>REKAPITULASI KEHADIRAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h1><p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p><p>Kategori: ' + filterKelas + ' | Bulan: ' + new Date().toLocaleString('id-ID', {month: 'long', year: 'numeric'}) + '</p></div></div>';
+  var rekapNoticeHtml =
+    '<div style="margin-bottom:16px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;line-height:1.5;">' +
+    '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+    '<i data-lucide="info" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
+    '<div><strong style="color:#b45309;">Ketentuan Kalender Libur Indonesia & Rekap Kehadiran:</strong>' +
+    '<ul style="margin:4px 0 0 18px;padding:0;color:#78350f;">' +
+    '<li><strong>Hari Libur Nasional & Akhir Pekan (Sabtu/Minggu):</strong> Kolom bertanda merah muda atau tanda bintang (<span style="color:#dc2626;">★</span>). Default absensi <strong>bukan Alpa (-)</strong>.</li>' +
+    '<li><strong>Alpa (A):</strong> HANYA jika pada <strong>hari efektif belajar (Senin s/d Jumat bukan hari libur)</strong> tidak mengisi absensi sama sekali.</li>' +
+    '<li><strong>Rumah Qur\'an:</strong> Memiliki <strong>Jadwal Bebas (Fleksibel)</strong>, dapat absen kapan saja tanpa batasan terlambat, dan tidak pernah dicatat Alpa (-).</li>' +
+    '</ul></div></div></div>';
 
-  var h = filterHtml + printHeader + '<div class="table-responsive"><table class="table rekap-table"><thead><tr><th style="text-align:left;min-width:150px">Nama</th>';
-  for (var d = 1; d <= rekapData.daysInMonth; d++) h += "<th>" + d + "</th>";
+  var printHeader = '<div class="print-header print-only"><img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo"><div class="print-header-text"><h1>REKAPITULASI KEHADIRAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h1><p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p><p>Kategori: ' + filterKelas + ' | Periode: ' + currentRekapMonth + '/' + currentRekapYear + '</p></div></div>';
+
+  var h = filterHtml + rekapNoticeHtml + printHeader + '<div class="table-responsive"><table class="table rekap-table"><thead><tr><th style="text-align:left;min-width:160px;padding-left:14px;">Nama</th>';
+  
+  var dayNamesShort = ["M", "S", "S", "R", "K", "J", "S"];
+  for (var d = 1; d <= rekapData.daysInMonth; d++) {
+    var dObj = new Date(currentRekapYear, currentRekapMonth - 1, d);
+    var dow = dObj.getDay();
+    var isWeekend = (dow === 0 || dow === 6);
+    var isoKey = currentRekapYear + '-' + String(currentRekapMonth).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    var holidayInfo = window.HolidayManager ? window.HolidayManager.getHoliday(isoKey) : null;
+    var isNatHoliday = !!(holidayInfo && holidayInfo.isHoliday);
+    var isHolidayCol = isWeekend || isNatHoliday;
+
+    var thCls = isHolidayCol ? ' class="col-weekend"' : '';
+    var thTitle = '';
+    if (isNatHoliday) {
+      thTitle = 'Libur Nasional: ' + holidayInfo.name;
+    } else if (isWeekend) {
+      thTitle = (dow === 0 ? 'Minggu (Libur Akhir Pekan)' : 'Sabtu (Libur Akhir Pekan)');
+    } else {
+      thTitle = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][dow];
+    }
+    var starIcon = isNatHoliday ? ' <span style="color:#dc2626;font-size:9px;" title="' + thTitle + '">★</span>' : '';
+    h += '<th' + thCls + ' title="' + thTitle + '">' + d + starIcon + '<br><span style="font-size:9px;font-weight:600;opacity:0.85;">' + dayNamesShort[dow] + '</span></th>';
+  }
+  
   h +=
-    '<th style="background:#dcfce7">H</th><th style="background:#fef3c7">T</th><th style="background:#ede9fe">S</th><th style="background:#cffafe">I</th><th style="background:#fee2e2">A</th></tr></thead><tbody>';
+    '<th style="background:#dcfce7;color:#15803d;font-weight:700;" title="Total Hadir">H</th>' +
+    '<th style="background:#fef3c7;color:#b45309;font-weight:700;" title="Total Terlambat">T</th>' +
+    '<th style="background:#ede9fe;color:#6d28d9;font-weight:700;" title="Total Sakit">S</th>' +
+    '<th style="background:#cffafe;color:#0369a1;font-weight:700;" title="Total Izin">I</th>' +
+    '<th style="background:#fee2e2;color:#b91c1c;font-weight:700;" title="Total Alpa (Hanya Hari Efektif Belajar)">A</th>' +
+    '</tr></thead><tbody>';
+
+  var visibleCount = 0;
   for (var k = 0; k < rekapData.students.length; k++) {
     var s = rekapData.students[k];
     
@@ -795,54 +1139,83 @@ function showRekapTable() {
     if (filterKelas !== "Semua" && s.kelas.indexOf(filterKelas) === -1) {
       continue;
     }
+    if (globalSearchQuery) {
+      var q = globalSearchQuery.toLowerCase();
+      if ((s.nama || "").toLowerCase().indexOf(q) === -1 && (s.kelas || "").toLowerCase().indexOf(q) === -1) {
+        continue;
+      }
+    }
+    visibleCount++;
+
+    // Hitung ulang rekap berdasarkan aturan libur Sabtu/Minggu, Libur Nasional, dan Rumah Qur'an
+    var recapCalc = calculateStudentRecap(s, rekapData, currentRekapMonth, currentRekapYear);
+    var sDays = recapCalc.days;
+    var sTotals = recapCalc.totals;
+    var isRQ = recapCalc.isRumahQuran;
+
+    var rqBadge = isRQ ? ' <span class="badge badge-free" style="font-size:9px;padding:1px 5px;">Bebas</span>' : '';
 
     h +=
-      '<tr><td style="text-align:left"><div class="student-cell"><div class="avatar ' +
+      '<tr><td style="text-align:left;padding-left:14px;"><div class="student-cell"><div class="avatar ' +
       getColor(k) +
       '" style="width:28px;height:28px;font-size:10px">' +
       getInit(s.nama) +
       '</div><div><strong style="font-size:12px">' +
       s.nama +
-      '</strong><br><small style="color:var(--gray)">' +
+      '</strong>' + rqBadge + '<br><small style="color:var(--gray)">' +
       s.kelas +
       "</small></div></div></td>";
-    for (var d = 1; d <= rekapData.daysInMonth; d++) {
-      var code = s.days[d] || "-";
-      var cls =
-        code === "H"
-          ? "day-h"
-          : code === "T"
-            ? "day-t"
-            : code === "S"
-              ? "day-s"
-              : code === "I"
-                ? "day-i"
-                : code === "A"
-                  ? "day-a"
-                  : "";
+
+    for (var d2 = 1; d2 <= rekapData.daysInMonth; d2++) {
+      var code = sDays[d2] || "-";
+      var dObj2 = new Date(currentRekapYear, currentRekapMonth - 1, d2);
+      var dow2 = dObj2.getDay();
+      var isWk = (dow2 === 0 || dow2 === 6);
+      var isoKey2 = currentRekapYear + '-' + String(currentRekapMonth).padStart(2, '0') + '-' + String(d2).padStart(2, '0');
+      var isNatH = window.HolidayManager ? window.HolidayManager.isHolidayDate(isoKey2) : false;
+      var isHolCell = isWk || isNatH;
+
+      var cls = "";
+      if (code === "H") cls = "day-h";
+      else if (code === "T") cls = "day-t";
+      else if (code === "S") cls = "day-s";
+      else if (code === "I") cls = "day-i";
+      else if (code === "A") cls = "day-a";
+      else if (isHolCell) cls = "day-weekend";
+      else cls = "day-dash";
+
       h += '<td class="' + cls + '"><strong>' + code + "</strong></td>";
     }
+
     h +=
       '<td style="font-weight:700;color:var(--success)">' +
-      (s.totals.H || 0) +
+      (sTotals.H || 0) +
       '</td><td style="font-weight:700;color:var(--warning)">' +
-      (s.totals.T || 0) +
+      (sTotals.T || 0) +
       '</td><td style="font-weight:700;color:var(--purple)">' +
-      (s.totals.S || 0) +
+      (sTotals.S || 0) +
       '</td><td style="font-weight:700;color:var(--info)">' +
-      (s.totals.I || 0) +
+      (sTotals.I || 0) +
       '</td><td style="font-weight:700;color:var(--danger)">' +
-      (s.totals.A || 0) +
+      (sTotals.A || 0) +
       "</td></tr>";
   }
+
+  if (visibleCount === 0) {
+    h += '<tr><td colspan="' + (rekapData.daysInMonth + 6) + '" style="text-align:center;padding:35px;color:var(--gray)">Tidak ada data siswa/pegawai yang cocok dengan filter.</td></tr>';
+  }
+
   var printFooter = '<div class="print-footer print-only"><div class="print-signature">Kamang Baru, ' + new Date().toISOString().split('T')[0] + '<br>Mengetahui,<br>Kepala Yayasan<p></p><b>' + (appSettings.kepalaYayasan || "Pimpinan Yayasan") + '</b></div></div>';
   h += "</tbody></table></div>" + printFooter;
   rc.innerHTML = h;
+  lucide.createIcons();
 }
+
 function filterRekap(f) {
   filterKelas = f;
   showRekapTable();
 }
+
 function propagateEmail() {
   if (confirm("Kirim laporan kehadiran hari ini ke semua Wali Kelas?")) {
     window.callGasAPI(
@@ -872,9 +1245,16 @@ function exportRekapExcel() {
 
   var monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
   var monthName = monthNames[currentRekapMonth - 1] || "Bulan";
+  var dayNamesShort = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+  
   var headerRow = ["No", "Nama", (activeType === "guru" ? "Jabatan" : "Unit / Kelas")];
   for (var d = 1; d <= rekapData.daysInMonth; d++) {
-    headerRow.push("Tgl " + d);
+    var dObj = new Date(currentRekapYear, currentRekapMonth - 1, d);
+    var dow = dObj.getDay();
+    var isoKey = currentRekapYear + '-' + String(currentRekapMonth).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    var hol = window.HolidayManager ? window.HolidayManager.getHoliday(isoKey) : null;
+    var holLabel = (hol && hol.isHoliday) ? ' [' + hol.name + ']' : '';
+    headerRow.push("Tgl " + d + " (" + dayNamesShort[dow] + ")" + holLabel);
   }
   headerRow.push("Total Hadir (H)", "Terlambat (T)", "Sakit (S)", "Izin (I)", "Alfa (A)");
 
@@ -891,16 +1271,21 @@ function exportRekapExcel() {
         continue;
       }
     }
+
+    var recapCalc = calculateStudentRecap(s, rekapData, currentRekapMonth, currentRekapYear);
+    var sDays = recapCalc.days;
+    var sTotals = recapCalc.totals;
+
     var row = [no++, s.nama, s.kelas];
     for (var d2 = 1; d2 <= rekapData.daysInMonth; d2++) {
-      row.push(s.days[d2] || "-");
+      row.push(sDays[d2] || "-");
     }
     row.push(
-      s.totals.H || 0,
-      s.totals.T || 0,
-      s.totals.S || 0,
-      s.totals.I || 0,
-      s.totals.A || 0
+      sTotals.H || 0,
+      sTotals.T || 0,
+      sTotals.S || 0,
+      sTotals.I || 0,
+      sTotals.A || 0
     );
     exportRows.push(row);
   }
@@ -1299,10 +1684,211 @@ function showNotificationInfo() {
   m.classList.add("active");
   lucide.createIcons();
 }
+function syncHolidaysCloud() {
+  if (!window.HolidayManager) {
+    showToast("Modul kalender libur belum tersedia", "error");
+    return;
+  }
+  showToast("Menghubungi server kalender libur...", "info");
+  window.HolidayManager.syncFromCloud(function(success, msg) {
+    if (success) {
+      showToast("Kalender libur nasional berhasil disinkronkan!", "success");
+      renderPengaturan();
+    } else {
+      showToast("Sinkronisasi offline: " + msg, "warning");
+    }
+  });
+}
+
+function addCustomHoliday() {
+  var dateEl = document.getElementById("set-custom-holiday-date");
+  var nameEl = document.getElementById("set-custom-holiday-name");
+  if (!dateEl || !nameEl) return;
+  var dt = dateEl.value.trim();
+  var nm = nameEl.value.trim();
+  if (!dt) {
+    showToast("Pilih tanggal libur terlebih dahulu", "warning");
+    return;
+  }
+  if (!nm) {
+    showToast("Tuliskan keterangan / nama libur", "warning");
+    return;
+  }
+
+  if (!appSettings) appSettings = {};
+  if (!appSettings.customHolidays) appSettings.customHolidays = {};
+  appSettings.customHolidays[dt] = nm;
+
+  try {
+    localStorage.setItem("app_custom_holidays", JSON.stringify(appSettings.customHolidays));
+  } catch (e) {}
+
+  showToast("Hari libur khusus berhasil ditambahkan", "success");
+  renderPengaturan();
+
+  if (typeof window.callGasAPI === "function") {
+    saveSettings();
+  }
+}
+
+function deleteCustomHoliday(dt) {
+  if (!confirm("Hapus hari libur madrasah pada tanggal " + dt + "?")) return;
+  if (appSettings && appSettings.customHolidays && appSettings.customHolidays[dt]) {
+    delete appSettings.customHolidays[dt];
+  }
+  try {
+    var stored = localStorage.getItem("app_custom_holidays");
+    if (stored) {
+      var p = JSON.parse(stored);
+      delete p[dt];
+      localStorage.setItem("app_custom_holidays", JSON.stringify(p));
+    }
+  } catch (e) {}
+  showToast("Hari libur khusus dihapus", "info");
+  renderPengaturan();
+
+  if (typeof window.callGasAPI === "function") {
+    saveSettings();
+  }
+}
+
+var selectedHolidayYear = new Date().getFullYear();
+
+function changeHolidayYear(y) {
+  selectedHolidayYear = parseInt(y, 10);
+  renderPengaturan();
+}
+
 function renderPengaturan() {
   var c = document.getElementById("main-content");
+  if (!c) return;
+
+  var currentYear = new Date().getFullYear();
+  if (!selectedHolidayYear) selectedHolidayYear = currentYear;
+
+  var customHolidays = {};
+  try {
+    var localHols = localStorage.getItem("app_custom_holidays");
+    if (localHols) Object.assign(customHolidays, JSON.parse(localHols));
+  } catch (e) {}
+  if (appSettings && appSettings.customHolidays) {
+    Object.assign(customHolidays, appSettings.customHolidays);
+  }
+
+  // Generate list of custom holidays
+  var customHolsListHtml = "";
+  var customDates = Object.keys(customHolidays).sort();
+  if (customDates.length === 0) {
+    customHolsListHtml = '<p style="color:var(--text-muted);font-size:12px;margin:8px 0;">Belum ada hari libur khusus madrasah yang ditambahkan.</p>';
+  } else {
+    customHolsListHtml = '<div style="display:flex;flex-direction:column;gap:6px;max-height:140px;overflow-y:auto;margin:8px 0 14px;">';
+    for (var i = 0; i < customDates.length; i++) {
+      var cd = customDates[i];
+      var cn = customHolidays[cd];
+      customHolsListHtml +=
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:6px;font-size:12px;border:1px solid var(--border);">' +
+        '<div><strong>' + cd + '</strong>: ' + cn + '</div>' +
+        '<button class="btn btn-outline btn-sm" style="padding:2px 8px;font-size:11px;color:var(--danger);" onclick="deleteCustomHoliday(\'' + cd + '\')"><i data-lucide="trash-2" style="width:12px;height:12px;"></i> Hapus</button>' +
+        '</div>';
+    }
+    customHolsListHtml += '</div>';
+  }
+
+  // Generate year preview list
+  var yearHols = window.HolidayManager ? window.HolidayManager.getHolidaysForYear(selectedHolidayYear) : {};
+  var yearDates = Object.keys(yearHols).sort();
+
+  var yearSelectOptions = "";
+  for (var yr = currentYear - 1; yr <= currentYear + 5; yr++) {
+    yearSelectOptions += '<option value="' + yr + '" ' + (yr === selectedHolidayYear ? 'selected' : '') + '>Tahun ' + yr + '</option>';
+  }
+
+  var yearHolsHtml = "";
+  if (yearDates.length === 0) {
+    yearHolsHtml = '<p style="color:var(--text-muted);font-size:12px;margin:8px 0;">Tidak ada hari libur terdaftar untuk tahun ' + selectedHolidayYear + '.</p>';
+  } else {
+    yearHolsHtml = '<div style="display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto;margin-top:10px;padding-right:4px;">';
+    for (var yd = 0; yd < yearDates.length; yd++) {
+      var yDateKey = yearDates[yd];
+      var yName = yearHols[yDateKey];
+      var isCustomItem = !!customHolidays[yDateKey];
+      var badgeItem = isCustomItem 
+        ? '<span class="badge badge-warning" style="font-size:10px;padding:2px 6px;">Libur Madrasah</span>'
+        : '<span class="badge badge-success" style="font-size:10px;padding:2px 6px;">Libur Nasional</span>';
+
+      yearHolsHtml +=
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg);border-radius:6px;font-size:12px;border:1px solid var(--border);">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<i data-lucide="calendar" style="width:14px;height:14px;color:var(--primary);flex-shrink:0;"></i>' +
+        '<span><strong>' + yDateKey + '</strong>: ' + yName + '</span>' +
+        '</div>' +
+        '<div>' + badgeItem + '</div>' +
+        '</div>';
+    }
+    yearHolsHtml += '</div>';
+  }
+
   c.innerHTML =
-    '<div class="page-header"><h1>Pengaturan</h1><p>Konfigurasi parameter sistem.</p></div><div class="card"><div class="card-body"><div style="max-width:400px"><div class="form-group"><label class="form-label">Nama Admin</label><input type="text" class="form-input" id="set-admin-nama" value="'+(appSettings.adminName || 'Budi Santoso')+'"></div><div class="form-group"><label class="form-label">Jabatan Admin</label><input type="text" class="form-input" id="set-admin-role" value="'+(appSettings.adminRole || 'Administrator')+'"></div><div class="form-group"><label class="form-label">URL Logo Web (Opsional)</label><input type="url" class="form-input" id="set-logo" value="'+(appSettings.logoUrl || '')+'" placeholder="https://..."></div><div class="form-group"><label class="form-label">Jam Batas Terlambat</label><input type="time" class="form-input" id="set-jam" value="'+(appSettings.jamTerlambat || '07:15')+'"></div><div class="form-group"><label class="form-label">Threshold Face Match (0-1)</label><input type="number" class="form-input" id="set-th" value="'+(appSettings.faceMatchThreshold || '0.5')+'" min="0" max="1" step="0.1"></div><button class="btn btn-primary" onclick="saveSettings()"><i data-lucide="save" style="width:16px"></i> Simpan Pengaturan</button></div></div></div>';
+    '<div class="page-header">' +
+      '<div><h1>Pengaturan Sistem & Kalender</h1><p>Konfigurasi parameter sistem presensi dan kalender libur otomatis multi-tahun.</p></div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));gap:20px;">' +
+      '<!-- Kartu 1: Parameter Sistem -->' +
+      '<div class="card">' +
+        '<div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">' +
+          '<i data-lucide="settings" style="width:18px;color:var(--primary);"></i><strong style="font-size:15px;">Parameter Presensi & Admin</strong>' +
+        '</div>' +
+        '<div class="card-body" style="padding:20px;">' +
+          '<div class="form-group"><label class="form-label">Nama Admin</label><input type="text" class="form-input" id="set-admin-nama" value="' + (appSettings.adminName || 'Budi Santoso') + '"></div>' +
+          '<div class="form-group"><label class="form-label">Jabatan Admin</label><input type="text" class="form-input" id="set-admin-role" value="' + (appSettings.adminRole || 'Administrator') + '"></div>' +
+          '<div class="form-group"><label class="form-label">URL Logo Web (Opsional)</label><input type="url" class="form-input" id="set-logo" value="' + (appSettings.logoUrl || '') + '" placeholder="https://..."></div>' +
+          '<div class="form-group"><label class="form-label">Jam Batas Terlambat</label><input type="time" class="form-input" id="set-jam" value="' + (appSettings.jamTerlambat || '07:15') + '"></div>' +
+          '<div class="form-group"><label class="form-label">Threshold Face Match (0-1)</label><input type="number" class="form-input" id="set-th" value="' + (appSettings.faceMatchThreshold || '0.5') + '" min="0" max="1" step="0.1"></div>' +
+          '<button class="btn btn-primary" onclick="saveSettings()"><i data-lucide="save" style="width:16px"></i> Simpan Parameter</button>' +
+        '</div>' +
+      '</div>' +
+      '<!-- Kartu 2: Kalender Libur Indonesia -->' +
+      '<div class="card">' +
+        '<div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">' +
+          '<div style="display:flex;align-items:center;gap:8px;"><i data-lucide="calendar-days" style="width:18px;color:var(--primary);"></i><strong style="font-size:15px;">Kalender Libur Multi-Tahun</strong></div>' +
+          '<button class="btn btn-outline btn-sm" onclick="syncHolidaysCloud()"><i data-lucide="refresh-cw" style="width:13px"></i> Sinkron Cloud</button>' +
+        '</div>' +
+        '<div class="card-body" style="padding:20px;">' +
+          '<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;line-height:1.5;margin-bottom:14px;">' +
+            '<div style="display:flex;align-items:flex-start;gap:8px;">' +
+              '<i data-lucide="check-circle" style="width:16px;height:16px;color:var(--success);flex-shrink:0;margin-top:2px;"></i>' +
+              '<div>' +
+                '<strong>Otomasi Kalender Multi-Tahun Aktif</strong><br>' +
+                'Kalender libur berlaku dinamis untuk tahun ini dan tahun-tahun mendatang:' +
+                '<ul style="margin:4px 0 0 16px;padding:0;">' +
+                  '<li><strong>Libur Tetap Abadi:</strong> 1 Jan, 1 Mei, 1 Juni, 17 Ags, 25-26 Des otomatis aktif di tahun berapapun.</li>' +
+                  '<li><strong>Proyeksi Kalender Astronomis:</strong> Hari raya keagamaan (Idul Fitri, Idul Adha, Nyepi, Waisak, Imlek) siap hingga 2030.</li>' +
+                  '<li><strong>Sinkron Cloud Otomatis:</strong> Diperbarui otomatis saat SKB 3 Menteri resmi diumumkan oleh pemerintah.</li>' +
+                '</ul>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">' +
+            '<div style="font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;">' +
+              '<i data-lucide="calendar" style="width:16px;color:var(--primary);"></i> Pratinjau Daftar Libur:' +
+            '</div>' +
+            '<select class="form-select" style="width:auto;min-width:130px;height:34px;padding:4px 8px;font-size:12px;" onchange="changeHolidayYear(this.value)">' +
+              yearSelectOptions +
+            '</select>' +
+          '</div>' +
+          yearHolsHtml +
+          '<hr style="margin:16px 0;border:none;border-top:1px solid var(--border);">' +
+          '<strong style="font-size:13px;color:var(--text);display:block;margin-bottom:8px;">Tambah Libur Khusus Madrasah / Pondok:</strong>' +
+          '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">' +
+            '<input type="date" class="form-input" id="set-custom-holiday-date" style="flex:1;min-width:140px;font-size:12px;">' +
+            '<input type="text" class="form-input" id="set-custom-holiday-name" placeholder="Nama Libur (misal: Libur Pondok Ramadhan)" style="flex:2;min-width:180px;font-size:12px;">' +
+            '<button class="btn btn-primary btn-sm" onclick="addCustomHoliday()"><i data-lucide="plus" style="width:14px"></i> Tambah</button>' +
+          '</div>' +
+          customHolsListHtml +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
   lucide.createIcons();
 }
 
@@ -1707,12 +2293,35 @@ function runSetup() {
   });
 }
 function saveSettings() {
-  var n = document.getElementById("set-admin-nama").value;
-  var r = document.getElementById("set-admin-role").value;
-  var l = document.getElementById("set-logo").value;
-  var j = document.getElementById("set-jam").value;
-  var t = document.getElementById("set-th").value;
-  var payload = { adminName: n, adminRole: r, logoUrl: l, jamTerlambat: j, faceMatchThreshold: t };
+  var elN = document.getElementById("set-admin-nama");
+  var elR = document.getElementById("set-admin-role");
+  var elL = document.getElementById("set-logo");
+  var elJ = document.getElementById("set-jam");
+  var elT = document.getElementById("set-th");
+
+  var n = elN ? elN.value : (appSettings.adminName || 'Budi Santoso');
+  var r = elR ? elR.value : (appSettings.adminRole || 'Administrator');
+  var l = elL ? elL.value : (appSettings.logoUrl || '');
+  var j = elJ ? elJ.value : (appSettings.jamTerlambat || '07:15');
+  var t = elT ? elT.value : (appSettings.faceMatchThreshold || '0.5');
+
+  var customHols = {};
+  try {
+    var stored = localStorage.getItem("app_custom_holidays");
+    if (stored) Object.assign(customHols, JSON.parse(stored));
+  } catch (e) {}
+  if (appSettings && appSettings.customHolidays) {
+    Object.assign(customHols, appSettings.customHolidays);
+  }
+
+  var payload = { 
+    adminName: n, 
+    adminRole: r, 
+    logoUrl: l, 
+    jamTerlambat: j, 
+    faceMatchThreshold: t,
+    customHolidays: customHols
+  };
   
   window.callGasAPI(
     "updateSettings",
@@ -1757,18 +2366,27 @@ function exportPDF() {
     doc.line(margin, 92, pageWidth - margin, 92);
 
     // Tabel
-    var headers = [["No", "Nama", (activeType == "guru" ? "Jabatan" : "Unit / Kelas"), "Tanggal", "Jam Masuk", "Status", "Verifikasi"]];
+    var headers = [["No", "Nama", (activeType == "guru" ? "Jabatan" : "Unit / Kelas"), "Hari & Tanggal", "Jam Masuk", "Status", "Verifikasi"]];
     var data = [];
     var filteredData = attendance.filter(function (a) {
       var isType = a.type === (activeType == "guru" ? "Guru" : "Siswa") || (activeType == "siswa" && !a.type);
-      return isType && (filterKelas === "Semua" || a.kelas.indexOf(filterKelas) > -1);
+      var matchClass = (filterKelas === "Semua" || (a.kelas && a.kelas.indexOf(filterKelas) > -1));
+      var matchSearch = true;
+      if (globalSearchQuery) {
+        var q = globalSearchQuery.toLowerCase();
+        var nm = (a.nama || "").toLowerCase();
+        var kl = (a.kelas || "").toLowerCase();
+        var sid = (a.studentId || "").toLowerCase();
+        matchSearch = nm.indexOf(q) > -1 || kl.indexOf(q) > -1 || sid.indexOf(q) > -1;
+      }
+      return isType && matchClass && matchSearch;
     });
 
     for (var i = 0; i < filteredData.length; i++) {
       var a = filteredData[i];
-      // Gunakan faceMatch (konsisten dengan seluruh codebase), bukan a.verified yang tidak pernah diset
-      var v = a.faceMatch > 0.5 ? "Terverifikasi Wajah" : "Tidak Terverifikasi";
-      data.push([i + 1, a.nama, a.kelas, currentFilterDate, formatTime(a.waktu), a.status, v]);
+      var v = a.faceMatch > 0.5 ? "Terverifikasi Wajah" : "Belum Terverifikasi";
+      var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
+      data.push([i + 1, a.nama, a.kelas || "-", tglFormatted, formatTime(a.waktu), a.status, v]);
     }
 
     doc.autoTable({
@@ -1818,24 +2436,34 @@ function exportPDF() {
 function exportExcel() {
   var wb = XLSX.utils.book_new();
   var data = [
-    ["No", "Nama", (activeType == "guru" ? "Jabatan" : "Unit / Kelas"), "Tanggal", "Waktu", "Status", "Verifikasi"],
+    ["No", "Nama", (activeType == "guru" ? "Jabatan" : "Unit / Kelas"), "Hari & Tanggal", "Waktu", "Status", "Verifikasi Wajah"],
   ];
   
   var filteredData = attendance.filter(function (a) {
     var isType = a.type === (activeType == "guru" ? "Guru" : "Siswa") || (activeType == "siswa" && !a.type);
-    return isType && (filterKelas === "Semua" || a.kelas.indexOf(filterKelas) > -1);
+    var matchClass = (filterKelas === "Semua" || (a.kelas && a.kelas.indexOf(filterKelas) > -1));
+    var matchSearch = true;
+    if (globalSearchQuery) {
+      var q = globalSearchQuery.toLowerCase();
+      var nm = (a.nama || "").toLowerCase();
+      var kl = (a.kelas || "").toLowerCase();
+      var sid = (a.studentId || "").toLowerCase();
+      matchSearch = nm.indexOf(q) > -1 || kl.indexOf(q) > -1 || sid.indexOf(q) > -1;
+    }
+    return isType && matchClass && matchSearch;
   });
 
   for (var i = 0; i < filteredData.length; i++) {
     var a = filteredData[i];
+    var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
     data.push([
       i + 1,
       a.nama,
-      a.kelas,
-      a.tanggal || "-",
+      a.kelas || "-",
+      tglFormatted,
       formatTime(a.waktu),
       a.status,
-      a.faceMatch > 0.5 ? "Ya" : "Tidak",
+      a.faceMatch > 0.5 ? "Ya (Cocok)" : "Tidak",
     ]);
   }
   var ws = XLSX.utils.aoa_to_sheet(data);
