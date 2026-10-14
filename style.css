@@ -1917,47 +1917,15 @@ h1, h2, h3, h4, h5, h6 {
   display: none;
 }
 
-/* Collapsible Notice Banner */
-.rekap-notice-box {
-  margin-bottom: 16px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.2s ease;
-}
-
-.rekap-notice-toggle-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 16px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-  color: #92400e;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.rekap-notice-body {
-  padding: 0 16px 14px 16px;
-  font-size: 12.5px;
-  color: #78350f;
-  line-height: 1.5;
-  border-top: 1px dashed #fde68a;
-  margin-top: 4px;
-}
-
 /* Summary Strip (Overview) */
 .rekap-summary-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 10px;
   margin-bottom: 16px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .rekap-summary-pill {
@@ -1969,6 +1937,8 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   gap: 10px;
   box-shadow: var(--shadow-sm);
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .rekap-summary-pill .pill-icon {
@@ -1994,13 +1964,20 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 11px;
   color: var(--text-muted);
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* CARD VIEW FOR REKAP (Mobile-First) */
+/* CARD VIEW FOR REKAP (Mobile-First, Strictly Horizontal Fit) */
 .rekap-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .rekap-person-card {
@@ -2011,6 +1988,11 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   transition: transform 0.2s, box-shadow 0.2s;
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .rekap-person-card:hover {
@@ -2024,6 +2006,9 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .rekap-card-person-info {
@@ -2079,6 +2064,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 800;
   white-space: nowrap;
   letter-spacing: 0.2px;
+  flex-shrink: 0;
 }
 
 .rekap-rate-badge.rate-high {
@@ -2104,6 +2090,8 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
   display: flex;
   margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .rekap-progress-bar {
@@ -2117,12 +2105,15 @@ h1, h2, h3, h4, h5, h6 {
 .rekap-progress-bar.bar-i { background: #0ea5e9; }
 .rekap-progress-bar.bar-a { background: #dc2626; }
 
-/* 5 Metrics Row */
+/* 5 Metrics Row - Strictly Horizontal Fit */
 .rekap-stats-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
   margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .rekap-stat-chip {
@@ -2130,19 +2121,26 @@ h1, h2, h3, h4, h5, h6 {
   padding: 6px 2px;
   border-radius: 8px;
   font-size: 11px;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .rekap-stat-chip strong {
   display: block;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1.1;
 }
 
 .rekap-stat-chip span {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   opacity: 0.85;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rekap-stat-chip.chip-h { background: #dcfce7; color: #166534; }
@@ -2168,6 +2166,7 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   transition: all 0.2s;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .rekap-expand-btn:hover {
@@ -2177,16 +2176,23 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Expanded 31-Day Mini Grid */
 .rekap-calendar-tray {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px dashed var(--border);
   animation: fadeIn 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .rekap-days-flow {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 3px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .rekap-day-chip {
@@ -2194,14 +2200,16 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 5px 2px;
-  border-radius: 7px;
-  font-size: 10px;
+  padding: 4px 1px;
+  border-radius: 6px;
+  font-size: 9px;
   line-height: 1.1;
   text-align: center;
   border: 1px solid transparent;
   cursor: pointer;
   transition: transform 0.12s;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .rekap-day-chip:hover {
@@ -2601,12 +2609,135 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 10px !important;
   }
 
+  /* Strictly Horizontal Fit for Mobile Cards & Content */
+  .content {
+    padding: 12px 10px !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .card {
+    border-radius: 12px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .card-body {
+    padding: 12px 10px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
   .rekap-card-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 100% !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .rekap-person-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    padding: 12px 10px !important;
+  }
+
+  .rekap-stats-row {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .rekap-stat-chip {
+    padding: 5px 1px !important;
+    min-width: 0 !important;
+  }
+
+  .rekap-stat-chip strong {
+    font-size: 13px !important;
+  }
+
+  .rekap-stat-chip span {
+    font-size: 8px !important;
+  }
+
+  .rekap-days-flow {
+    grid-template-columns: repeat(auto-fill, minmax(26px, 1fr)) !important;
+    gap: 3px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .rekap-day-chip {
+    padding: 4px 1px !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
   }
 
   .rekap-summary-strip {
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .rekap-summary-pill {
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .rekap-summary-pill .pill-icon {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 12px !important;
+  }
+
+  .rekap-summary-pill .pill-val {
+    font-size: 15px !important;
+  }
+
+  .rekap-summary-pill .pill-label {
+    font-size: 10px !important;
+  }
+
+  .rekap-period-box {
+    width: 100% !important;
+    gap: 6px !important;
+  }
+
+  .rekap-period-box select {
+    flex: 1 1 auto !important;
+    min-width: 90px !important;
+  }
+
+  #rekap-filter-select {
+    flex: 2 1 140px !important;
+  }
+
+  .rekap-actions-row {
+    width: 100% !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+  }
+
+  .rekap-view-switcher {
+    flex: 1 !important;
+  }
+
+  .view-switch-btn {
+    flex: 1 !important;
+    justify-content: center !important;
   }
 }
 

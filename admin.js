@@ -106,6 +106,41 @@ function getPegawaiJabatan(item) {
   return getPegawaiJabatanFromRole(raw);
 }
 
+function getCategoryFilterList(type) {
+  var isPegawai = (type || activeType) === "guru";
+  var roles = ["Semua"];
+  if (isPegawai) {
+    for (var u = 0; u < PEGAWAI_UNITS.length; u++) {
+      if (roles.indexOf(PEGAWAI_UNITS[u]) === -1) roles.push(PEGAWAI_UNITS[u]);
+    }
+    var sourceList = (rekapData && rekapData.students && rekapData.students.length > 0) ? rekapData.students : students;
+    if (sourceList && sourceList.length > 0) {
+      for (var i = 0; i < sourceList.length; i++) {
+        var uItem = getPegawaiUnit(sourceList[i]);
+        if (uItem && roles.indexOf(uItem) === -1) roles.push(uItem);
+      }
+    }
+  } else {
+    for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
+      if (roles.indexOf(STANDARD_STUDENT_CLASSES[sc]) === -1) roles.push(STANDARD_STUDENT_CLASSES[sc]);
+    }
+    if (typeof availableClasses !== "undefined" && availableClasses && availableClasses.length > 0) {
+      for (var c = 0; c < availableClasses.length; c++) {
+        var clsName = (availableClasses[c].nama || "").trim();
+        if (clsName && roles.indexOf(clsName) === -1) roles.push(clsName);
+      }
+    }
+    var sList = (rekapData && rekapData.students && rekapData.students.length > 0) ? rekapData.students : students;
+    if (sList && sList.length > 0) {
+      for (var s = 0; s < sList.length; s++) {
+        var sk = (sList[s].kelas || "").trim();
+        if (sk && roles.indexOf(sk) === -1) roles.push(sk);
+      }
+    }
+  }
+  return roles;
+}
+
 function getTeacherRegisteredUnits(studentId, defaultRole) {
   var units = [];
   var roles = [];
@@ -898,9 +933,7 @@ function renderDashboard() {
   c.innerHTML =
     '<div class="page-header"><div class="dashboard-brand-header"><img id="dashboard-header-logo" src="' + getAppLogoUrl() + '" alt="Logo Yayasan" onerror="this.onerror=null;this.src=\'icon-192.png\';" class="dashboard-brand-logo"><div><h1>Dashboard ' +
     targetType +
-    '</h1><p>Pantau kehadiran ' +
-    (activeType == "guru" ? "pegawai dan guru" : "seluruh siswa") +
-    ' secara real-time dengan toleransi keterlambatan (TL1 & TL2).</p></div></div><div class="header-actions">' +
+    '</h1></div></div><div class="header-actions">' +
     '<button class="btn ' +
     btnG +
     '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
@@ -1271,43 +1304,14 @@ function renderLaporan() {
     dateBadgeHtml = '<span class="badge badge-success" style="gap:5px;font-size:12px;padding:6px 12px;"><i data-lucide="check-circle-2" style="width:14px;height:14px;"></i> ' + dayInfo.dayName + ' • Hari Efektif Belajar</span>';
   }
 
-  // Banner Libur Nasional atau Libur Akhir Pekan (tidak ditampilkan jika sedang memfilter Rumah Qur'an karena RQ aktif setiap hari)
+  // Status banner / deskripsi ditiadakan (admin sudah paham fungsi, status sudah ada di badge)
   var holidayBannerHtml = "";
-  if (!isFilteringRQ) {
-    if (dayInfo.isNationalHoliday) {
-      holidayBannerHtml = '<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#92400e;">' +
-        '<i data-lucide="party-popper" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
-        '<div style="font-size:13px;line-height:1.5;">' +
-        '<strong style="color:#b45309;">Hari Libur Resmi: ' + dayInfo.holidayName + '</strong>' +
-        '<p style="margin:2px 0 0;color:#78350f;">Sesuai Kalender Libur Indonesia (SKB 3 Menteri), hari ini adalah hari libur nasional / cuti bersama. Presensi reguler tidak diwajibkan dan default ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>.' +
-        (activeType === 'siswa' ? '<br><em>Siswa & guru Rumah Qur\'an tidak memiliki hari libur tertentu dan dapat absen kapan saja setiap hari.</em>' : '') +
-        '</p></div></div>';
-    } else if (dayInfo.isWeekend) {
-      holidayBannerHtml = '<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#92400e;">' +
-        '<i data-lucide="info" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
-        '<div style="font-size:13px;line-height:1.5;">' +
-        '<strong style="color:#b45309;">Sabtu & Minggu adalah Hari Libur Akhir Pekan</strong>' +
-        '<p style="margin:2px 0 0;color:#78350f;">Pada hari libur akhir pekan, presensi unit reguler tidak diwajibkan dan default ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>.' +
-        (activeType === 'siswa' ? '<br><em>Siswa & guru Rumah Qur\'an tidak memiliki hari libur tertentu dan dapat absen kapan saja setiap hari.</em>' : '') +
-        '</p></div></div>';
-    }
-  }
-
-  // Banner Rumah Qur'an jika sedang memfilter Rumah Qur'an atau unit bebas
-  var rumahQuranBannerHtml = isFilteringRQ
-    ? '<div id="rq-banner-box" style="margin-top:14px;padding:12px 16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#065f46;">' +
-      '<i data-lucide="sparkles" style="width:20px;height:20px;color:#059669;flex-shrink:0;margin-top:2px;"></i>' +
-      '<div style="font-size:13px;line-height:1.5;">' +
-      '<strong style="color:#047857;">Unit Rumah Qur\'an — Semua Hari Aktif & Jadwal Bebas</strong>' +
-      '<p style="margin:2px 0 0;color:#064e3b;">Unit Rumah Qur\'an <strong>tidak memiliki hari libur tertentu (semua hari Senin s.d. Minggu termasuk hari libur dapat digunakan untuk absensi)</strong>. Pegawai dan siswa dapat hadir kapan saja tanpa batasan terlambat (selalu Hadir), dan ketidakhadiran <strong>tidak pernah dikenakan status Alpa (-)</strong>.</p>' +
-      '</div></div>'
-    : '<div id="rq-banner-box" style="display:none;margin-top:14px;padding:12px 16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;align-items:flex-start;gap:12px;color:#065f46;"><i data-lucide="sparkles" style="width:20px;height:20px;color:#059669;flex-shrink:0;margin-top:2px;"></i><div style="font-size:13px;line-height:1.5;"><strong style="color:#047857;">Unit Rumah Qur\'an — Semua Hari Aktif & Jadwal Bebas</strong><p style="margin:2px 0 0;color:#064e3b;">Unit Rumah Qur\'an <strong>tidak memiliki hari libur tertentu (semua hari Senin s.d. Minggu dapat digunakan)</strong>. Pegawai dan siswa dapat hadir kapan saja tanpa batasan terlambat, dan ketidakhadiran <strong>tidak pernah dikenakan status Alpa (-)</strong>.</p></div></div>';
+  var rumahQuranBannerHtml = "";
 
   c.innerHTML =
     '<div class="page-header">' +
       '<div>' +
         '<h1>Laporan Kehadiran ' + targetType + '</h1>' +
-        '<p>Kelola dan pantau data kehadiran harian ' + (activeType == "guru" ? "pegawai dan guru" : "siswa") + ' dengan verifikasi selfie.</p>' +
       '</div>' +
       '<div class="header-actions">' +
         '<button class="btn ' + btnG + '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
@@ -1316,9 +1320,9 @@ function renderLaporan() {
     '</div>' +
     getAuthAlertHtml() +
     '<div class="card no-print" style="margin-bottom:20px;">' +
-      '<div class="card-body" style="padding:20px;">' +
+      '<div class="card-body" style="padding:16px 20px;">' +
         '<!-- Baris 1: Aksi Cepat -->' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">' +
           '<div class="report-actions" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">' +
             '<!-- Dropdown Cetak (Portrait & Landscape) -->' +
             '<div class="app-dropdown" id="dropdown-print-lap">' +
@@ -1327,13 +1331,13 @@ function renderLaporan() {
               '</button>' +
               '<div class="app-dropdown-menu">' +
                 '<div class="app-dropdown-header">Orientasi Cetak</div>' +
-                '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'portrait\');" title="Cetak halaman dengan orientasi tegak (Portrait)">' +
+                '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'portrait\');" title="Cetak halaman Portrait">' +
                   '<i data-lucide="file" style="color:var(--primary)"></i>' +
-                  '<div><div>Cetak Portrait</div><small>Format Tegak (A4)</small></div>' +
+                  '<div>Cetak Portrait</div>' +
                 '</button>' +
-                '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'landscape\');" title="Cetak halaman dengan orientasi mendatar (Landscape)">' +
+                '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'landscape\');" title="Cetak halaman Landscape">' +
                   '<i data-lucide="file-text" style="color:var(--primary)"></i>' +
-                  '<div><div>Cetak Landscape</div><small>Format Mendatar (Lebar)</small></div>' +
+                  '<div>Cetak Landscape</div>' +
                 '</button>' +
               '</div>' +
             '</div>' +
@@ -1346,49 +1350,43 @@ function renderLaporan() {
                 '<div class="app-dropdown-header">Dokumen PDF</div>' +
                 '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportPDF(\'portrait\');" title="Unduh file PDF (Portrait)">' +
                   '<i data-lucide="file-text" style="color:#ef4444"></i>' +
-                  '<div><div>PDF Portrait</div><small>Format Tegak Standar</small></div>' +
+                  '<div>PDF Portrait</div>' +
                 '</button>' +
                 '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportPDF(\'landscape\');" title="Unduh file PDF (Landscape)">' +
                   '<i data-lucide="file-text" style="color:#ef4444"></i>' +
-                  '<div><div>PDF Landscape</div><small>Format Mendatar Lebar</small></div>' +
+                  '<div>PDF Landscape</div>' +
                 '</button>' +
                 '<div class="app-dropdown-divider"></div>' +
                 '<div class="app-dropdown-header">Spreadsheet</div>' +
                 '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportExcel();" title="Unduh file Excel (.xlsx)">' +
                   '<i data-lucide="file-spreadsheet" style="color:#10b981"></i>' +
-                  '<div><div>Excel (.xlsx)</div><small>Data Presensi Harian</small></div>' +
+                  '<div>Excel (.xlsx)</div>' +
                 '</button>' +
               '</div>' +
             '</div>' +
-            '<button type="button" class="btn btn-success btn-sm" onclick="exportExcel()" title="Unduh file Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
             sendWaliBtn +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
             '<button class="btn btn-outline btn-sm" onclick="loadData()"><i data-lucide="refresh-cw" style="width:14px"></i> Segarkan Data</button>' +
           '</div>' +
         '</div>' +
-        '<!-- Baris 2: Filter Tabs Kategori / Kelas -->' +
-        '<div style="margin-bottom:16px;">' +
-          '<div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;font-weight:700;letter-spacing:0.5px;margin-bottom:8px;">Filter ' + (activeType == "guru" ? "Unit Kerja Pegawai" : "Kelas Siswa") + ':</div>' +
-          '<div class="filter-tabs" id="filter-tabs"></div>' +
-        '</div>' +
-        '<!-- Baris 3: Tanggal, Quick Hari Ini, Badge Status, Search -->' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:var(--bg);padding:12px 16px;border-radius:var(--radius-md);border:1px solid var(--border);">' +
-          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
-            '<div style="display:flex;align-items:center;gap:6px;"><i data-lucide="calendar" style="width:16px;color:var(--primary);"></i><span style="font-size:13px;font-weight:600;color:var(--text);">Pilih Tanggal:</span></div>' +
-            '<input type="date" class="form-input" id="lap-date-picker" value="' + (currentFilterDate || "") + '" onchange="changeDate(this.value)" style="width:auto;min-width:150px;height:38px;padding:6px 12px;font-size:13px;">' +
-            '<button class="btn btn-outline btn-sm" onclick="setFilterDateToday()" style="height:38px;padding:0 14px;font-size:13px;"><i data-lucide="clock" style="width:14px"></i> Hari Ini</button>' +
+        '<!-- Baris 2: Controls Row (Tanggal, Hari Ini, Filter Dropdown, Badge, Search) -->' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--bg);padding:10px 14px;border-radius:var(--radius-md);border:1px solid var(--border);">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<div style="display:flex;align-items:center;gap:5px;"><i data-lucide="calendar" style="width:15px;color:var(--primary);"></i><span style="font-size:13px;font-weight:600;color:var(--text);">Tanggal:</span></div>' +
+            '<input type="date" class="form-input" id="lap-date-picker" value="' + (currentFilterDate || "") + '" onchange="changeDate(this.value)" style="width:auto;min-width:140px;height:38px;padding:6px 12px;font-size:13px;">' +
+            '<button class="btn btn-outline btn-sm" onclick="setFilterDateToday()" style="height:38px;padding:0 12px;font-size:13px;"><i data-lucide="clock" style="width:14px"></i> Hari Ini</button>' +
+            '<div style="width:1px;height:24px;background:var(--border);margin:0 2px;" class="hide-mobile"></div>' +
+            '<select class="form-select" id="lap-filter-select" onchange="setFilter(this.value)" style="height:38px;padding:6px 12px;font-size:13px;font-weight:600;min-width:150px;width:auto;"></select>' +
             dateBadgeHtml +
           '</div>' +
-          '<div style="flex:1;min-width:200px;max-width:320px;">' +
+          '<div style="flex:1;min-width:180px;max-width:300px;">' +
             '<div class="search-box" style="display:flex;width:100%;height:38px;background:var(--surface);">' +
               '<i data-lucide="search" style="width:15px;color:var(--gray);"></i>' +
               '<input type="text" id="lap-search-input" value="' + (globalSearchQuery || "") + '" placeholder="Cari nama / NIS / barcode..." oninput="handleGlobalSearch(this.value)" style="font-size:13px;">' +
             '</div>' +
           '</div>' +
         '</div>' +
-        holidayBannerHtml +
-        rumahQuranBannerHtml +
       '</div>' +
     '</div>' +
     '<!-- Card Tabel Kehadiran -->' +
@@ -1452,73 +1450,26 @@ function renderLaporan() {
 }
 
 function renderFilters() {
-  var t = document.getElementById("filter-tabs");
-  if (!t) return;
-  var roles = [];
-  if (activeType == "siswa") {
-    roles.push("Semua");
-    // Standarisasi pengkategorian kelas siswa: Rumah Quran, TK/PAUD, SDIT Kelas 1-6
-    for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
-      if (roles.indexOf(STANDARD_STUDENT_CLASSES[sc]) === -1) roles.push(STANDARD_STUDENT_CLASSES[sc]);
-    }
-    if (availableClasses && availableClasses.length > 0) {
-      for (var c = 0; c < availableClasses.length; c++) {
-        var clsName = (availableClasses[c].nama || "").trim();
-        if (clsName && roles.indexOf(clsName) === -1) roles.push(clsName);
-      }
-    }
-    if (students && students.length > 0) {
-      for (var s = 0; s < students.length; s++) {
-        var sk = (students[s].kelas || "").trim();
-        if (sk && roles.indexOf(sk) === -1) roles.push(sk);
-      }
-    }
-    if (attendance && attendance.length > 0) {
-      for (var a = 0; a < attendance.length; a++) {
-        if (!attendance[a].type || attendance[a].type === "Siswa") {
-          var ak = (attendance[a].kelas || "").trim();
-          if (ak && roles.indexOf(ak) === -1) roles.push(ak);
-        }
-      }
-    }
-  } else {
-    // Pegawai: Filter berdasarkan UNIT KERJA bukan jabatan!
-    for (var uIdx = 0; uIdx < PEGAWAI_UNITS.length; uIdx++) {
-      roles.push(PEGAWAI_UNITS[uIdx]);
-    }
-    if (students && students.length > 0) {
-      for (var i = 0; i < students.length; i++) {
-        var uItem = getPegawaiUnit(students[i]);
-        if (uItem && roles.indexOf(uItem) === -1) roles.push(uItem);
-      }
-    }
-  }
-  var h = "";
+  var sel = document.getElementById("lap-filter-select");
+  if (!sel) return;
+  var roles = getCategoryFilterList();
+  var isPegawai = activeType === "guru";
+  var opts = "";
   for (var j = 0; j < roles.length; j++) {
     var rName = roles[j];
     var isRQ = rName.toLowerCase().indexOf("rumah quran") > -1;
-    var label = isRQ ? '📖 ' + rName + ' (Bebas)' : rName;
-    h +=
-      '<button class="filter-tab ' +
-      (filterKelas == rName ? "active" : "") +
-      '" onclick="setFilter(this,\'' +
-      rName +
-      "')\">" +
-      label +
-      "</button>";
+    var label = isRQ ? '📖 ' + rName + ' (Bebas)' : (rName === 'Semua' ? (isPegawai ? 'Semua Unit Kerja' : 'Semua Kelas') : rName);
+    opts += '<option value="' + rName + '" ' + (filterKelas === rName ? 'selected' : '') + '>' + label + '</option>';
   }
-  t.innerHTML = h;
+  sel.innerHTML = opts;
 }
 
-function setFilter(el, f) {
+function setFilter(arg1, arg2) {
+  var f = (typeof arg2 !== "undefined") ? arg2 : arg1;
   filterKelas = f;
-  renderFilters();
+  var sel = document.getElementById("lap-filter-select");
+  if (sel && sel.value !== f) sel.value = f;
   renderLapTable();
-  var bannerRQ = document.getElementById("rq-banner-box");
-  if (bannerRQ) {
-    var isFilterRQ = String(filterKelas || "").toLowerCase().indexOf("rumah quran") > -1;
-    bannerRQ.style.display = isFilterRQ ? "flex" : "none";
-  }
 }
 
 function renderLapTable() {
@@ -1811,9 +1762,7 @@ function renderRekap() {
   c.innerHTML =
     '<div class="page-header"><div><h1>Rekap Bulanan ' +
     targetType +
-    '</h1><p>Rekap kehadiran ' +
-    (activeType == "guru" ? "pegawai dan guru" : "siswa") +
-    ' per bulan dengan status harian.</p></div><div class="header-actions">' +
+    '</h1></div><div class="header-actions">' +
     '<button class="btn ' +
     btnG +
     '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
@@ -1823,11 +1772,13 @@ function renderRekap() {
     '</div></div>' +
     getAuthAlertHtml() +
     '<div class="card no-print rekap-toolbar-card"><div class="card-body rekap-toolbar-body">' +
-    // 1. Period Selector
+    // 1. Period & Category Filter Selector
     '<div class="rekap-period-box">' +
-      '<div class="rekap-period-label"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--primary)"></i> <span>Pilih Periode:</span></div>' +
+      '<div class="rekap-period-label"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--primary)"></i> <span>Periode:</span></div>' +
       '<select class="form-select" id="rekap-month" onchange="changeRekapPeriod()">' + monthOptions + '</select>' +
       '<select class="form-select" id="rekap-year" onchange="changeRekapPeriod()">' + yearOptions + '</select>' +
+      '<div style="width:1px;height:24px;background:var(--border);margin:0 4px;" class="hide-mobile"></div>' +
+      '<select class="form-select" id="rekap-filter-select" onchange="filterRekap(this.value)" style="font-weight:600;min-width:140px;"></select>' +
     '</div>' +
     // 2. In-Page Search
     '<div class="rekap-search-box">' +
@@ -1838,10 +1789,10 @@ function renderRekap() {
     // 3. Actions Row & View Switcher
     '<div class="rekap-actions-row">' +
       '<div class="rekap-view-switcher">' +
-        '<button type="button" class="view-switch-btn ' + (rekapViewMode === "card" ? "active" : "") + '" onclick="setRekapViewMode(\'card\')" title="Tampilan Kartu Ringkas (Optimal untuk Layar HP/Mobile)">' +
+        '<button type="button" class="view-switch-btn ' + (rekapViewMode === "card" ? "active" : "") + '" onclick="setRekapViewMode(\'card\')" title="Tampilan Kartu (Optimal untuk HP/Mobile)">' +
           '<i data-lucide="layout-grid" style="width:14px;height:14px"></i> <span>Kartu</span>' +
         '</button>' +
-        '<button type="button" class="view-switch-btn ' + (rekapViewMode === "table" ? "active" : "") + '" onclick="setRekapViewMode(\'table\')" title="Tampilan Tabel Matriks 31 Hari Lengkap">' +
+        '<button type="button" class="view-switch-btn ' + (rekapViewMode === "table" ? "active" : "") + '" onclick="setRekapViewMode(\'table\')" title="Tampilan Tabel 31 Hari Lengkap">' +
           '<i data-lucide="table" style="width:14px;height:14px"></i> <span>Tabel 31 Hari</span>' +
         '</button>' +
       '</div>' +
@@ -1852,13 +1803,13 @@ function renderRekap() {
         '</button>' +
         '<div class="app-dropdown-menu">' +
           '<div class="app-dropdown-header">Orientasi Cetak</div>' +
-          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'portrait\');" title="Cetak Rekap Portrait (Tegak - Dipaksa Horizontal)">' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'portrait\');" title="Cetak Rekap Portrait">' +
             '<i data-lucide="file" style="color:var(--primary)"></i>' +
-            '<div><div>Cetak Portrait</div><small>Format Tegak</small></div>' +
+            '<div>Cetak Portrait</div>' +
           '</button>' +
-          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'landscape\');" title="Cetak Rekap Landscape (Mendatar - Sangat Disarankan)">' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'landscape\');" title="Cetak Rekap Landscape">' +
             '<i data-lucide="file-text" style="color:var(--primary)"></i>' +
-            '<div><div>Cetak Landscape</div><small>Format Mendatar (31 Hari Rapi)</small></div>' +
+            '<div>Cetak Landscape</div>' +
           '</button>' +
         '</div>' +
       '</div>' +
@@ -1869,26 +1820,25 @@ function renderRekap() {
         '</button>' +
         '<div class="app-dropdown-menu">' +
           '<div class="app-dropdown-header">Dokumen PDF</div>' +
-          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'portrait\');" title="Unduh Rekap Bulanan ke PDF (Portrait)">' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'portrait\');" title="Unduh Rekap PDF Portrait">' +
             '<i data-lucide="file-text" style="color:#ef4444"></i>' +
-            '<div><div>PDF Portrait</div><small>Format Tegak</small></div>' +
+            '<div>PDF Portrait</div>' +
           '</button>' +
-          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'landscape\');" title="Unduh Rekap Bulanan ke PDF (Landscape)">' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'landscape\');" title="Unduh Rekap PDF Landscape">' +
             '<i data-lucide="file-text" style="color:#ef4444"></i>' +
-            '<div><div>PDF Landscape</div><small>Format Mendatar (31 Hari)</small></div>' +
+            '<div>PDF Landscape</div>' +
           '</button>' +
           '<div class="app-dropdown-divider"></div>' +
           '<div class="app-dropdown-header">Spreadsheet</div>' +
-          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapExcel();" title="Unduh Rekap Bulanan ke Excel (.xlsx)">' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapExcel();" title="Unduh Rekap Excel (.xlsx)">' +
             '<i data-lucide="file-spreadsheet" style="color:#10b981"></i>' +
-            '<div><div>Excel (.xlsx)</div><small>Data Rekap 31 Hari Lengkap</small></div>' +
+            '<div>Excel (.xlsx)</div>' +
           '</button>' +
         '</div>' +
       '</div>' +
-      '<button type="button" class="btn btn-success btn-sm btn-export-excel-standalone" onclick="exportRekapExcel()" title="Unduh Rekap Bulanan ke Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
     '</div>' +
     '</div></div>' +
-    '<div class="card"><div class="card-body" id="rekap-content" style="padding:18px;"><p style="text-align:center;padding:30px;color:var(--gray)">Memuat data ' +
+    '<div class="card"><div class="card-body" id="rekap-content"><p style="text-align:center;padding:30px;color:var(--gray)">Memuat data ' +
     targetType +
     "...</p></div></div>";
 
@@ -2036,74 +1986,20 @@ function showRekapTable() {
     return;
   }
 
-  // Extract unique roles for filtering
-  var roles = [];
+  // Populate filter dropdown in toolbar
   var isPegawai = activeType === "guru";
-  if (isPegawai) {
-    // Filter Pegawai berdasarkan Unit Kerja
-    for (var uIdx = 0; uIdx < PEGAWAI_UNITS.length; uIdx++) {
-      roles.push(PEGAWAI_UNITS[uIdx]);
+  var roles = getCategoryFilterList();
+  var rSel = document.getElementById("rekap-filter-select");
+  if (rSel) {
+    var rOpts = "";
+    for (var j = 0; j < roles.length; j++) {
+      var rName = roles[j];
+      var isRQ = rName.toLowerCase().indexOf("rumah quran") > -1;
+      var label = isRQ ? '📖 ' + rName + ' (Bebas)' : (rName === 'Semua' ? (isPegawai ? 'Semua Unit Kerja' : 'Semua Kelas') : rName);
+      rOpts += '<option value="' + rName + '" ' + (filterKelas === rName ? 'selected' : '') + '>' + label + '</option>';
     }
-    for (var i = 0; i < rekapData.students.length; i++) {
-      var uItem = getPegawaiUnit(rekapData.students[i]);
-      if (uItem && roles.indexOf(uItem) === -1) roles.push(uItem);
-    }
-  } else {
-    // Filter Siswa berdasarkan Kelas
-    roles.push("Semua");
-    for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
-      if (roles.indexOf(STANDARD_STUDENT_CLASSES[sc]) === -1) roles.push(STANDARD_STUDENT_CLASSES[sc]);
-    }
-    if (availableClasses && availableClasses.length > 0) {
-      for (var cIdx = 0; cIdx < availableClasses.length; cIdx++) {
-        var cName = (availableClasses[cIdx].nama || "").trim();
-        if (cName && roles.indexOf(cName) === -1) roles.push(cName);
-      }
-    }
-    for (var i2 = 0; i2 < rekapData.students.length; i2++) {
-      var cRaw = (rekapData.students[i2].kelas || "").trim();
-      if (cRaw && roles.indexOf(cRaw) === -1) roles.push(cRaw);
-    }
+    rSel.innerHTML = rOpts;
   }
-
-  // 1. Horizontal Scroll Filter Chips
-  var filterLabel = isPegawai ? "Filter Unit Kerja Pegawai" : "Filter Kelas Siswa";
-  var filterHtml =
-    '<div class="filters no-print" style="margin-bottom:14px; padding:12px 14px; border-radius:var(--radius-md);">' +
-      '<div class="filter-group" style="width:100%;">' +
-        '<div class="filter-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
-          '<span><i data-lucide="layers" style="width:13px;height:13px;vertical-align:-1px;margin-right:4px;color:var(--primary);"></i> ' + filterLabel + '</span>' +
-          '<span style="font-size:11px;color:var(--text-muted);font-weight:600;">' + roles.length + ' Pilihan</span>' +
-        '</div>' +
-        '<div class="rekap-filter-scroll">';
-  for (var j = 0; j < roles.length; j++) {
-    var rName = roles[j];
-    var isRQ = rName.toLowerCase().indexOf("rumah quran") > -1;
-    var label = isRQ ? '📖 ' + rName + ' (Bebas)' : rName;
-    filterHtml += '<button type="button" class="filter-tab ' + (filterKelas == rName ? "active" : "") + '" onclick="filterRekap(\'' + rName.replace(/'/g, "\\'") + '\')">' + label + '</button>';
-  }
-  filterHtml += '</div></div></div>';
-
-  // 2. Collapsible Notice Banner
-  var noticeChevron = rekapNoticeCollapsed ? "chevron-down" : "chevron-up";
-  var noticeBodyDisplay = rekapNoticeCollapsed ? "none" : "block";
-  var rekapNoticeHtml =
-    '<div class="rekap-notice-box no-print">' +
-      '<button type="button" class="rekap-notice-toggle-btn" onclick="toggleRekapNotice()">' +
-        '<div style="display:flex;align-items:center;gap:8px;">' +
-          '<i data-lucide="info" style="width:18px;height:18px;color:#d97706;flex-shrink:0;"></i>' +
-          '<span>Ketentuan Kalender Libur & Rekap Kehadiran</span>' +
-        '</div>' +
-        '<i data-lucide="' + noticeChevron + '" id="rekap-notice-chevron" style="width:18px;height:18px;color:#d97706;"></i>' +
-      '</button>' +
-      '<div class="rekap-notice-body" id="rekap-notice-body" style="display:' + noticeBodyDisplay + ';">' +
-        '<ul style="margin:4px 0 0 16px;padding:0;">' +
-          '<li><strong>Hari Libur Nasional & Akhir Pekan (Sabtu/Minggu):</strong> Kolom bertanda merah muda atau tanda bintang (<span style="color:#dc2626;">★</span>). Default absensi <strong>bukan Alpa (-)</strong>.</li>' +
-          '<li><strong>Alpa (A):</strong> HANYA jika pada <strong>hari efektif belajar (Senin s/d Jumat bukan hari libur)</strong> tidak mengisi absensi sama sekali.</li>' +
-          '<li><strong>Rumah Qur\'an:</strong> <strong>Tidak ada hari libur tertentu (semua hari Senin s/d Minggu dapat digunakan)</strong>, bebas absen kapan saja tanpa batasan jam terlambat (selalu Hadir), dan tidak pernah dikenakan status Alpa (-).</li>' +
-        '</ul>' +
-      '</div>' +
-    '</div>';
 
   // 3. Official Print Header
   var printHeader = 
@@ -2214,7 +2110,7 @@ function showRekapTable() {
       '</div>' +
     '</div>';
 
-  rc.innerHTML = filterHtml + rekapNoticeHtml + summaryStripHtml + printHeader + contentHtml + printTableHtml + printFooter;
+  rc.innerHTML = summaryStripHtml + printHeader + contentHtml + printTableHtml + printFooter;
   if (typeof lucide !== "undefined" && lucide.createIcons) lucide.createIcons();
 }
 
@@ -2289,10 +2185,6 @@ function renderRekapCards(visibleStudents, rekapData) {
 
         // Expandable Daily Grid Tray
         '<div class="rekap-calendar-tray" id="tray-' + cardId + '" style="display:' + (isExpanded ? 'block' : 'none') + ';">' +
-          '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">' +
-            '<span>Status Tanggal 1 - ' + daysInMonth + ':</span>' +
-            '<span style="font-size:10px;color:var(--gray);"><i data-lucide="touch-pad" style="width:11px;height:11px;vertical-align:-1px;"></i> Sentuh tgl untuk info</span>' +
-          '</div>' +
           '<div class="rekap-days-flow">';
 
     for (var d = 1; d <= daysInMonth; d++) {
@@ -2344,12 +2236,10 @@ function renderRekapTableHtml(visibleStudents, rekapData, isPrintOnly) {
     quickNavHtml =
       '<div class="rekap-quick-nav-bar no-print">' +
         '<div class="rekap-jump-group">' +
-          '<span style="font-weight:700;color:var(--text-muted);font-size:11.5px;">Lompat Cepat:</span>' +
           '<button type="button" class="rekap-jump-btn" onclick="scrollRekapTable(\'start\')"><i data-lucide="arrow-left"></i> <span>Nama</span></button>' +
           '<button type="button" class="rekap-jump-btn" onclick="scrollRekapTable(\'today\')"><i data-lucide="calendar"></i> <span>Hari Ini</span></button>' +
           '<button type="button" class="rekap-jump-btn" onclick="scrollRekapTable(\'summary\')"><span>Total (H T S I A)</span> <i data-lucide="arrow-right"></i></button>' +
         '</div>' +
-        '<div class="rekap-scroll-hint"><i data-lucide="move-horizontal" style="width:13px;height:13px;"></i> Geser tabel horizontal</div>' +
       '</div>';
   }
 
@@ -2844,32 +2734,16 @@ function renderSiswa() {
   var btnG = activeType == "guru" ? "btn-primary" : "btn-outline";
   var btnK = activeType == "kelas" ? "btn-primary" : "btn-outline";
   var title = activeType == "guru" ? "Data Pegawai" : (activeType == "siswa" ? "Data Siswa" : "Data Unit / Kelas");
-  var desc = activeType == "guru" ? "Kelola data Pegawai, Guru, dan Jabatan." : (activeType == "siswa" ? "Kelola data Siswa dan Unit / Kelas." : "Kelola data Unit, Kelas, dan Wali Kelas.");
 
-  var filterOptions = '<option value="Semua">Semua ' + (activeType === "guru" ? "Unit Kerja" : "Kelas") + '</option>';
-  if (activeType === "guru") {
-    for (var uIdx = 1; uIdx < PEGAWAI_UNITS.length; uIdx++) {
-      var uName = PEGAWAI_UNITS[uIdx];
-      var isSel = masterFilterKelas === uName ? "selected" : "";
-      filterOptions += '<option value="' + uName + '" ' + isSel + '>' + uName + '</option>';
-    }
-  } else if (activeType === "siswa") {
-    var seenClasses = {};
-    for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
-      var scName = STANDARD_STUDENT_CLASSES[sc];
-      seenClasses[scName] = true;
-      var isSel = masterFilterKelas === scName ? "selected" : "";
-      filterOptions += '<option value="' + scName + '" ' + isSel + '>' + scName + '</option>';
-    }
-    if (availableClasses && availableClasses.length > 0) {
-      for (var cl = 0; cl < availableClasses.length; cl++) {
-        var cName = (availableClasses[cl].nama || "").trim();
-        if (cName && !seenClasses[cName]) {
-          seenClasses[cName] = true;
-          var isSel2 = masterFilterKelas === cName ? "selected" : "";
-          filterOptions += '<option value="' + cName + '" ' + isSel2 + '>' + cName + '</option>';
-        }
-      }
+  var filterOptions = "";
+  if (activeType === "guru" || activeType === "siswa") {
+    var roles = getCategoryFilterList(activeType);
+    for (var rIdx = 0; rIdx < roles.length; rIdx++) {
+      var rName = roles[rIdx];
+      var isRQ = rName.toLowerCase().indexOf("rumah quran") > -1;
+      var label = isRQ ? '📖 ' + rName + ' (Bebas)' : (rName === 'Semua' ? 'Semua ' + (activeType === "guru" ? "Unit Kerja" : "Kelas") : rName);
+      var isSel = masterFilterKelas === rName ? "selected" : "";
+      filterOptions += '<option value="' + rName + '" ' + isSel + '>' + label + '</option>';
     }
   }
 
@@ -2878,7 +2752,7 @@ function renderSiswa() {
     : '';
 
   c.innerHTML =
-    '<div class="page-header"><div><h1>' + title + '</h1><p>' + desc + '</p></div><div class="header-actions">' +
+    '<div class="page-header"><div><h1>' + title + '</h1></div><div class="header-actions">' +
     '<button class="btn ' +
     btnG +
     '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Data Pegawai</button>' +
@@ -3371,9 +3245,9 @@ function renderPengaturan() {
 
   c.innerHTML =
     '<div class="page-header">' +
-      '<div><h1>Pengaturan Sistem & Kalender</h1><p>Konfigurasi parameter sistem presensi dan kalender libur otomatis multi-tahun.</p></div>' +
+      '<div><h1>Pengaturan Sistem & Kalender</h1></div>' +
     '</div>' +
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));gap:20px;">' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:20px;">' +
       '<!-- Kartu 1: Parameter Sistem -->' +
       '<div class="card">' +
         '<div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">' +
