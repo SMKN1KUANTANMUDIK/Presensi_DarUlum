@@ -8,7 +8,103 @@ var rekapData = null;
 var filterKelas = "Semua";
 var colors = ["blue", "green", "orange", "purple", "cyan"];
 var appSettings = {}; // NEW
-var availableClasses = []; // Master data unit / kelas
+
+// Standarisasi Pengkategorian: Kelas Siswa & Unit Kerja Pegawai
+var STANDARD_STUDENT_CLASSES = [
+  "Rumah Quran",
+  "TK/PAUD",
+  "SDIT Kelas 1",
+  "SDIT Kelas 2",
+  "SDIT Kelas 3",
+  "SDIT Kelas 4",
+  "SDIT Kelas 5",
+  "SDIT Kelas 6"
+];
+
+var PEGAWAI_UNITS = [
+  "Semua",
+  "Yayasan",
+  "Rumah Quran",
+  "TK/PAUD",
+  "SDIT",
+  "SMP"
+];
+
+function getPegawaiUnit(item) {
+  if (!item) return "Yayasan";
+  var raw = (typeof item === "string" ? item : (item.unit || item.jabatan || item.kelas || "")).trim();
+  if (!raw) return "Yayasan";
+  
+  if (raw.indexOf(" - ") > -1) {
+    var p0 = raw.split(" - ")[0].trim();
+    if (["Yayasan", "Rumah Quran", "TK/PAUD", "SDIT", "SMP"].indexOf(p0) > -1) {
+      return p0;
+    }
+  }
+
+  var low = raw.toLowerCase();
+  if (low.indexOf("rumah quran") > -1 || low.indexOf("rumah qur'an") > -1) return "Rumah Quran";
+  if (low.indexOf("tk") > -1 || low.indexOf("paud") > -1) return "TK/PAUD";
+  if (low.indexOf("sdit") > -1 || low.indexOf("sd ") > -1 || low.endsWith(" sdit") || low.endsWith(" sd")) return "SDIT";
+  if (low.indexOf("smp") > -1) return "SMP";
+  
+  if (low.indexOf("yayasan") > -1 || low.indexOf("pimpinan") > -1 || low.indexOf("bendahara") > -1 ||
+      low.indexOf("operator") > -1 || low.indexOf("keamanan") > -1 || low.indexOf("kebersihan") > -1 ||
+      low.indexOf("tata usaha") > -1) {
+    return "Yayasan";
+  }
+  return "Yayasan";
+}
+
+function getPegawaiJabatan(item) {
+  if (!item) return "-";
+  var raw = (typeof item === "string" ? item : (item.jabatan || item.kelas || "")).trim();
+  if (!raw) return "-";
+  if (raw.indexOf(" - ") > -1) {
+    var parts = raw.split(" - ");
+    return parts.slice(1).join(" - ").trim() || parts[0].trim();
+  }
+  return raw;
+}
+
+function matchPegawaiUnit(item, filterUnit) {
+  if (!filterUnit || filterUnit === "Semua") return true;
+  var u = getPegawaiUnit(item);
+  return u.toLowerCase() === filterUnit.toLowerCase();
+}
+
+function matchSiswaKelas(item, filterClass) {
+  if (!filterClass || filterClass === "Semua") return true;
+  var raw = (typeof item === "string" ? item : (item.kelas || "")).trim();
+  if (!raw) return false;
+  var rawLow = raw.toLowerCase();
+  var filterLow = filterClass.toLowerCase();
+
+  if (rawLow === filterLow) return true;
+
+  if (filterLow.indexOf("rumah quran") > -1 || filterLow.indexOf("rumah qur'an") > -1) {
+    return rawLow.indexOf("rumah quran") > -1 || rawLow.indexOf("rumah qur'an") > -1;
+  }
+  if (filterLow === "tk/paud" || filterLow === "tk" || filterLow === "paud") {
+    return rawLow.indexOf("tk") > -1 || rawLow.indexOf("paud") > -1;
+  }
+  
+  var mFilter = filterLow.match(/kelas\s*(\d+)/) || filterLow.match(/\b(\d+)\b/);
+  if (mFilter) {
+    var num = mFilter[1];
+    var reg = new RegExp('(^|[^0-9])' + num + '([^0-9]|$)');
+    if (reg.test(rawLow)) {
+      if (filterLow.indexOf("sdit") > -1 && rawLow.indexOf("smp") > -1) return false;
+      if (filterLow.indexOf("smp") > -1 && rawLow.indexOf("sdit") > -1) return false;
+      return true;
+    }
+    return false;
+  }
+
+  return rawLow.indexOf(filterLow) > -1;
+}
+
+var availableClasses = STANDARD_STUDENT_CLASSES.map(function(c) { return { nama: c }; }); // Master data unit / kelas terinisialisasi
 var currentRekapMonth = new Date().getMonth() + 1;
 var currentRekapYear = new Date().getFullYear();
 var globalSearchQuery = "";
@@ -58,7 +154,9 @@ function toggleSidebar() {
 
 function loadAvailableClasses() {
   window.callGasAPI("getClassList", {}, function(r) {
-    if (r && r.classes) availableClasses = r.classes;
+    if (r && r.classes && r.classes.length > 0) {
+      availableClasses = r.classes;
+    }
   });
 }
 
@@ -199,6 +297,7 @@ function tryRender(token) {
 function switchType(t) {
   activeType = t;
   filterKelas = "Semua";
+  masterFilterKelas = "Semua";
   loadData();
 }
 function changeDate(d) {
@@ -281,7 +380,13 @@ function renderDashboard() {
           "</div>";
       var timeClass = a.status === "Terlambat" ? " late" : "";
       var subText = a.kelas;
-      if (a.kelas === "Guru" || a.kelas === "Pegawai") subText = "Pegawai";
+      if (activeType === "guru") {
+        var uFeed = getPegawaiUnit(a);
+        var jFeed = getPegawaiJabatan(a);
+        subText = uFeed + (jFeed && jFeed !== "-" && jFeed !== uFeed ? " • " + jFeed : "");
+      } else {
+        if (a.kelas === "Guru" || a.kelas === "Pegawai") subText = "Pegawai";
+      }
       feed +=
         '<div class="feed-card"><div class="feed-img">' +
         photoHtml +
@@ -452,10 +557,11 @@ function showUnattendedModal() {
   if (unattended.length === 0) {
     listHtml = '<div style="text-align:center;padding:30px;color:var(--gray)"><i data-lucide="check-circle" style="width:48px;height:48px;color:var(--success);margin-bottom:10px"></i><p>Luar biasa! Semua ' + targetType + ' aktif sudah melakukan absensi hari ini.</p></div>';
   } else {
-    listHtml = '<div style="max-height:350px;overflow-y:auto"><table class="table" style="width:100%"><thead><tr><th>No</th><th>Nama</th><th>' + (activeType == "guru" ? "Jabatan" : "Kelas") + '</th><th>Status</th></tr></thead><tbody>';
+    listHtml = '<div style="max-height:350px;overflow-y:auto"><table class="table" style="width:100%"><thead><tr><th>No</th><th>Nama</th><th>' + (activeType == "guru" ? "Unit & Jabatan" : "Unit / Kelas") + '</th><th>Status</th></tr></thead><tbody>';
     for (var j = 0; j < unattended.length; j++) {
       var u = unattended[j];
-      listHtml += '<tr><td>' + (j + 1) + '</td><td><strong>' + u.nama + '</strong></td><td>' + (u.jabatan || u.kelas || "-") + '</td><td><span class="badge badge-danger">Belum Absen</span></td></tr>';
+      var catUnatt = activeType === "guru" ? (getPegawaiUnit(u) + " - " + getPegawaiJabatan(u)) : (u.kelas || "-");
+      listHtml += '<tr><td>' + (j + 1) + '</td><td><strong>' + u.nama + '</strong></td><td>' + catUnatt + '</td><td><span class="badge badge-danger">Belum Absen</span></td></tr>';
     }
     listHtml += '</tbody></table></div>';
   }
@@ -548,7 +654,7 @@ function renderLaporan() {
         '</div>' +
         '<!-- Baris 2: Filter Tabs Kategori / Kelas -->' +
         '<div style="margin-bottom:16px;">' +
-          '<div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;font-weight:700;letter-spacing:0.5px;margin-bottom:8px;">Filter ' + (activeType == "guru" ? "Jabatan" : "Unit / Kelas") + ':</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;font-weight:700;letter-spacing:0.5px;margin-bottom:8px;">Filter ' + (activeType == "guru" ? "Unit Kerja Pegawai" : "Kelas Siswa") + ':</div>' +
           '<div class="filter-tabs" id="filter-tabs"></div>' +
         '</div>' +
         '<!-- Baris 3: Tanggal, Quick Hari Ini, Badge Status, Search -->' +
@@ -586,7 +692,7 @@ function renderLaporan() {
             '<thead>' +
               '<tr>' +
                 '<th style="padding-left:20px;">Siswa / Pegawai</th>' +
-                '<th>' + (activeType == "guru" ? "Jabatan" : "Unit / Kelas") + '</th>' +
+                '<th>' + (activeType == "guru" ? "Unit & Jabatan" : "Unit / Kelas") + '</th>' +
                 '<th>Hari & Tanggal</th>' +
                 '<th>Jam Masuk</th>' +
                 '<th>Status</th>' +
@@ -619,8 +725,13 @@ function renderLaporan() {
 function renderFilters() {
   var t = document.getElementById("filter-tabs");
   if (!t) return;
-  var roles = ["Semua"];
+  var roles = [];
   if (activeType == "siswa") {
+    roles.push("Semua");
+    // Standarisasi pengkategorian kelas siswa: Rumah Quran, TK/PAUD, SDIT Kelas 1-6
+    for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
+      if (roles.indexOf(STANDARD_STUDENT_CLASSES[sc]) === -1) roles.push(STANDARD_STUDENT_CLASSES[sc]);
+    }
     if (availableClasses && availableClasses.length > 0) {
       for (var c = 0; c < availableClasses.length; c++) {
         var clsName = (availableClasses[c].nama || "").trim();
@@ -642,24 +753,14 @@ function renderFilters() {
       }
     }
   } else {
+    // Pegawai: Filter berdasarkan UNIT KERJA bukan jabatan!
+    for (var uIdx = 0; uIdx < PEGAWAI_UNITS.length; uIdx++) {
+      roles.push(PEGAWAI_UNITS[uIdx]);
+    }
     if (students && students.length > 0) {
       for (var i = 0; i < students.length; i++) {
-        var jbStr = students[i].jabatan || students[i].kelas || "";
-        if (jbStr) {
-          var jbs = jbStr.split(',');
-          for (var x = 0; x < jbs.length; x++) {
-            var jbClean = jbs[x].trim();
-            if (jbClean && roles.indexOf(jbClean) === -1) roles.push(jbClean);
-          }
-        }
-      }
-    }
-    if (attendance && attendance.length > 0) {
-      for (var a2 = 0; a2 < attendance.length; a2++) {
-        if (attendance[a2].type === "Guru") {
-          var ak2 = (attendance[a2].kelas || "").trim();
-          if (ak2 && roles.indexOf(ak2) === -1) roles.push(ak2);
-        }
+        var uItem = getPegawaiUnit(students[i]);
+        if (uItem && roles.indexOf(uItem) === -1) roles.push(uItem);
       }
     }
   }
@@ -694,10 +795,10 @@ function setFilter(el, f) {
 function renderLapTable() {
   var tb = document.getElementById("lap-table");
   if (!tb) return;
-  var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
+  var isPegawai = activeType == "guru";
   var data = attendance.filter(function (a) {
-    var isType = a.type === (activeType == "guru" ? "Guru" : "Siswa") || (activeType == "siswa" && !a.type);
-    var matchClass = (filterKelas === "Semua" || (a.kelas && a.kelas.indexOf(filterKelas) > -1));
+    var isType = a.type === (isPegawai ? "Guru" : "Siswa") || (!isPegawai && !a.type);
+    var matchCategory = isPegawai ? matchPegawaiUnit(a, filterKelas) : matchSiswaKelas(a, filterKelas);
     var matchSearch = true;
     if (globalSearchQuery) {
       var q = globalSearchQuery.toLowerCase();
@@ -706,7 +807,7 @@ function renderLapTable() {
       var sid = (a.studentId || "").toLowerCase();
       matchSearch = nm.indexOf(q) > -1 || kl.indexOf(q) > -1 || sid.indexOf(q) > -1;
     }
-    return isType && matchClass && matchSearch;
+    return isType && matchCategory && matchSearch;
   });
 
   currentFilteredAttendance = data;
@@ -772,6 +873,15 @@ function renderLapTable() {
         '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="showAttendanceDetail(' + i + ')" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="avatar ' + getColor(i) + '" style="display:none;cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' + getInit(a.nama) + "</div>"
       : '<div class="avatar ' + getColor(i) + '" style="cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' + getInit(a.nama) + "</div>";
     
+    var categoryDisplay = "";
+    if (isPegawai) {
+      var uLap = getPegawaiUnit(a);
+      var jLap = getPegawaiJabatan(a);
+      categoryDisplay = '<span class="badge badge-info" style="font-size:11px;margin-right:4px;">' + uLap + '</span> ' + (jLap !== "-" && jLap !== uLap ? jLap : "");
+    } else {
+      categoryDisplay = (a.kelas || "-") + rqTag;
+    }
+
     h +=
       '<tr><td style="padding-left:20px;"><div class="student-cell" style="cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' +
       thumb +
@@ -779,7 +889,7 @@ function renderLapTable() {
       a.nama +
       '</span><small style="color:var(--gray)">' + (a.studentId || a.id || "-") + '</small></div>' +
       "</div></td><td>" +
-      (a.kelas || "-") + rqTag +
+      categoryDisplay +
       "</td><td>" +
       dateFormatted +
       "</td><td" +
@@ -1056,26 +1166,36 @@ function showRekapTable() {
     return;
   }
   // Extract unique roles for filtering
-  var roles = ["Semua"];
-  var u = {};
-  if (activeType === "siswa" && availableClasses && availableClasses.length > 0) {
-    for (var cIdx = 0; cIdx < availableClasses.length; cIdx++) {
-      var cName = (availableClasses[cIdx].nama || "").trim();
-      if (cName) u[cName] = 1;
+  var roles = [];
+  var isPegawai = activeType === "guru";
+  if (isPegawai) {
+    // Filter Pegawai berdasarkan Unit Kerja!
+    for (var uIdx = 0; uIdx < PEGAWAI_UNITS.length; uIdx++) {
+      roles.push(PEGAWAI_UNITS[uIdx]);
     }
-  }
-  for (var i = 0; i < rekapData.students.length; i++) {
-    if (rekapData.students[i].kelas) {
-      var jbs = rekapData.students[i].kelas.split(',');
-      for (var x = 0; x < jbs.length; x++) {
-        var cln = jbs[x].trim();
-        if (cln) u[cln] = 1;
+    for (var i = 0; i < rekapData.students.length; i++) {
+      var uItem = getPegawaiUnit(rekapData.students[i]);
+      if (uItem && roles.indexOf(uItem) === -1) roles.push(uItem);
+    }
+  } else {
+    // Filter Siswa berdasarkan Kelas (kategori standar: Rumah Quran, TK/PAUD, SDIT Kelas 1-6)
+    roles.push("Semua");
+    for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
+      if (roles.indexOf(STANDARD_STUDENT_CLASSES[sc]) === -1) roles.push(STANDARD_STUDENT_CLASSES[sc]);
+    }
+    if (availableClasses && availableClasses.length > 0) {
+      for (var cIdx = 0; cIdx < availableClasses.length; cIdx++) {
+        var cName = (availableClasses[cIdx].nama || "").trim();
+        if (cName && roles.indexOf(cName) === -1) roles.push(cName);
       }
     }
+    for (var i2 = 0; i2 < rekapData.students.length; i2++) {
+      var cRaw = (rekapData.students[i2].kelas || "").trim();
+      if (cRaw && roles.indexOf(cRaw) === -1) roles.push(cRaw);
+    }
   }
-  for (var key in u) roles.push(key);
 
-  var filterLabel = activeType === "guru" ? "Filter Jabatan" : "Filter Unit / Kelas";
+  var filterLabel = isPegawai ? "Filter Unit Kerja Pegawai" : "Filter Kelas Siswa";
   var filterHtml = '<div class="filters" style="margin-bottom:16px; padding:15px; border-radius:var(--radius-md);"><div class="filter-group"><div class="filter-label">' + filterLabel + '</div><div class="filter-tabs">';
   for (var j = 0; j < roles.length; j++) {
     var rName = roles[j];
@@ -1136,7 +1256,8 @@ function showRekapTable() {
     var s = rekapData.students[k];
     
     // Terapkan Filter
-    if (filterKelas !== "Semua" && s.kelas.indexOf(filterKelas) === -1) {
+    var matchCategory = isPegawai ? matchPegawaiUnit(s, filterKelas) : matchSiswaKelas(s, filterKelas);
+    if (!matchCategory) {
       continue;
     }
     if (globalSearchQuery) {
@@ -1154,6 +1275,7 @@ function showRekapTable() {
     var isRQ = recapCalc.isRumahQuran;
 
     var rqBadge = isRQ ? ' <span class="badge badge-free" style="font-size:9px;padding:1px 5px;">Bebas</span>' : '';
+    var subRekap = isPegawai ? (getPegawaiUnit(s) + (getPegawaiJabatan(s) !== "-" ? " • " + getPegawaiJabatan(s) : "")) : s.kelas;
 
     h +=
       '<tr><td style="text-align:left;padding-left:14px;"><div class="student-cell"><div class="avatar ' +
@@ -1163,7 +1285,7 @@ function showRekapTable() {
       '</div><div><strong style="font-size:12px">' +
       s.nama +
       '</strong>' + rqBadge + '<br><small style="color:var(--gray)">' +
-      s.kelas +
+      subRekap +
       "</small></div></div></td>";
 
     for (var d2 = 1; d2 <= rekapData.daysInMonth; d2++) {
@@ -1247,7 +1369,13 @@ function exportRekapExcel() {
   var monthName = monthNames[currentRekapMonth - 1] || "Bulan";
   var dayNamesShort = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
   
-  var headerRow = ["No", "Nama", (activeType === "guru" ? "Jabatan" : "Unit / Kelas")];
+  var isPegawai = activeType === "guru";
+  var headerRow = ["No", "Nama"];
+  if (isPegawai) {
+    headerRow.push("Unit Kerja", "Jabatan");
+  } else {
+    headerRow.push("Unit / Kelas");
+  }
   for (var d = 1; d <= rekapData.daysInMonth; d++) {
     var dObj = new Date(currentRekapYear, currentRekapMonth - 1, d);
     var dow = dObj.getDay();
@@ -1262,7 +1390,8 @@ function exportRekapExcel() {
   var no = 1;
   for (var k = 0; k < rekapData.students.length; k++) {
     var s = rekapData.students[k];
-    if (filterKelas !== "Semua" && s.kelas.indexOf(filterKelas) === -1) {
+    var matchCategory = isPegawai ? matchPegawaiUnit(s, filterKelas) : matchSiswaKelas(s, filterKelas);
+    if (!matchCategory) {
       continue;
     }
     if (globalSearchQuery) {
@@ -1276,7 +1405,12 @@ function exportRekapExcel() {
     var sDays = recapCalc.days;
     var sTotals = recapCalc.totals;
 
-    var row = [no++, s.nama, s.kelas];
+    var row = [no++, s.nama];
+    if (isPegawai) {
+      row.push(getPegawaiUnit(s), getPegawaiJabatan(s));
+    } else {
+      row.push(s.kelas);
+    }
     for (var d2 = 1; d2 <= rekapData.daysInMonth; d2++) {
       row.push(sDays[d2] || "-");
     }
@@ -1349,19 +1483,35 @@ function renderSiswa() {
   var title = activeType == "guru" ? "Data Pegawai" : (activeType == "siswa" ? "Data Siswa" : "Data Unit / Kelas");
   var desc = activeType == "guru" ? "Kelola data Pegawai, Guru, dan Jabatan." : (activeType == "siswa" ? "Kelola data Siswa dan Unit / Kelas." : "Kelola data Unit, Kelas, dan Wali Kelas.");
 
-  var classOptions = '<option value="Semua">Semua Kelas</option>';
-  if (availableClasses && availableClasses.length > 0) {
-    for (var cl = 0; cl < availableClasses.length; cl++) {
-      var cName = (availableClasses[cl].nama || "").trim();
-      if (cName) {
-        var isSel = masterFilterKelas === cName ? "selected" : "";
-        classOptions += '<option value="' + cName + '" ' + isSel + '>' + cName + '</option>';
+  var filterOptions = '<option value="Semua">Semua ' + (activeType === "guru" ? "Unit Kerja" : "Kelas") + '</option>';
+  if (activeType === "guru") {
+    for (var uIdx = 1; uIdx < PEGAWAI_UNITS.length; uIdx++) {
+      var uName = PEGAWAI_UNITS[uIdx];
+      var isSel = masterFilterKelas === uName ? "selected" : "";
+      filterOptions += '<option value="' + uName + '" ' + isSel + '>' + uName + '</option>';
+    }
+  } else if (activeType === "siswa") {
+    var seenClasses = {};
+    for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
+      var scName = STANDARD_STUDENT_CLASSES[sc];
+      seenClasses[scName] = true;
+      var isSel = masterFilterKelas === scName ? "selected" : "";
+      filterOptions += '<option value="' + scName + '" ' + isSel + '>' + scName + '</option>';
+    }
+    if (availableClasses && availableClasses.length > 0) {
+      for (var cl = 0; cl < availableClasses.length; cl++) {
+        var cName = (availableClasses[cl].nama || "").trim();
+        if (cName && !seenClasses[cName]) {
+          seenClasses[cName] = true;
+          var isSel2 = masterFilterKelas === cName ? "selected" : "";
+          filterOptions += '<option value="' + cName + '" ' + isSel2 + '>' + cName + '</option>';
+        }
       }
     }
   }
 
-  var classFilterHtml = activeType === "siswa"
-    ? '<select class="form-select" onchange="changeMasterClassFilter(this.value)" style="max-width:180px;height:38px;padding:6px 12px;font-size:13px;">' + classOptions + '</select>'
+  var classFilterHtml = (activeType === "siswa" || activeType === "guru")
+    ? '<select class="form-select" onchange="changeMasterClassFilter(this.value)" style="max-width:180px;height:38px;padding:6px 12px;font-size:13px;">' + filterOptions + '</select>'
     : '';
 
   c.innerHTML =
@@ -1397,7 +1547,7 @@ function renderSiswa() {
         "</th><th>" +
         (activeType == "guru" ? "NIP" : "Barcode") +
         "</th><th>" +
-        (activeType == "guru" ? "Jabatan" : "Unit / Kelas") +
+        (activeType == "guru" ? "Unit & Jabatan" : "Unit / Kelas") +
         "</th><th>Email</th><th>Biometrik Wajah</th><th>Status</th><th>Aksi</th>") +
     '</tr></thead><tbody id="siswa-table"></tbody></table>' +
     '<div class="pagination"><div class="pagination-info" id="siswa-pg-info"></div></div>' +
@@ -1411,9 +1561,12 @@ function renderSiswaTable() {
   if (!tb) return;
 
   var filteredStudents = students.filter(function (s) {
-    if (activeType === "siswa" && masterFilterKelas !== "Semua") {
-      var kls = s.kelas || "";
-      if (kls.indexOf(masterFilterKelas) === -1) return false;
+    if (masterFilterKelas !== "Semua") {
+      if (activeType === "guru") {
+        if (!matchPegawaiUnit(s, masterFilterKelas)) return false;
+      } else if (activeType === "siswa") {
+        if (!matchSiswaKelas(s, masterFilterKelas)) return false;
+      }
     }
     if (globalSearchQuery) {
       var q = globalSearchQuery.toLowerCase();
@@ -1467,7 +1620,16 @@ function renderSiswaTable() {
           '\')" ><i data-lucide="camera" style="width:13px"></i> Register</button>';
       var stBadge = s.status === "Aktif" ? "success" : "danger";
       var code = s.nip || s.barcode || "-";
-      var sub = s.jabatan || s.kelas || "-";
+      var sub = "-";
+      if (activeType === "guru") {
+        var uTab = getPegawaiUnit(s);
+        var jTab = getPegawaiJabatan(s);
+        sub = '<span class="badge badge-info" style="font-size:11px;margin-right:4px;">' + uTab + '</span> ' + (jTab !== "-" && jTab !== uTab ? jTab : "");
+      } else {
+        var isRQSis = String(s.kelas || "").toLowerCase().indexOf("rumah quran") > -1;
+        var rqBadgeSis = isRQSis ? ' <span class="badge badge-free" style="font-size:10px;padding:1px 5px;">Bebas</span>' : '';
+        sub = (s.kelas || "-") + rqBadgeSis;
+      }
       var em = s.email || "-";
       h +=
         '<tr><td><div class="student-cell"><div class="avatar ' +
@@ -1899,35 +2061,55 @@ function showAddModal() {
       '<div class="modal"><div class="modal-header"><span class="modal-title">Tambah Unit / Kelas Baru</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><div class="form-group"><label class="form-label">Nama Unit / Kelas (Misal: SDIT Kelas 1)</label><input type="text" class="form-input" id="add-kelas-nama" placeholder="Contoh: SDIT Kelas 1"></div><div class="form-group"><label class="form-label">Nama Wali Kelas</label><input type="text" class="form-input" id="add-kelas-wali" placeholder="Nama Wali Kelas"></div><div class="form-group"><label class="form-label">Email Wali Kelas</label><input type="email" class="form-input" id="add-kelas-email" placeholder="email@sekolah.sch.id"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAdd()">Simpan</button></div></div>';
   } else {
     var lblCode = activeType == "guru" ? "NIP" : "Barcode / NIS";
-    var lblSub = activeType == "guru" ? "Jabatan" : "Unit / Kelas";
-    
-    var subInput = "";
+    var catFormHtml = "";
     if (activeType === "guru") {
-      subInput = '<select class="form-select" id="add-kelas" multiple style="height:120px">' +
-                 '<option value="Kepala Yayasan">Kepala Yayasan</option>' +
-                 '<option value="Kepala Sekolah">Kepala Sekolah</option>' +
-                 '<option value="Wali Kelas">Wali Kelas</option>' +
-                 '<option value="Guru Kelas">Guru Kelas</option>' +
-                 '<option value="Guru Bidang Studi">Guru Bidang Studi</option>' +
-                 '<option value="Guru Rumah Quran">Guru Rumah Quran</option>' +
-                 '<option value="Staf Tata Usaha">Staf Tata Usaha</option>' +
-                 '<option value="Bendahara">Bendahara</option>' +
-                 '<option value="Operator">Operator</option>' +
-                 '<option value="Keamanan">Keamanan</option>' +
-                 '<option value="Kebersihan">Kebersihan</option>' +
-                 '</select><small style="color:var(--gray);font-size:11px">Tahan Ctrl (Windows) atau Cmd (Mac) untuk memilih lebih dari satu.</small>';
+      var unitOptions = "";
+      for (var u = 1; u < PEGAWAI_UNITS.length; u++) {
+        unitOptions += '<option value="' + PEGAWAI_UNITS[u] + '">' + PEGAWAI_UNITS[u] + '</option>';
+      }
+      var jabatanDatalist = '<datalist id="jabatan-suggestions">' +
+        '<option value="Kepala Yayasan">' +
+        '<option value="Kepala Sekolah">' +
+        '<option value="Wali Kelas">' +
+        '<option value="Guru Kelas">' +
+        '<option value="Guru Bidang Studi">' +
+        '<option value="Guru Rumah Quran">' +
+        '<option value="Guru Tahfidz">' +
+        '<option value="Staf Tata Usaha">' +
+        '<option value="Bendahara">' +
+        '<option value="Operator">' +
+        '<option value="Keamanan">' +
+        '<option value="Kebersihan">' +
+        '</datalist>';
+      catFormHtml =
+        '<div class="form-group"><label class="form-label">Unit Kerja Pegawai</label>' +
+        '<select class="form-select" id="add-unit">' + unitOptions + '</select></div>' +
+        '<div class="form-group"><label class="form-label">Jabatan Pegawai</label>' +
+        '<input type="text" class="form-input" id="add-jabatan" placeholder="Contoh: Guru Kelas, Wali Kelas, Kepala Sekolah" list="jabatan-suggestions">' +
+        jabatanDatalist +
+        '<small style="color:var(--gray);font-size:11px">Pilih dari saran atau ketik jabatan custom.</small></div>';
     } else {
       var classOptions = "";
+      var seenCls = {};
+      for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
+        var scN = STANDARD_STUDENT_CLASSES[sc];
+        seenCls[scN] = true;
+        var isFree = scN.toLowerCase().indexOf("rumah quran") > -1 ? " (Jadwal Bebas)" : "";
+        classOptions += '<option value="' + scN + '">' + scN + isFree + '</option>';
+      }
       if (availableClasses && availableClasses.length > 0) {
         for (var cIdx = 0; cIdx < availableClasses.length; cIdx++) {
           var cName = (availableClasses[cIdx].nama || "").trim();
-          if (cName) classOptions += '<option value="' + cName + '">' + cName + '</option>';
+          if (cName && !seenCls[cName]) {
+            seenCls[cName] = true;
+            classOptions += '<option value="' + cName + '">' + cName + '</option>';
+          }
         }
       }
-      if (!classOptions) {
-        classOptions = '<option value="Rumah Quran">Rumah Quran</option><option value="TK">TK</option><option value="SDIT Kelas 1">SDIT Kelas 1</option><option value="SDIT Kelas 2">SDIT Kelas 2</option><option value="SMP">SMP</option>';
-      }
-      subInput = '<select class="form-select" id="add-kelas">' + classOptions + '</select><small style="color:var(--gray);font-size:11px">Pilihan Unit / Kelas diambil otomatis dari master Data Unit / Kelas.</small>';
+      catFormHtml =
+        '<div class="form-group"><label class="form-label">Unit / Kelas Siswa</label>' +
+        '<select class="form-select" id="add-kelas">' + classOptions + '</select>' +
+        '<small style="color:var(--gray);font-size:11px">Kategori: Rumah Quran (Bebas), TK/PAUD, SDIT Kelas 1-6.</small></div>';
     }
 
     m.innerHTML =
@@ -1937,9 +2119,9 @@ function showAddModal() {
       lblCode +
       '</label><input type="text" class="form-input" id="add-bc" placeholder="Masukan ' +
       lblCode +
-      '"></div><div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" class="form-input" id="add-nama" placeholder="Nama Lengkap"></div><div class="form-group"><label class="form-label">' +
-      lblSub +
-      '</label>' + subInput + '</div><div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="add-email" placeholder="email@domain.com"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAdd()">Simpan</button></div></div>';
+      '"></div><div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" class="form-input" id="add-nama" placeholder="Nama Lengkap"></div>' +
+      catFormHtml +
+      '<div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="add-email" placeholder="email@domain.com"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAdd()">Simpan</button></div></div>';
   }
   m.classList.add("active");
 }
@@ -2075,25 +2257,22 @@ function submitAdd() {
     });
     return;
   }
-  var bc = document.getElementById("add-bc").value;
-  var nm = document.getElementById("add-nama").value;
-  var klEl = document.getElementById("add-kelas");
-  var kl = "";
-  if (klEl.multiple) {
-    var vals = [];
-    for(var i=0; i<klEl.options.length; i++) {
-        if(klEl.options[i].selected) vals.push(klEl.options[i].value);
-    }
-    kl = vals.join(", ");
-  } else {
-    kl = klEl.value;
-  }
-  var em = document.getElementById("add-email").value;
-  if (!bc || !nm || !kl) {
-    showToast("Lengkapi semua field", "error");
-    return;
-  }
+  var bc = document.getElementById("add-bc").value.trim();
+  var nm = document.getElementById("add-nama").value.trim();
+  var em = document.getElementById("add-email").value.trim();
+
   if (activeType === "guru") {
+    var uEl = document.getElementById("add-unit");
+    var jEl = document.getElementById("add-jabatan");
+    var uVal = uEl ? uEl.value.trim() : "Yayasan";
+    var jVal = jEl ? jEl.value.trim() : "";
+    if (!jVal) jVal = uVal;
+    var kl = uVal + " - " + jVal;
+
+    if (!bc || !nm) {
+      showToast("Lengkapi NIP dan Nama Lengkap", "error");
+      return;
+    }
     window.callGasAPI(
       "addTeacher",
       { nip: bc, nama: nm, jabatan: kl, email: em },
@@ -2107,6 +2286,12 @@ function submitAdd() {
       }
     );
   } else {
+    var klEl = document.getElementById("add-kelas");
+    var kl = klEl ? klEl.value.trim() : "";
+    if (!bc || !nm || !kl) {
+      showToast("Lengkapi semua field wajib", "error");
+      return;
+    }
     window.callGasAPI(
       "addStudent",
       { barcode: bc, nama: nm, kelas: kl, email: em },
@@ -2137,47 +2322,70 @@ function editSiswa(id) {
   if (!s) return;
   var m = document.getElementById("modal");
   var lblCode = activeType == "guru" ? "NIP" : "Barcode / NIS";
-  var lblSub = activeType == "guru" ? "Jabatan" : "Unit / Kelas";
   var code = activeType == "guru" ? s.nip : s.barcode;
-  var sub = activeType == "guru" ? s.jabatan : s.kelas;
   
-  var subInput = "";
+  var catEditHtml = "";
   if (activeType === "guru") {
-    var opts = ["Kepala Yayasan", "Kepala Sekolah", "Wali Kelas", "Guru Kelas", "Guru Bidang Studi", "Guru Rumah Quran", "Staf Tata Usaha", "Bendahara", "Operator", "Keamanan", "Kebersihan", "Lainnya"];
-    subInput = '<select class="form-select" id="edit-kelas" multiple style="height:120px">';
-    var selectedSubs = (sub || "").split(",").map(function(s){ return s.trim() });
-    
-    for(var i=0; i<opts.length; i++) {
-        var sel = (selectedSubs.indexOf(opts[i]) !== -1) ? "selected" : "";
-        subInput += '<option value="' + opts[i] + '" ' + sel + '>' + opts[i] + '</option>';
+    var curUnit = getPegawaiUnit(s);
+    var curJab = getPegawaiJabatan(s);
+    var unitOptions = "";
+    for (var u = 1; u < PEGAWAI_UNITS.length; u++) {
+      var uN = PEGAWAI_UNITS[u];
+      var isSel = (uN.toLowerCase() === curUnit.toLowerCase()) ? "selected" : "";
+      unitOptions += '<option value="' + uN + '" ' + isSel + '>' + uN + '</option>';
     }
-    
-    // Add custom ones that aren't in opts
-    for(var i=0; i<selectedSubs.length; i++) {
-        if(selectedSubs[i] && opts.indexOf(selectedSubs[i]) === -1) {
-            subInput += '<option value="' + selectedSubs[i] + '" selected>' + selectedSubs[i] + '</option>';
-        }
-    }
-    
-    subInput += '</select><small style="color:var(--gray);font-size:11px">Tahan Ctrl/Cmd untuk multiseleksi.</small>';
+    var jabatanDatalist = '<datalist id="edit-jabatan-suggestions">' +
+      '<option value="Kepala Yayasan">' +
+      '<option value="Kepala Sekolah">' +
+      '<option value="Wali Kelas">' +
+      '<option value="Guru Kelas">' +
+      '<option value="Guru Bidang Studi">' +
+      '<option value="Guru Rumah Quran">' +
+      '<option value="Guru Tahfidz">' +
+      '<option value="Staf Tata Usaha">' +
+      '<option value="Bendahara">' +
+      '<option value="Operator">' +
+      '<option value="Keamanan">' +
+      '<option value="Kebersihan">' +
+      '</datalist>';
+    catEditHtml =
+      '<div class="form-group"><label class="form-label">Unit Kerja Pegawai</label>' +
+      '<select class="form-select" id="edit-unit">' + unitOptions + '</select></div>' +
+      '<div class="form-group"><label class="form-label">Jabatan</label>' +
+      '<input type="text" class="form-input" id="edit-jabatan" value="' + (curJab === "-" ? "" : curJab) + '" placeholder="Contoh: Guru Kelas, Wali Kelas, Kepala Sekolah" list="edit-jabatan-suggestions">' +
+      jabatanDatalist +
+      '<small style="color:var(--gray);font-size:11px">Ubah Unit Kerja atau Jabatan pegawai.</small></div>';
   } else {
+    var curClass = (s.kelas || "").trim();
     var classOptions = "";
-    var currentClass = (sub || "").trim();
     var foundCurrent = false;
+    var seenCls = {};
+    for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
+      var scN = STANDARD_STUDENT_CLASSES[sc];
+      seenCls[scN] = true;
+      var isSel = matchSiswaKelas({ kelas: curClass }, scN) ? "selected" : "";
+      if (isSel) foundCurrent = true;
+      var isFree = scN.toLowerCase().indexOf("rumah quran") > -1 ? " (Jadwal Bebas)" : "";
+      classOptions += '<option value="' + scN + '" ' + isSel + '>' + scN + isFree + '</option>';
+    }
     if (availableClasses && availableClasses.length > 0) {
       for (var c2 = 0; c2 < availableClasses.length; c2++) {
         var cName2 = (availableClasses[c2].nama || "").trim();
-        if (cName2) {
-          var isSel = cName2 === currentClass ? "selected" : "";
-          if (isSel) foundCurrent = true;
-          classOptions += '<option value="' + cName2 + '" ' + isSel + '>' + cName2 + '</option>';
+        if (cName2 && !seenCls[cName2]) {
+          seenCls[cName2] = true;
+          var isSel2 = (cName2.toLowerCase() === curClass.toLowerCase()) ? "selected" : "";
+          if (isSel2) foundCurrent = true;
+          classOptions += '<option value="' + cName2 + '" ' + isSel2 + '>' + cName2 + '</option>';
         }
       }
     }
-    if (!foundCurrent && currentClass) {
-      classOptions = '<option value="' + currentClass + '" selected>' + currentClass + '</option>' + classOptions;
+    if (!foundCurrent && curClass) {
+      classOptions = '<option value="' + curClass + '" selected>' + curClass + '</option>' + classOptions;
     }
-    subInput = '<select class="form-select" id="edit-kelas">' + classOptions + '</select><small style="color:var(--gray);font-size:11px">Pilihan Unit / Kelas sinkron dengan master Data Kelas.</small>';
+    catEditHtml =
+      '<div class="form-group"><label class="form-label">Unit / Kelas Siswa</label>' +
+      '<select class="form-select" id="edit-kelas">' + classOptions + '</select>' +
+      '<small style="color:var(--gray);font-size:11px">Kategori: Rumah Quran (Bebas), TK/PAUD, SDIT Kelas 1-6.</small></div>';
   }
 
   m.innerHTML =
@@ -2185,9 +2393,9 @@ function editSiswa(id) {
     (activeType == "guru" ? "Pegawai" : "Siswa") +
     '</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><div class="form-group"><label class="form-label">' +
     lblCode +
-    '</label><input type="text" class="form-input" id="edit-bc" value="' + (code || "") + '"></div><div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" class="form-input" id="edit-nama" value="' + s.nama + '"></div><div class="form-group"><label class="form-label">' +
-    lblSub +
-    '</label>' + subInput + '</div><div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="edit-email" value="' + (s.email || "") + '"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitEdit(\'' + id + '\')">Update</button></div></div>';
+    '</label><input type="text" class="form-input" id="edit-bc" value="' + (code || "") + '"></div><div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" class="form-input" id="edit-nama" value="' + s.nama + '"></div>' +
+    catEditHtml +
+    '<div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="edit-email" value="' + (s.email || "") + '"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitEdit(\'' + id + '\')">Update</button></div></div>';
   m.classList.add("active");
 }
 
@@ -2211,25 +2419,22 @@ function submitEdit(id) {
     return;
   }
 
-  var bc = document.getElementById("edit-bc").value;
-  var nm = document.getElementById("edit-nama").value;
-  var klEl = document.getElementById("edit-kelas");
-  var kl = "";
-  if (klEl.multiple) {
-    var vals = [];
-    for(var i=0; i<klEl.options.length; i++) {
-        if(klEl.options[i].selected) vals.push(klEl.options[i].value);
-    }
-    kl = vals.join(", ");
-  } else {
-    kl = klEl.value;
-  }
-  var em = document.getElementById("edit-email").value;
-  if (!bc || !nm || !kl) {
-    showToast("Lengkapi semua field", "error");
-    return;
-  }
+  var bc = document.getElementById("edit-bc").value.trim();
+  var nm = document.getElementById("edit-nama").value.trim();
+  var em = document.getElementById("edit-email").value.trim();
+
   if (activeType === "guru") {
+    var uEl = document.getElementById("edit-unit");
+    var jEl = document.getElementById("edit-jabatan");
+    var uVal = uEl ? uEl.value.trim() : "Yayasan";
+    var jVal = jEl ? jEl.value.trim() : "";
+    if (!jVal) jVal = uVal;
+    var kl = uVal + " - " + jVal;
+
+    if (!bc || !nm) {
+      showToast("Lengkapi NIP dan Nama Lengkap", "error");
+      return;
+    }
     window.callGasAPI(
       "editTeacher",
       { id: id, nip: bc, nama: nm, jabatan: kl, email: em },
@@ -2243,6 +2448,12 @@ function submitEdit(id) {
       }
     );
   } else {
+    var klEl = document.getElementById("edit-kelas");
+    var kl = klEl ? klEl.value.trim() : "";
+    if (!bc || !nm || !kl) {
+      showToast("Lengkapi semua field", "error");
+      return;
+    }
     window.callGasAPI(
       "editStudent",
       { id: id, barcode: bc, nama: nm, kelas: kl, email: em },
@@ -2350,7 +2561,7 @@ function exportPDF() {
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     var docTitle = "LAPORAN KEHADIRAN " + (activeType === "guru" ? "PEGAWAI" : "SISWA");
-    if (filterKelas !== "Semua") docTitle += " (" + filterKelas.toUpperCase() + ")";
+    if (filterKelas !== "Semua") docTitle += " (" + (activeType === "guru" ? "UNIT: " : "KELAS: ") + filterKelas.toUpperCase() + ")";
     doc.text(docTitle, pageWidth / 2, 40, { align: "center" });
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
@@ -2366,11 +2577,13 @@ function exportPDF() {
     doc.line(margin, 92, pageWidth - margin, 92);
 
     // Tabel
-    var headers = [["No", "Nama", (activeType == "guru" ? "Jabatan" : "Unit / Kelas"), "Hari & Tanggal", "Jam Masuk", "Status", "Verifikasi"]];
+    var isPegawai = activeType === "guru";
+    var colCat = isPegawai ? "Unit & Jabatan" : "Unit / Kelas";
+    var headers = [["No", "Nama", colCat, "Hari & Tanggal", "Jam Masuk", "Status", "Verifikasi"]];
     var data = [];
     var filteredData = attendance.filter(function (a) {
-      var isType = a.type === (activeType == "guru" ? "Guru" : "Siswa") || (activeType == "siswa" && !a.type);
-      var matchClass = (filterKelas === "Semua" || (a.kelas && a.kelas.indexOf(filterKelas) > -1));
+      var isType = a.type === (isPegawai ? "Guru" : "Siswa") || (!isPegawai && !a.type);
+      var matchCategory = isPegawai ? matchPegawaiUnit(a, filterKelas) : matchSiswaKelas(a, filterKelas);
       var matchSearch = true;
       if (globalSearchQuery) {
         var q = globalSearchQuery.toLowerCase();
@@ -2379,14 +2592,15 @@ function exportPDF() {
         var sid = (a.studentId || "").toLowerCase();
         matchSearch = nm.indexOf(q) > -1 || kl.indexOf(q) > -1 || sid.indexOf(q) > -1;
       }
-      return isType && matchClass && matchSearch;
+      return isType && matchCategory && matchSearch;
     });
 
     for (var i = 0; i < filteredData.length; i++) {
       var a = filteredData[i];
       var v = a.faceMatch > 0.5 ? "Terverifikasi Wajah" : "Belum Terverifikasi";
       var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
-      data.push([i + 1, a.nama, a.kelas || "-", tglFormatted, formatTime(a.waktu), a.status, v]);
+      var catVal = isPegawai ? (getPegawaiUnit(a) + " - " + getPegawaiJabatan(a)) : (a.kelas || "-");
+      data.push([i + 1, a.nama, catVal, tglFormatted, formatTime(a.waktu), a.status, v]);
     }
 
     doc.autoTable({
@@ -2435,13 +2649,19 @@ function exportPDF() {
 }
 function exportExcel() {
   var wb = XLSX.utils.book_new();
-  var data = [
-    ["No", "Nama", (activeType == "guru" ? "Jabatan" : "Unit / Kelas"), "Hari & Tanggal", "Waktu", "Status", "Verifikasi Wajah"],
-  ];
+  var isPegawai = activeType === "guru";
+  var header = ["No", "Nama"];
+  if (isPegawai) {
+    header.push("Unit Kerja", "Jabatan");
+  } else {
+    header.push("Unit / Kelas");
+  }
+  header.push("Hari & Tanggal", "Waktu", "Status", "Verifikasi Wajah");
+  var data = [header];
   
   var filteredData = attendance.filter(function (a) {
-    var isType = a.type === (activeType == "guru" ? "Guru" : "Siswa") || (activeType == "siswa" && !a.type);
-    var matchClass = (filterKelas === "Semua" || (a.kelas && a.kelas.indexOf(filterKelas) > -1));
+    var isType = a.type === (isPegawai ? "Guru" : "Siswa") || (!isPegawai && !a.type);
+    var matchCategory = isPegawai ? matchPegawaiUnit(a, filterKelas) : matchSiswaKelas(a, filterKelas);
     var matchSearch = true;
     if (globalSearchQuery) {
       var q = globalSearchQuery.toLowerCase();
@@ -2450,21 +2670,25 @@ function exportExcel() {
       var sid = (a.studentId || "").toLowerCase();
       matchSearch = nm.indexOf(q) > -1 || kl.indexOf(q) > -1 || sid.indexOf(q) > -1;
     }
-    return isType && matchClass && matchSearch;
+    return isType && matchCategory && matchSearch;
   });
 
   for (var i = 0; i < filteredData.length; i++) {
     var a = filteredData[i];
     var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
-    data.push([
-      i + 1,
-      a.nama,
-      a.kelas || "-",
+    var row = [i + 1, a.nama];
+    if (isPegawai) {
+      row.push(getPegawaiUnit(a), getPegawaiJabatan(a));
+    } else {
+      row.push(a.kelas || "-");
+    }
+    row.push(
       tglFormatted,
       formatTime(a.waktu),
       a.status,
-      a.faceMatch > 0.5 ? "Ya (Cocok)" : "Tidak",
-    ]);
+      a.faceMatch > 0.5 ? "Ya (Cocok)" : "Tidak"
+    );
+    data.push(row);
   }
   var ws = XLSX.utils.aoa_to_sheet(data);
   XLSX.utils.book_append_sheet(wb, ws, "Kehadiran");
