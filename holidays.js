@@ -189,7 +189,13 @@
       } catch (e) {}
 
       if (root.appSettings && root.appSettings.customHolidays) {
-        Object.assign(merged, root.appSettings.customHolidays);
+        if (typeof root.appSettings.customHolidays === "string") {
+          try {
+            Object.assign(merged, JSON.parse(root.appSettings.customHolidays));
+          } catch (e) {}
+        } else {
+          Object.assign(merged, root.appSettings.customHolidays);
+        }
       }
       return merged;
     },
@@ -214,7 +220,11 @@
 
         // 1. Cek apakah ada di database/cloud/custom
         if (all[key]) {
-          var isCustom = (root.appSettings && root.appSettings.customHolidays && !!root.appSettings.customHolidays[key]);
+          var custObj = root.appSettings && root.appSettings.customHolidays;
+          if (typeof custObj === "string") {
+            try { custObj = JSON.parse(custObj); } catch(e){}
+          }
+          var isCustom = (custObj && !!custObj[key]);
           return {
             date: key,
             name: all[key],

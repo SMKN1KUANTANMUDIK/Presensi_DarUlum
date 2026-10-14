@@ -486,6 +486,16 @@ function loadSettings() {
   window.callGasAPI("getSettings", {}, function(r) {
     if(r.settings) {
       appSettings = r.settings;
+      if (typeof appSettings.customHolidays === "string") {
+        try {
+          appSettings.customHolidays = JSON.parse(appSettings.customHolidays);
+        } catch(e) {}
+      }
+      if (appSettings.customHolidays && typeof appSettings.customHolidays === "object") {
+        try {
+          localStorage.setItem("app_custom_holidays", JSON.stringify(appSettings.customHolidays));
+        } catch(e) {}
+      }
       // Ambil nama pimpinan yayasan dari data guru/pegawai secara otomatis
       window.callGasAPI("getTeacherList", {}, function(r2) {
           if (r2.teachers) {
@@ -2901,6 +2911,9 @@ function addCustomHoliday() {
 
   if (!appSettings) appSettings = {};
   if (!appSettings.customHolidays) appSettings.customHolidays = {};
+  if (typeof appSettings.customHolidays === "string") {
+    try { appSettings.customHolidays = JSON.parse(appSettings.customHolidays); } catch(e) { appSettings.customHolidays = {}; }
+  }
   appSettings.customHolidays[dt] = nm;
 
   try {
@@ -2917,8 +2930,13 @@ function addCustomHoliday() {
 
 function deleteCustomHoliday(dt) {
   if (!confirm("Hapus hari libur madrasah pada tanggal " + dt + "?")) return;
-  if (appSettings && appSettings.customHolidays && appSettings.customHolidays[dt]) {
-    delete appSettings.customHolidays[dt];
+  if (appSettings && appSettings.customHolidays) {
+    if (typeof appSettings.customHolidays === "string") {
+      try { appSettings.customHolidays = JSON.parse(appSettings.customHolidays); } catch(e) {}
+    }
+    if (typeof appSettings.customHolidays === "object" && appSettings.customHolidays[dt]) {
+      delete appSettings.customHolidays[dt];
+    }
   }
   try {
     var stored = localStorage.getItem("app_custom_holidays");
@@ -3590,7 +3608,7 @@ function saveSettings() {
     adminPin: p,
     jamTerlambat: j, 
     faceMatchThreshold: t,
-    customHolidays: customHols
+    customHolidays: JSON.stringify(customHols)
   };
   
   window.callGasAPI(
@@ -3599,6 +3617,7 @@ function saveSettings() {
     function (res) {
       showToast("Pengaturan disimpan", "success");
       appSettings = payload;
+      appSettings.customHolidays = customHols;
       applySettingsToUI();
     },
     function(err) {
