@@ -396,7 +396,7 @@ function captureSubmit() {
         payload,
         function (r) {
           currentStudent.activeRole = selectedRole;
-          showSuccess(r.status, r.time, fm, newDesc !== null);
+          showSuccess(r.status, r.time, fm, newDesc !== null, r.keterangan);
         },
         function (err) {
           showToast("Gagal: " + err, "error");
@@ -523,9 +523,44 @@ function submitSick() {
   );
 }
 
-function showSuccess(st, tm, fm, isFirstReg) {
+function showSuccess(st, tm, fm, isFirstReg, ket) {
   var c = document.getElementById("student-content");
-  var col = st === "Terlambat" ? "var(--warning)" : (st === "Hadir" ? "var(--success)" : "var(--info)");
+  
+  var col = "var(--success)";
+  var title = "Absensi Berhasil!";
+  var stLabel = st;
+  var stBadge = '<span class="badge badge-success">Hadir (Tepat Waktu)</span>';
+
+  if (st === "TL1") {
+    col = "#d97706";
+    title = "Terlambat (TL1)";
+    stLabel = "Terlambat Toleransi 1 (≤ 30 Menit)";
+    stBadge = '<span class="badge badge-tl1" style="font-size:12px;padding:4px 10px;">TL1 (≤ 30 Menit)</span>';
+  } else if (st === "TL2") {
+    col = "#ea580c";
+    title = "Terlambat (TL2)";
+    stLabel = "Terlambat Toleransi 2 (31-60 Menit)";
+    stBadge = '<span class="badge badge-tl2" style="font-size:12px;padding:4px 10px;">TL2 (31-60 Menit)</span>';
+  } else if (st === "Alpa") {
+    col = "#dc2626";
+    title = "Terhitung Alpa!";
+    stLabel = "Alpa (Lewat Batas Toleransi > 60 Menit)";
+    stBadge = '<span class="badge badge-alpa" style="font-size:12px;padding:4px 10px;">Alpa (> 60 Menit)</span>';
+  } else if (st === "Terlambat") {
+    col = "var(--warning)";
+    title = "Terlambat";
+    stLabel = "Terlambat";
+    stBadge = '<span class="badge badge-warning" style="font-size:12px;padding:4px 10px;">Terlambat</span>';
+  } else if (st === "Izin") {
+    col = "#7c3aed";
+    title = "Pengajuan Izin Berhasil";
+    stBadge = '<span class="badge badge-izin" style="font-size:12px;padding:4px 10px;">Izin</span>';
+  } else if (st === "Sakit") {
+    col = "#db2777";
+    title = "Pengajuan Sakit Berhasil";
+    stBadge = '<span class="badge badge-sakit" style="font-size:12px;padding:4px 10px;">Sakit</span>';
+  }
+
   var isTeacher = (currentStudent.type === "guru" || (currentStudent.id && String(currentStudent.id).indexOf("TCH") === 0));
   var catBadge = isTeacher 
     ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="briefcase" style="width:12px;height:12px"></i> PEGAWAI / GURU</span>'
@@ -534,7 +569,7 @@ function showSuccess(st, tm, fm, isFirstReg) {
   var roleDisplay = currentStudent.activeRole || currentStudent.kelas || "-";
 
   var verifDisplay = "Pengajuan Izin/Sakit";
-  if (st === "Hadir" || st === "Terlambat") {
+  if (st === "Hadir" || st === "TL1" || st === "TL2" || st === "Alpa" || st === "Terlambat") {
     if (isFirstReg) {
       verifDisplay = "Wajah Baru Terdaftar";
     } else {
@@ -542,24 +577,30 @@ function showSuccess(st, tm, fm, isFirstReg) {
     }
   }
 
+  var ketHtml = ket ? '<p style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;"><strong>Keterangan:</strong> ' + ket + '</p>' : '';
+
+  var iconName = (st === "Alpa") ? "alert-circle" : (st === "TL1" || st === "TL2" ? "clock" : "check");
+
   c.innerHTML =
     '<div class="success-screen"><div class="success-icon" style="background:' +
     col +
-    '"><i data-lucide="check" style="width:40px;height:40px"></i></div><h2 style="color:' +
+    '"><i data-lucide="' + iconName + '" style="width:40px;height:40px;color:#fff;"></i></div><h2 style="color:' +
     col +
-    ';margin-bottom:8px">Berhasil!</h2>' +
+    ';margin-bottom:8px">' + title + '</h2>' +
     catBadge +
     '<br><strong>' +
     currentStudent.nama +
     '</strong><p style="color:var(--gray);margin-top:2px;">' +
     roleDisplay +
-    '</p><div style="background:var(--bg);padding:15px;border-radius:8px;margin:20px 0;text-align:left"><p><strong>Status:</strong> ' +
-    st +
-    "</p><p><strong>Waktu:</strong> " +
-    tm +
-    "</p><p><strong>Verifikasi:</strong> " +
+    '</p><div style="background:var(--bg);padding:15px;border-radius:8px;margin:20px 0;text-align:left"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>Status Absensi:</strong> ' +
+    stBadge +
+    '</div><p><strong>Waktu:</strong> ' +
+    (tm || "--:--") +
+    ' WIB</p><p><strong>Verifikasi:</strong> ' +
     verifDisplay +
-    '</p></div><button class="btn btn-primary" style="width:100%" onclick="showOptions()">Selesai</button></div>';
+    '</p>' +
+    ketHtml +
+    '</div><button class="btn btn-primary" style="width:100%" onclick="showOptions()">Selesai</button></div>';
   lucide.createIcons();
 }
 function showToast(m, t) {

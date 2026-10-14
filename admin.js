@@ -486,22 +486,78 @@ function renderDashboard() {
       ? a.type === "Guru"
       : !a.type || a.type === "Siswa";
   });
+
+  // Metrik kehadiran real-time dari data absensi hari ini
+  var countHadir = 0;
+  var countTL1 = 0;
+  var countTL2 = 0;
+  var countLateOld = 0;
+  var countIzin = 0;
+  var countSakit = 0;
+  var countAlpa = 0;
   var verified = 0;
   var total = feedData.length;
-  for (var i = 0; i < feedData.length; i++) {
-    if (feedData[i].faceMatch > 0.5) verified++;
+
+  for (var k = 0; k < feedData.length; k++) {
+    var it = feedData[k];
+    if (it.faceMatch > 0.5) verified++;
+    var sVal = String(it.status || "").trim();
+    if (sVal === "Hadir") {
+      countHadir++;
+    } else if (sVal === "TL1") {
+      countTL1++;
+    } else if (sVal === "TL2") {
+      countTL2++;
+    } else if (sVal === "Terlambat") {
+      countLateOld++;
+    } else if (sVal === "Izin") {
+      countIzin++;
+    } else if (sVal === "Sakit") {
+      countSakit++;
+    } else if (sVal === "Alpa") {
+      countAlpa++;
+    }
   }
+
   var pct = total > 0 ? ((verified / total) * 100).toFixed(1) : "0";
+
+  // Nilai metrik kartu
+  var displayHadir = countHadir;
+  var displayTL1 = countTL1;
+  var displayTL2 = countTL2;
+  var displayIzin = countIzin + countSakit;
+  var displayAlpa = countAlpa;
+
+  // Sinkronisasi dengan stats dari API jika tersedia data yang lebih lengkap
+  if (feedData.length === 0 && stats) {
+    if (stats.totalHadir) displayHadir = stats.totalHadir;
+    if (stats.totalTL1) displayTL1 = stats.totalTL1;
+    if (stats.totalTL2) displayTL2 = stats.totalTL2;
+    if (stats.totalIzin || stats.totalSakit) displayIzin = (stats.totalIzin || 0) + (stats.totalSakit || 0);
+    if (stats.totalAlpa) displayAlpa = stats.totalAlpa;
+  }
+
   var feed = "";
   if (feedData.length > 0) {
     for (var j = 0; j < feedData.length; j++) {
       var a = feedData[j];
-      var badge =
-        a.faceMatch > 0.5
-          ? a.status === "Terlambat"
-            ? '<span class="feed-badge late">TERLAMBAT</span>'
-            : '<span class="feed-badge verified">TERVERIFIKASI</span>'
-          : "";
+      var badge = "";
+      if (a.status === "TL1") {
+        badge = '<span class="feed-badge tl1">TL1 (≤30m)</span>';
+      } else if (a.status === "TL2") {
+        badge = '<span class="feed-badge tl2">TL2 (31-60m)</span>';
+      } else if (a.status === "Alpa") {
+        badge = '<span class="feed-badge alpa">ALPA (>60m)</span>';
+      } else if (a.status === "Terlambat") {
+        badge = '<span class="feed-badge late">TERLAMBAT</span>';
+      } else if (a.status === "Izin") {
+        badge = '<span class="feed-badge izin">IZIN</span>';
+      } else if (a.status === "Sakit") {
+        badge = '<span class="feed-badge sakit">SAKIT</span>';
+      } else if (a.status === "Hadir") {
+        badge = '<span class="feed-badge verified">HADIR</span>';
+      }
+
       var photoSrc = a.fotoAbsen ? formatPhotoUrl(a.fotoAbsen) : "";
       var photoHtml = photoSrc
         ? '<img class="feed-photo" src="' + photoSrc + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="feed-photo" style="display:none;align-items:center;justify-content:center;font-size:48px;font-weight:700;color:var(--primary)">' +
@@ -510,7 +566,7 @@ function renderDashboard() {
         : '<div class="feed-photo" style="display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:700;color:var(--primary)">' +
           getInit(a.nama) +
           "</div>";
-      var timeClass = a.status === "Terlambat" ? " late" : "";
+      var timeClass = (a.status === "TL1" || a.status === "TL2" || a.status === "Terlambat" || a.status === "Alpa") ? " late" : "";
       var subText = a.kelas;
       if (activeType === "guru") {
         var uFeed = getPegawaiUnit(a);
@@ -519,6 +575,9 @@ function renderDashboard() {
       } else {
         if (a.kelas === "Guru" || a.kelas === "Pegawai") subText = "Pegawai";
       }
+
+      var ketFeed = a.keterangan ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + a.keterangan + '"><i data-lucide="info" style="width:11px;height:11px;vertical-align:-1px;"></i> ' + a.keterangan + '</div>' : '';
+
       feed +=
         '<div class="feed-card"><div class="feed-img">' +
         photoHtml +
@@ -531,7 +590,7 @@ function renderDashboard() {
         timeClass +
         '"><i data-lucide="clock" style="width:12px"></i> ' +
         formatTime(a.waktu) +
-        " WIB</div></div></div>";
+        " WIB</div>" + ketFeed + "</div></div>";
     }
   } else {
     feed =
@@ -539,46 +598,60 @@ function renderDashboard() {
       targetType +
       " yang absen akan muncul di sini secara real-time</p></div>";
   }
-  var lblHadir = "Total " + targetType + " Hadir";
-  var lblTelat = targetType + " Terlambat";
-  c.innerHTML =
-    '<div class="page-header"><div><h1>Dashboard ' +
-    targetType +
-    '</h1><p>Pantau kehadiran ' +
-    (activeType == "guru" ? "pegawai dan guru" : "seluruh siswa") +
-    ' secara real-time.</p></div><div class="header-actions">' +
-    '<button class="btn ' +
-    btnG +
-    '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
-    '<button class="btn ' +
-    btnS +
-    '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Siswa</button>' +
-    '</div></div>' + getAuthAlertHtml() + '<div class="stats-grid"><div class="stat-card"><div class="stat-info"><h3>' +
-    lblHadir +
-    '</h3><div class="value">' +
-    (stats.totalHadir || 0) +
-    '</div><div class="trend up">+5% vs Kemarin</div></div><div class="stat-icon green"><i data-lucide="users"></i></div></div><div class="stat-card"><div class="stat-info"><h3>' +
-    lblTelat +
-    '</h3><div class="value">' +
-    (stats.totalTerlambat || 0) +
-    '</div><div class="trend down">-2% Membaik</div></div><div class="stat-icon orange"><i data-lucide="clock"></i></div></div>';
 
   var todayInfo = getDayInfo();
   var isTodayLibur = todayInfo.isHoliday;
   var pendingValue = isTodayLibur ? 'Libur' : (stats.belumAbsen || 0);
   var pendingTrend = todayInfo.isNationalHoliday 
     ? ('Libur: ' + (todayInfo.holidayName.length > 20 ? todayInfo.holidayName.substring(0, 18) + '...' : todayInfo.holidayName))
-    : (todayInfo.isWeekend ? 'Hari Libur Akhir Pekan' : 'Klik Lihat Daftar');
+    : (todayInfo.isWeekend ? 'Hari Libur Akhir Pekan' : (displayAlpa > 0 ? (displayAlpa + ' Terhitung Alpa (>60m)') : 'Klik Lihat Daftar'));
   var pendingIcon = isTodayLibur ? 'calendar' : 'user-x';
   var pendingColor = isTodayLibur ? 'green' : 'red';
 
-  c.innerHTML += '<div class="stat-card" style="cursor:pointer" onclick="showUnattendedModal()" title="Klik untuk lihat nama yang belum absen"><div class="stat-info"><h3>Belum Absen</h3><div class="value">' +
-    pendingValue +
+  var izinSubtext = displayIzin > 0 ? '📄 Klik Lihat Keterangan' : 'Tidak ada pengajuan izin';
+
+  c.innerHTML =
+    '<div class="page-header"><div><h1>Dashboard ' +
+    targetType +
+    '</h1><p>Pantau kehadiran ' +
+    (activeType == "guru" ? "pegawai dan guru" : "seluruh siswa") +
+    ' secara real-time dengan toleransi keterlambatan (TL1 & TL2).</p></div><div class="header-actions">' +
+    '<button class="btn ' +
+    btnG +
+    '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
+    '<button class="btn ' +
+    btnS +
+    '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Siswa</button>' +
+    '</div></div>' + getAuthAlertHtml() + 
+    '<div class="stats-grid">' +
+    // 1. Total Hadir
+    '<div class="stat-card"><div class="stat-info"><h3>Total Hadir</h3><div class="value">' +
+    displayHadir +
+    '</div><div class="trend up"><i data-lucide="check" style="width:14px;height:14px;"></i> Tepat Waktu & Bebas</div></div><div class="stat-icon green"><i data-lucide="users"></i></div></div>' +
+    // 2. Terlambat TL1 (≤ 30 Menit)
+    '<div class="stat-card" style="cursor:pointer" onclick="showTLModal(\'TL1\')" title="Klik untuk lihat daftar keterlambatan TL1"><div class="stat-info"><h3>Terlambat TL1</h3><div class="value" style="color:#d97706;">' +
+    displayTL1 +
+    '</div><div class="trend" style="color:#d97706;font-size:12px;"><i data-lucide="clock" style="width:13px;height:13px;"></i> Toleransi I (≤ 30 mnt) • <span style="text-decoration:underline;">Lihat</span></div></div><div class="stat-icon orange"><i data-lucide="clock"></i></div></div>' +
+    // 3. Terlambat TL2 (31-60 Menit)
+    '<div class="stat-card" style="cursor:pointer" onclick="showTLModal(\'TL2\')" title="Klik untuk lihat daftar keterlambatan TL2"><div class="stat-info"><h3>Terlambat TL2</h3><div class="value" style="color:#ea580c;">' +
+    displayTL2 +
+    '</div><div class="trend" style="color:#ea580c;font-size:12px;"><i data-lucide="alert-triangle" style="width:13px;height:13px;"></i> Toleransi II (31-60 mnt) • <span style="text-decoration:underline;">Lihat</span></div></div><div class="stat-icon amber"><i data-lucide="alert-triangle"></i></div></div>' +
+    // 4. Kartu Izin & Sakit (dengan keterangan)
+    '<div class="stat-card" style="cursor:pointer" onclick="showIzinModal()" title="Klik untuk lihat daftar & rincian keterangan izin/sakit"><div class="stat-info"><h3>Izin & Sakit</h3><div class="value" style="color:#7c3aed;">' +
+    displayIzin +
+    '</div><div class="trend" style="color:#7c3aed;font-size:12px;"><i data-lucide="file-text" style="width:13px;height:13px;"></i> <span style="text-decoration:underline;">' + izinSubtext + '</span></div></div><div class="stat-icon purple"><i data-lucide="file-text"></i></div></div>' +
+    // 5. Belum Absen / Alpa
+    '<div class="stat-card" style="cursor:pointer" onclick="showUnattendedModal()" title="Klik untuk lihat nama yang belum absen / alpa"><div class="stat-info"><h3>Belum Absen / Alpa</h3><div class="value" style="color:var(--danger);">' +
+    pendingValue + (displayAlpa > 0 ? ' <small style="font-size:15px;color:#dc2626;">(' + displayAlpa + ' Alpa)</small>' : '') +
     '</div><div class="trend down" style="color:var(--primary);text-decoration:underline;cursor:pointer">' +
     pendingTrend +
-    '</div></div><div class="stat-icon ' + pendingColor + '"><i data-lucide="' + pendingIcon + '"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Akurasi Selfie</h3><div class="value">' +
+    '</div></div><div class="stat-icon ' + pendingColor + '"><i data-lucide="' + pendingIcon + '"></i></div></div>' +
+    // 6. Akurasi Selfie (Biometrik)
+    '<div class="stat-card"><div class="stat-info"><h3>Akurasi Selfie</h3><div class="value">' +
     pct +
-    '%</div><div class="trend up">AI Verification</div></div><div class="stat-icon blue"><i data-lucide="scan-face"></i></div></div></div><div class="feed-header"><div class="feed-title">Feed Absensi Real-time <span class="live-badge"><span class="live-dot"></span> LIVE</span></div><div style="display:flex;gap:10px"><button class="btn btn-outline" onclick="loadData()"><i data-lucide="filter" style="width:14px"></i> Refresh</button><button class="btn btn-primary" onclick="exportExcel()"><i data-lucide="download" style="width:14px"></i> Export Log</button></div></div><div class="feed-grid">' +
+    '%</div><div class="trend up"><i data-lucide="shield-check" style="width:14px;height:14px;"></i> AI Verification</div></div><div class="stat-icon blue"><i data-lucide="scan-face"></i></div></div>' +
+    '</div>' +
+    '<div class="feed-header"><div class="feed-title">Feed Absensi Real-time <span class="live-badge"><span class="live-dot"></span> LIVE</span></div><div style="display:flex;gap:10px"><button class="btn btn-outline" onclick="loadData()"><i data-lucide="filter" style="width:14px"></i> Refresh</button><button class="btn btn-primary" onclick="exportExcel()"><i data-lucide="download" style="width:14px"></i> Export Log</button></div></div><div class="feed-grid">' +
     feed +
     '</div><div class="pagination"><div class="pagination-info">Menampilkan 1 - ' +
     feedData.length +
@@ -587,6 +660,151 @@ function renderDashboard() {
     " " +
     targetType +
     "</div></div>";
+  lucide.createIcons();
+}
+
+function showIzinModal() {
+  var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
+  var feedData = attendance.filter(function (a) {
+    return activeType == "guru"
+      ? a.type === "Guru"
+      : !a.type || a.type === "Siswa";
+  });
+
+  var izinItems = feedData.filter(function(a) {
+    var st = (a.status || "").toLowerCase();
+    return st === "izin" || st === "sakit";
+  });
+
+  var m = document.getElementById("modal");
+  var listHtml = "";
+
+  if (izinItems.length === 0) {
+    listHtml = 
+      '<div style="text-align:center;padding:40px 20px;color:var(--gray);">' +
+      '<i data-lucide="clipboard-check" style="width:48px;height:48px;margin-bottom:12px;opacity:0.4;color:var(--success);"></i>' +
+      '<h3 style="margin-bottom:6px;color:var(--text);">Tidak Ada Pengajuan Izin / Sakit</h3>' +
+      '<p style="font-size:13px;max-width:360px;margin:0 auto;">Seluruh ' + targetType.toLowerCase() + ' berstatus Hadir atau belum mengajukan form izin/sakit untuk hari ini.</p>' +
+      '</div>';
+  } else {
+    listHtml = '<div style="display:flex;flex-direction:column;gap:12px;max-height:420px;overflow-y:auto;padding-right:4px;">';
+    for (var i = 0; i < izinItems.length; i++) {
+      var it = izinItems[i];
+      var isSakit = (it.status || "").toLowerCase() === "sakit";
+      var badgeCls = isSakit ? "badge-sakit" : "badge-izin";
+      var iconName = isSakit ? "thermometer" : "file-text";
+
+      var subInfo = it.kelas;
+      if (activeType === "guru") {
+        var uItem = getPegawaiUnit(it);
+        var jItem = getPegawaiJabatan(it);
+        subInfo = 'Unit ' + uItem + (jItem && jItem !== "-" && jItem !== uItem ? ' • ' + jItem : '');
+      }
+
+      var photoSrc = it.fotoAbsen ? formatPhotoUrl(it.fotoAbsen) : "";
+      var lampiranBtn = photoSrc 
+        ? '<a href="' + photoSrc + '" target="_blank" class="btn btn-outline" style="padding:4px 10px;font-size:11px;min-height:auto;gap:4px;"><i data-lucide="paperclip" style="width:12px;height:12px;"></i> Lihat Bukti/Surat</a>'
+        : '';
+
+      listHtml += 
+        '<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow-sm);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<div class="avatar ' + getColor(i) + '" style="width:36px;height:36px;font-size:12px;">' + getInit(it.nama) + '</div>' +
+        '<div>' +
+        '<strong style="font-size:14px;display:block;color:var(--text);">' + it.nama + '</strong>' +
+        '<small style="color:var(--gray);">' + subInfo + ' • ' + (it.studentId || it.id || "-") + '</small>' +
+        '</div>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">' +
+        '<span class="badge ' + badgeCls + '" style="font-size:11px;"><i data-lucide="' + iconName + '" style="width:11px;height:11px;vertical-align:-1px;margin-right:2px;"></i> ' + it.status + '</span>' +
+        '<span style="font-size:11px;color:var(--gray);"><i data-lucide="clock" style="width:10px;height:10px;vertical-align:-1px;"></i> ' + (formatTime(it.waktu) || "--:--") + ' WIB</span>' +
+        '</div>' +
+        '</div>' +
+        '<div style="background:#f8fafc;border-left:3px solid ' + (isSakit ? '#db2777' : '#7c3aed') + ';padding:10px 12px;border-radius:6px;margin-top:6px;font-size:13px;line-height:1.5;">' +
+        '<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:2px;">Alasan / Keterangan:</div>' +
+        '<div style="color:var(--text);font-style:italic;">"' + (it.keterangan || "Tidak ada keterangan tertulis") + '"</div>' +
+        '</div>' +
+        (lampiranBtn ? '<div style="margin-top:8px;text-align:right;">' + lampiranBtn + '</div>' : '') +
+        '</div>';
+    }
+    listHtml += '</div>';
+  }
+
+  m.innerHTML =
+    '<div class="modal" style="max-width:540px;"><div class="modal-header">' +
+    '<div><span class="modal-title">Daftar Pengajuan Izin & Sakit</span><p style="font-size:12px;color:var(--gray);margin:2px 0 0;">Kategori: ' + targetType + ' Hari Ini (' + izinItems.length + ' Orang)</p></div>' +
+    '<button class="modal-close" onclick="closeModal()">&times;</button></div>' +
+    '<div class="modal-body">' + listHtml + '</div>' +
+    '<div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">Tutup</button></div></div>';
+  m.classList.add("active");
+  lucide.createIcons();
+}
+
+function showTLModal(cat) {
+  var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
+  var feedData = attendance.filter(function (a) {
+    return activeType == "guru"
+      ? a.type === "Guru"
+      : !a.type || a.type === "Siswa";
+  });
+
+  var tlItems = feedData.filter(function(a) {
+    if (cat === "TL1") return a.status === "TL1" || a.status === "Terlambat";
+    if (cat === "TL2") return a.status === "TL2";
+    return a.status === cat;
+  });
+
+  var catTitle = cat === "TL1" ? "Terlambat Toleransi 1 (TL1 ≤ 30 Menit)" : "Terlambat Toleransi 2 (TL2 31-60 Menit)";
+  var m = document.getElementById("modal");
+  var listHtml = "";
+
+  if (tlItems.length === 0) {
+    listHtml = 
+      '<div style="text-align:center;padding:40px 20px;color:var(--gray);">' +
+      '<i data-lucide="clock" style="width:48px;height:48px;margin-bottom:12px;opacity:0.4;color:var(--success);"></i>' +
+      '<h3 style="margin-bottom:6px;color:var(--text);">Tidak Ada Terlambat ' + cat + '</h3>' +
+      '<p style="font-size:13px;max-width:360px;margin:0 auto;">Tidak ada ' + targetType.toLowerCase() + ' yang terlambat kategori ' + cat + ' hari ini. Semua hadir tepat waktu!</p>' +
+      '</div>';
+  } else {
+    listHtml = '<div style="display:flex;flex-direction:column;gap:12px;max-height:420px;overflow-y:auto;padding-right:4px;">';
+    for (var i = 0; i < tlItems.length; i++) {
+      var it = tlItems[i];
+      var badgeCls = cat === "TL1" ? "badge-tl1" : "badge-tl2";
+
+      var subInfo = it.kelas;
+      if (activeType === "guru") {
+        var uItem = getPegawaiUnit(it);
+        var jItem = getPegawaiJabatan(it);
+        subInfo = 'Unit ' + uItem + (jItem && jItem !== "-" && jItem !== uItem ? ' • ' + jItem : '');
+      }
+
+      listHtml += 
+        '<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow-sm);display:flex;justify-content:space-between;align-items:center;gap:12px;">' +
+        '<div style="display:flex;align-items:center;gap:12px;">' +
+        '<div class="avatar ' + getColor(i) + '" style="width:40px;height:40px;font-size:14px;">' + getInit(it.nama) + '</div>' +
+        '<div>' +
+        '<strong style="font-size:14px;display:block;color:var(--text);">' + it.nama + '</strong>' +
+        '<small style="color:var(--gray);">' + subInfo + '</small>' +
+        (it.keterangan ? '<div style="font-size:12px;color:#d97706;margin-top:2px;"><i data-lucide="info" style="width:12px;height:12px;vertical-align:-1px;"></i> ' + it.keterangan + '</div>' : '') +
+        '</div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+        '<span class="badge ' + badgeCls + '" style="font-size:11px;margin-bottom:4px;display:inline-block;">' + it.status + '</span>' +
+        '<div style="font-size:12px;font-weight:700;color:var(--danger);"><i data-lucide="clock" style="width:12px;height:12px;vertical-align:-1px;"></i> ' + (formatTime(it.waktu) || "--:--") + ' WIB</div>' +
+        '</div>' +
+        '</div>';
+    }
+    listHtml += '</div>';
+  }
+
+  m.innerHTML =
+    '<div class="modal" style="max-width:520px;"><div class="modal-header">' +
+    '<div><span class="modal-title">' + catTitle + '</span><p style="font-size:12px;color:var(--gray);margin:2px 0 0;">Kategori: ' + targetType + ' (' + tlItems.length + ' Orang)</p></div>' +
+    '<button class="modal-close" onclick="closeModal()">&times;</button></div>' +
+    '<div class="modal-body">' + listHtml + '</div>' +
+    '<div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">Tutup</button></div></div>';
+  m.classList.add("active");
   lucide.createIcons();
 }
 
@@ -1024,15 +1242,16 @@ function renderLapTable() {
     var rqTag = isRQ ? ' <span class="badge badge-free" style="font-size:10px;padding:2px 6px;margin-left:4px;">Jadwal Bebas</span>' : '';
     var dateFormatted = getDayInfo(a.tanggal).dayName + ', ' + formatDate(a.tanggal);
 
-    var bc =
-      a.status === "Hadir"
-        ? "success"
-        : a.status === "Terlambat"
-          ? "warning"
-          : a.status === "Izin"
-            ? "info"
-            : (a.status === "Libur" ? "libur" : "danger");
-    var tc = a.status === "Terlambat" ? ' class="time-late"' : "";
+    var bc = "secondary";
+    if (a.status === "Hadir") bc = "success";
+    else if (a.status === "TL1") bc = "tl1";
+    else if (a.status === "TL2") bc = "tl2";
+    else if (a.status === "Terlambat") bc = "warning";
+    else if (a.status === "Izin") bc = "izin";
+    else if (a.status === "Sakit") bc = "sakit";
+    else if (a.status === "Alpa") bc = "alpa";
+    else if (a.status === "Libur") bc = "libur";
+    var tc = (a.status === "TL1" || a.status === "TL2" || a.status === "Terlambat" || a.status === "Alpa") ? ' class="time-late"' : "";
     var v =
       a.faceMatch > 0.5
         ? '<button class="verify-btn verified" onclick="showAttendanceDetail(' + i + ')" title="Wajah Cocok (Klik untuk detail)"><i data-lucide="camera" style="width:16px"></i></button>'
@@ -1053,6 +1272,8 @@ function renderLapTable() {
       categoryDisplay = (a.kelas || "-") + rqTag;
     }
 
+    var ketNote = a.keterangan ? '<br><small style="font-size:11px;color:var(--text-muted);"><i data-lucide="info" style="width:10px;height:10px;vertical-align:-1px;"></i> ' + a.keterangan + '</small>' : '';
+
     h +=
       '<tr><td style="padding-left:20px;"><div class="student-cell" style="cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' +
       thumb +
@@ -1071,7 +1292,7 @@ function renderLapTable() {
       bc +
       '">' +
       a.status +
-      "</span></td><td>" +
+      "</span>" + ketNote + "</td><td>" +
       v +
       '</td><td style="text-align:center;padding-right:20px;"><button class="action-btn" onclick="showAttendanceDetail(' + i + ')" title="Lihat Detail Absensi (Titik Tiga)"><i data-lucide="more-vertical" style="width:18px"></i></button></td></tr>';
   }
@@ -1088,7 +1309,16 @@ function showAttendanceDetail(idx) {
     ? '<div style="text-align:center;margin-bottom:15px;"><img src="' + photoSrc + '" style="max-width:100%;max-height:260px;border-radius:12px;object-fit:cover;box-shadow:var(--shadow);" onerror="this.parentElement.innerHTML=\'<div class=\\\'avatar ' + getColor(idx) + '\\\' style=\\\'width:80px;height:80px;font-size:28px;margin:0 auto;\\\'>' + getInit(a.nama) + '</div>\'"></div>'
     : '<div style="text-align:center;margin-bottom:15px;"><div class="avatar ' + getColor(idx) + '" style="width:80px;height:80px;font-size:28px;margin:0 auto;">' + getInit(a.nama) + '</div></div>';
 
-  var stBadge = a.status === "Hadir" ? "success" : (a.status === "Terlambat" ? "warning" : (a.status === "Izin" ? "info" : "danger"));
+  var stBadge = "secondary";
+  if (a.status === "Hadir") stBadge = "success";
+  else if (a.status === "TL1") stBadge = "tl1";
+  else if (a.status === "TL2") stBadge = "tl2";
+  else if (a.status === "Terlambat") stBadge = "warning";
+  else if (a.status === "Izin") stBadge = "izin";
+  else if (a.status === "Sakit") stBadge = "sakit";
+  else if (a.status === "Alpa") stBadge = "alpa";
+  else if (a.status === "Libur") stBadge = "libur";
+
   var fmText = (a.faceMatch !== undefined && a.faceMatch !== null && a.faceMatch > 0)
     ? Math.round(a.faceMatch * 100) + "%"
     : "-";
@@ -1109,6 +1339,8 @@ function showAttendanceDetail(idx) {
     fullPhotoBtn = '<a href="' + photoSrc + '" target="_blank" class="btn btn-outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;margin-top:8px;"><i data-lucide="external-link" style="width:14px;"></i> Buka Foto Asli</a>';
   }
 
+  var ketRow = a.keterangan ? '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;"><span style="color:var(--gray);">Keterangan:</span><strong style="color:var(--text);text-align:right;max-width:240px;">' + a.keterangan + '</strong></div>' : '';
+
   var m = document.getElementById("modal");
   m.innerHTML =
     '<div class="modal"><div class="modal-header"><span class="modal-title">Detail Absensi</span><button class="modal-close" onclick="closeModal()">&times;</button></div>' +
@@ -1123,6 +1355,7 @@ function showAttendanceDetail(idx) {
     '<span style="color:var(--gray);">Status Kehadiran:</span>' +
     '<span class="badge badge-' + stBadge + '">' + a.status + '</span>' +
     '</div>' +
+    ketRow +
     '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;">' +
     '<span style="color:var(--gray);">Tanggal & Waktu:</span>' +
     '<strong>' + formatDate(a.tanggal) + ' • ' + (formatTime(a.waktu) || "--:--") + ' WIB</strong>' +
@@ -1284,7 +1517,7 @@ function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
     }
   }
 
-  var totals = { H: 0, T: 0, S: 0, I: 0, A: 0 };
+  var totals = { H: 0, T: 0, TL1: 0, TL2: 0, S: 0, I: 0, A: 0 };
   var days = {};
   var todayObj = new Date();
   var todayYear = todayObj.getFullYear();
@@ -1315,7 +1548,7 @@ function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
 
     var finalCode = "-";
     if (rawCode && rawCode !== "-" && rawCode !== "A") {
-      // Kehadiran tercatat: Hadir (H), Terlambat (T), Sakit (S), Izin (I)
+      // Kehadiran tercatat: Hadir (H), Terlambat (T, TL1, TL2), Sakit (S), Izin (I)
       finalCode = rawCode;
     } else if (isRumahQuran) {
       // Rumah Qur'an adalah jadwal bebas (tidak pernah otomatis dicatat Alpa)
@@ -1332,7 +1565,10 @@ function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
     }
 
     days[d] = finalCode;
-    if (totals[finalCode] !== undefined) {
+    if (finalCode === "TL1" || finalCode === "TL2") {
+      totals.T = (totals.T || 0) + 1;
+      totals[finalCode] = (totals[finalCode] || 0) + 1;
+    } else if (totals[finalCode] !== undefined) {
       totals[finalCode]++;
     }
   }
@@ -1487,14 +1723,16 @@ function showRekapTable() {
 
       var cls = "";
       if (code === "H") cls = "day-h";
-      else if (code === "T") cls = "day-t";
+      else if (code === "T" || code === "TL1" || code === "TL2") cls = "day-t";
       else if (code === "S") cls = "day-s";
       else if (code === "I") cls = "day-i";
       else if (code === "A") cls = "day-a";
       else if (isHolCell) cls = "day-weekend";
       else cls = "day-dash";
 
-      h += '<td class="' + cls + '"><strong>' + code + "</strong></td>";
+      var displayCellCode = code;
+      var cellFontSize = (code === "TL1" || code === "TL2") ? 'style="font-size:9px;"' : '';
+      h += '<td class="' + cls + '"><strong ' + cellFontSize + '>' + displayCellCode + "</strong></td>";
     }
 
     h +=
