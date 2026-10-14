@@ -87,7 +87,9 @@ function showSelfie() {
     roleHTML = '<div style="margin:8px auto 14px; max-width:280px; text-align:left;"><label style="font-size:12px; font-weight:600; color:var(--gray); display:block; margin-bottom:4px;">Pilih ' + labelText + ' Saat Absen:</label><select id="role-select" style="width:100%; display:block; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; font-family:inherit; font-size:14px; background:#fff;">';
     for (var i = 0; i < roles.length; i++) {
       var rClean = roles[i].trim();
-      roleHTML += '<option value="' + rClean + '">' + rClean + '</option>';
+      var isRQ = rClean.toLowerCase().indexOf("rumah quran") > -1 || rClean.toLowerCase().indexOf("rumah qur'an") > -1;
+      var optLabel = isTeacher ? (isRQ ? '📖 ' + rClean + ' (Jadwal Bebas)' : '💼 ' + rClean + ' (Tugas Reguler)') : rClean;
+      roleHTML += '<option value="' + rClean + '">' + optLabel + '</option>';
     }
     roleHTML += '</select></div>';
   } else {
@@ -458,7 +460,9 @@ function showSickForm() {
     roleHTML = '<div class="form-group"><label class="form-label">Pilih ' + labelText + '</label><select class="form-select" id="sick-role-select">';
     for (var i = 0; i < roles.length; i++) {
       var rClean = roles[i].trim();
-      roleHTML += '<option value="' + rClean + '">' + rClean + '</option>';
+      var isRQ = rClean.toLowerCase().indexOf("rumah quran") > -1 || rClean.toLowerCase().indexOf("rumah qur'an") > -1;
+      var optLabel = isTeacher ? (isRQ ? '📖 ' + rClean + ' (Jadwal Bebas)' : '💼 ' + rClean + ' (Tugas Reguler)') : rClean;
+      roleHTML += '<option value="' + rClean + '">' + optLabel + '</option>';
     }
     roleHTML += '</select></div>';
   } else {

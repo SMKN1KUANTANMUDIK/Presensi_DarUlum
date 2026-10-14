@@ -29,23 +29,33 @@ var PEGAWAI_UNITS = [
   "SDIT"
 ];
 
-function getPegawaiUnit(item) {
-  if (!item) return "Yayasan";
-  var raw = (typeof item === "string" ? item : (item.unit || item.jabatan || item.kelas || "")).trim();
-  if (!raw) return "Yayasan";
-  
+function isRumahQuranRole(roleStr) {
+  var low = String(roleStr || "").toLowerCase();
+  return low.indexOf("rumah quran") > -1 || low.indexOf("rumah qur'an") > -1;
+}
+
+function parsePegawaiRoles(raw) {
+  var str = (typeof raw === "string" ? raw : (raw ? (raw.recapRole || raw.jabatan || raw.kelas || "") : "")).trim();
+  if (!str) return ["Yayasan - Staf"];
+  if (str.indexOf(",") > -1) {
+    return str.split(",").map(function(s) { return s.trim(); }).filter(Boolean);
+  }
+  return [str];
+}
+
+function getPegawaiUnitFromRole(rawRole) {
+  if (!rawRole) return "Yayasan";
+  var raw = String(rawRole).trim();
   if (raw.indexOf(" - ") > -1) {
     var p0 = raw.split(" - ")[0].trim();
     if (["Yayasan", "Rumah Quran", "TK/PAUD", "SDIT"].indexOf(p0) > -1) {
       return p0;
     }
   }
-
   var low = raw.toLowerCase();
   if (low.indexOf("rumah quran") > -1 || low.indexOf("rumah qur'an") > -1) return "Rumah Quran";
   if (low.indexOf("tk") > -1 || low.indexOf("paud") > -1) return "TK/PAUD";
   if (low.indexOf("sdit") > -1 || low.indexOf("sd ") > -1 || low.endsWith(" sdit") || low.endsWith(" sd")) return "SDIT";
-  
   if (low.indexOf("yayasan") > -1 || low.indexOf("pimpinan") > -1 || low.indexOf("bendahara") > -1 ||
       low.indexOf("operator") > -1 || low.indexOf("keamanan") > -1 || low.indexOf("kebersihan") > -1 ||
       low.indexOf("tata usaha") > -1) {
@@ -54,10 +64,9 @@ function getPegawaiUnit(item) {
   return "Yayasan";
 }
 
-function getPegawaiJabatan(item) {
-  if (!item) return "-";
-  var raw = (typeof item === "string" ? item : (item.jabatan || item.kelas || "")).trim();
-  if (!raw) return "-";
+function getPegawaiJabatanFromRole(rawRole) {
+  if (!rawRole) return "-";
+  var raw = String(rawRole).trim();
   if (raw.indexOf(" - ") > -1) {
     var parts = raw.split(" - ");
     return parts.slice(1).join(" - ").trim() || parts[0].trim();
@@ -65,10 +74,137 @@ function getPegawaiJabatan(item) {
   return raw;
 }
 
+function getPegawaiUnit(item) {
+  if (!item) return "Yayasan";
+  if (typeof item === "object" && item.unit) return item.unit;
+  var raw = (typeof item === "string" ? item : (item.recapRole || item.jabatan || item.kelas || "")).trim();
+  if (!raw) return "Yayasan";
+  
+  if (raw.indexOf(",") > -1) {
+    var roles = parsePegawaiRoles(raw);
+    var regRoles = roles.filter(function(r) { return !isRumahQuranRole(r); });
+    if (regRoles.length > 0) {
+      return getPegawaiUnitFromRole(regRoles[0]);
+    }
+  }
+  return getPegawaiUnitFromRole(raw);
+}
+
+function getPegawaiJabatan(item) {
+  if (!item) return "-";
+  if (typeof item === "object" && item.jabatan) return item.jabatan;
+  var raw = (typeof item === "string" ? item : (item.recapRole || item.jabatan || item.kelas || "")).trim();
+  if (!raw) return "-";
+  if (raw.indexOf(",") > -1) {
+    var roles = parsePegawaiRoles(raw);
+    var regRoles = roles.filter(function(r) { return !isRumahQuranRole(r); });
+    if (regRoles.length > 0) {
+      return getPegawaiJabatanFromRole(regRoles[0]);
+    }
+  }
+  return getPegawaiJabatanFromRole(raw);
+}
+
+function splitPegawaiEntries(personList) {
+  if (!personList || personList.length === 0) return [];
+  var result = [];
+  for (var i = 0; i < personList.length; i++) {
+    var p = personList[i];
+    if (p.roleType || (p.id && (String(p.id).indexOf("#reg") > -1 || String(p.id).indexOf("#rq") > -1))) {
+      var isItemRQ = p.isRumahQuran !== undefined ? p.isRumahQuran : isRumahQuranRole(p.kelas);
+      var u = p.unit || getPegawaiUnitFromRole(p.kelas);
+      var j = p.jabatan || getPegawaiJabatanFromRole(p.kelas);
+      result.push(Object.assign({}, p, {
+        recapRole: p.kelas,
+        unit: u,
+        jabatan: j,
+        isRumahQuran: isItemRQ,
+        roleType: isItemRQ ? "rumah_quran" : "regular",
+        subLabel: u + (j !== "-" && j !== u ? " • " + j : "") + (isItemRQ ? " (Bebas)" : "")
+      }));
+      continue;
+    }
+
+    var rawRoleStr = p.recapRole || p.jabatan || p.kelas || "";
+    var roles = parsePegawaiRoles(rawRoleStr);
+    
+    var hasRQ = false;
+    var hasNonRQ = false;
+    for (var r = 0; r < roles.length; r++) {
+      if (isRumahQuranRole(roles[r])) hasRQ = true;
+      else hasNonRQ = true;
+    }
+
+    if (hasRQ && hasNonRQ) {
+      var regRoles = roles.filter(function(r) { return !isRumahQuranRole(r); });
+      var regRoleStr = regRoles.join(", ");
+      var regUnit = getPegawaiUnitFromRole(regRoles[0]);
+      var regJab = getPegawaiJabatanFromRole(regRoles[0]);
+
+      var regPerson = Object.assign({}, p, {
+        id: p.id ? (p.id + "#reg") : ("reg_" + i),
+        originalId: p.id,
+        recapRole: regRoleStr,
+        unit: regUnit,
+        jabatan: regJab,
+        isRumahQuran: false,
+        roleType: "regular",
+        subLabel: regUnit + " • " + regJab
+      });
+      result.push(regPerson);
+
+      var rqRoles = roles.filter(function(r) { return isRumahQuranRole(r); });
+      var rqRoleStr = rqRoles.join(", ");
+      var rqUnit = "Rumah Quran";
+      var rqJab = getPegawaiJabatanFromRole(rqRoles[0]);
+      if (rqJab.toLowerCase().indexOf("rumah quran") === -1 && rqJab.toLowerCase().indexOf("rumah qur'an") === -1) {
+        rqJab = "Guru Rumah Quran";
+      }
+
+      var rqPerson = Object.assign({}, p, {
+        id: p.id ? (p.id + "#rq") : ("rq_" + i),
+        originalId: p.id,
+        recapRole: rqRoleStr,
+        unit: rqUnit,
+        jabatan: rqJab,
+        isRumahQuran: true,
+        roleType: "rumah_quran",
+        subLabel: "Rumah Quran • " + rqJab + " (Bebas)"
+      });
+      result.push(rqPerson);
+    } else {
+      var singleRole = roles.join(", ");
+      var isSingleRQ = isRumahQuranRole(singleRole);
+      var singleUnit = getPegawaiUnitFromRole(singleRole);
+      var singleJab = getPegawaiJabatanFromRole(singleRole);
+
+      var normalPerson = Object.assign({}, p, {
+        recapRole: singleRole,
+        unit: singleUnit,
+        jabatan: singleJab,
+        isRumahQuran: isSingleRQ,
+        roleType: isSingleRQ ? "rumah_quran" : "regular",
+        subLabel: singleUnit + (singleJab !== "-" && singleJab !== singleUnit ? " • " + singleJab : "") + (isSingleRQ ? " (Bebas)" : "")
+      });
+      result.push(normalPerson);
+    }
+  }
+  return result;
+}
+
 function matchPegawaiUnit(item, filterUnit) {
   if (!filterUnit || filterUnit === "Semua") return true;
-  var u = getPegawaiUnit(item);
-  return u.toLowerCase() === filterUnit.toLowerCase();
+  if (item && item.unit) {
+    return item.unit.toLowerCase() === filterUnit.toLowerCase();
+  }
+  var roles = parsePegawaiRoles(item);
+  for (var i = 0; i < roles.length; i++) {
+    var u = getPegawaiUnitFromRole(roles[i]);
+    if (u.toLowerCase() === filterUnit.toLowerCase()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function matchSiswaKelas(item, filterClass) {
@@ -532,21 +668,61 @@ function showUnattendedModal() {
   }
 
   var attendedIds = {};
+  var attendedRegularIds = {};
+  var attendedRQIds = {};
+
   for (var i = 0; i < attendance.length; i++) {
     var a = attendance[i];
-    var isType = (activeType == "guru" ? a.type === "Guru" : (!a.type || a.type === "Siswa"));
+    var isType = (activeType == "guru" ? (a.type === "Guru" || a.type === "guru") : (!a.type || a.type === "Siswa" || a.type === "siswa"));
     if (isType) {
-      if (a.studentId) attendedIds[String(a.studentId)] = true;
-      if (a.id) attendedIds[String(a.id)] = true;
+      var sid = String(a.studentId || a.id || "").trim();
+      if (sid) {
+        attendedIds[sid] = true;
+        if (isRumahQuranRole(a.kelas)) {
+          attendedRQIds[sid] = true;
+        } else {
+          attendedRegularIds[sid] = true;
+        }
+      }
     }
   }
 
-  var unattended = students.filter(function (s) {
-    if (s.status && s.status !== "Aktif") return false;
-    var isRQ = String(s.kelas || "").toLowerCase().indexOf("rumah quran") > -1;
-    if (isRQ) return false; // Rumah Qur'an jadwal bebas, tidak dicatat alpa/belum absen
-    return !attendedIds[String(s.id)];
-  });
+  var unattended = [];
+  for (var sIdx = 0; sIdx < students.length; sIdx++) {
+    var s = students[sIdx];
+    if (s.status && s.status !== "Aktif") continue;
+    var sId = String(s.id || "").trim();
+
+    if (activeType === "guru") {
+      var roles = parsePegawaiRoles(s.jabatan || s.kelas || "");
+      var regRoles = roles.filter(function(r) { return !isRumahQuranRole(r); });
+      var isPureRQ = (regRoles.length === 0);
+
+      // Pegawai yang HANYA mengajar di Rumah Quran dikecualikan karena jadwal bebas
+      if (isPureRQ) continue;
+
+      // Pegawai yang merangkap atau bertugas reguler (SDIT, Yayasan, TK/PAUD) WAJIB mengisi absensi tugas regulernya
+      if (!attendedRegularIds[sId]) {
+        var uItem = getPegawaiUnitFromRole(regRoles[0]);
+        var jItem = getPegawaiJabatanFromRole(regRoles[0]);
+        unattended.push({
+          id: s.id,
+          nama: s.nama,
+          catDisplay: uItem + " - " + jItem
+        });
+      }
+    } else {
+      var isSiswaRQ = isRumahQuranRole(s.kelas);
+      if (isSiswaRQ) continue;
+      if (!attendedIds[sId]) {
+        unattended.push({
+          id: s.id,
+          nama: s.nama,
+          catDisplay: s.kelas || "-"
+        });
+      }
+    }
+  }
 
   var m = document.getElementById("modal");
   var listHtml = "";
@@ -556,8 +732,7 @@ function showUnattendedModal() {
     listHtml = '<div style="max-height:350px;overflow-y:auto"><table class="table" style="width:100%"><thead><tr><th>No</th><th>Nama</th><th>' + (activeType == "guru" ? "Unit & Jabatan" : "Unit / Kelas") + '</th><th>Status</th></tr></thead><tbody>';
     for (var j = 0; j < unattended.length; j++) {
       var u = unattended[j];
-      var catUnatt = activeType === "guru" ? (getPegawaiUnit(u) + " - " + getPegawaiJabatan(u)) : (u.kelas || "-");
-      listHtml += '<tr><td>' + (j + 1) + '</td><td><strong>' + u.nama + '</strong></td><td>' + catUnatt + '</td><td><span class="badge badge-danger">Belum Absen</span></td></tr>';
+      listHtml += '<tr><td>' + (j + 1) + '</td><td><strong>' + u.nama + '</strong></td><td>' + u.catDisplay + '</td><td><span class="badge badge-danger">Belum Absen</span></td></tr>';
     }
     listHtml += '</tbody></table></div>';
   }
@@ -1094,7 +1269,21 @@ function loadRekapData() {
   );
 }
 function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
-  var isRumahQuran = String(s.kelas || "").toLowerCase().indexOf("rumah quran") > -1;
+  var isRumahQuran = false;
+  if (s.isRumahQuran !== undefined) {
+    isRumahQuran = !!s.isRumahQuran;
+  } else {
+    var roleStr = String(s.recapRole || s.jabatan || s.kelas || "");
+    var unitStr = String(s.unit || getPegawaiUnit(s));
+    var roles = parsePegawaiRoles(roleStr);
+    var hasNonRQ = roles.some(function(r) { return !isRumahQuranRole(r); });
+    if (hasNonRQ) {
+      isRumahQuran = false;
+    } else {
+      isRumahQuran = isRumahQuranRole(roleStr) || unitStr.toLowerCase() === "rumah quran";
+    }
+  }
+
   var totals = { H: 0, T: 0, S: 0, I: 0, A: 0 };
   var days = {};
   var todayObj = new Date();
@@ -1108,7 +1297,8 @@ function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
     var dow = dDate.getDay(); // 0 = Minggu, 6 = Sabtu
     var isWeekend = (dow === 0 || dow === 6);
     var isoKey = targetYear + '-' + String(targetMonth).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-    var holidayInfo = window.HolidayManager ? window.HolidayManager.getHoliday(isoKey) : null;
+    var hMgr = (typeof window !== "undefined" && window.HolidayManager) ? window.HolidayManager : (typeof global !== "undefined" && global.HolidayManager ? global.HolidayManager : null);
+    var holidayInfo = hMgr ? hMgr.getHoliday(isoKey) : null;
     var isNationalHoliday = !!(holidayInfo && holidayInfo.isHoliday);
     var isHoliday = isWeekend || isNationalHoliday;
 
@@ -1248,8 +1438,9 @@ function showRekapTable() {
     '</tr></thead><tbody>';
 
   var visibleCount = 0;
-  for (var k = 0; k < rekapData.students.length; k++) {
-    var s = rekapData.students[k];
+  var displayStudents = isPegawai ? splitPegawaiEntries(rekapData.students) : rekapData.students;
+  for (var k = 0; k < displayStudents.length; k++) {
+    var s = displayStudents[k];
     
     // Terapkan Filter
     var matchCategory = isPegawai ? matchPegawaiUnit(s, filterKelas) : matchSiswaKelas(s, filterKelas);
@@ -1258,7 +1449,8 @@ function showRekapTable() {
     }
     if (globalSearchQuery) {
       var q = globalSearchQuery.toLowerCase();
-      if ((s.nama || "").toLowerCase().indexOf(q) === -1 && (s.kelas || "").toLowerCase().indexOf(q) === -1) {
+      var sRoles = isPegawai ? (s.recapRole || s.kelas || "") : s.kelas;
+      if ((s.nama || "").toLowerCase().indexOf(q) === -1 && sRoles.toLowerCase().indexOf(q) === -1) {
         continue;
       }
     }
@@ -1271,7 +1463,7 @@ function showRekapTable() {
     var isRQ = recapCalc.isRumahQuran;
 
     var rqBadge = isRQ ? ' <span class="badge badge-free" style="font-size:9px;padding:1px 5px;">Bebas</span>' : '';
-    var subRekap = isPegawai ? (getPegawaiUnit(s) + (getPegawaiJabatan(s) !== "-" ? " • " + getPegawaiJabatan(s) : "")) : s.kelas;
+    var subRekap = isPegawai ? (s.subLabel || (getPegawaiUnit(s) + (getPegawaiJabatan(s) !== "-" ? " • " + getPegawaiJabatan(s) : ""))) : s.kelas;
 
     h +=
       '<tr><td style="text-align:left;padding-left:14px;"><div class="student-cell"><div class="avatar ' +
@@ -1384,15 +1576,17 @@ function exportRekapExcel() {
 
   var exportRows = [headerRow];
   var no = 1;
-  for (var k = 0; k < rekapData.students.length; k++) {
-    var s = rekapData.students[k];
+  var displayStudents = isPegawai ? splitPegawaiEntries(rekapData.students) : rekapData.students;
+  for (var k = 0; k < displayStudents.length; k++) {
+    var s = displayStudents[k];
     var matchCategory = isPegawai ? matchPegawaiUnit(s, filterKelas) : matchSiswaKelas(s, filterKelas);
     if (!matchCategory) {
       continue;
     }
     if (globalSearchQuery) {
       var q = globalSearchQuery.toLowerCase();
-      if ((s.nama || "").toLowerCase().indexOf(q) === -1 && (s.kelas || "").toLowerCase().indexOf(q) === -1) {
+      var sRoles = isPegawai ? (s.recapRole || s.kelas || "") : s.kelas;
+      if ((s.nama || "").toLowerCase().indexOf(q) === -1 && sRoles.toLowerCase().indexOf(q) === -1) {
         continue;
       }
     }
@@ -1403,7 +1597,7 @@ function exportRekapExcel() {
 
     var row = [no++, s.nama];
     if (isPegawai) {
-      row.push(getPegawaiUnit(s), getPegawaiJabatan(s));
+      row.push(s.unit || getPegawaiUnit(s), s.jabatan || getPegawaiJabatan(s));
     } else {
       row.push(s.kelas);
     }
@@ -1618,9 +1812,17 @@ function renderSiswaTable() {
       var code = s.nip || s.barcode || "-";
       var sub = "-";
       if (activeType === "guru") {
-        var uTab = getPegawaiUnit(s);
-        var jTab = getPegawaiJabatan(s);
-        sub = '<span class="badge badge-info" style="font-size:11px;margin-right:4px;">' + uTab + '</span> ' + (jTab !== "-" && jTab !== uTab ? jTab : "");
+        var roles = parsePegawaiRoles(s.jabatan || s.kelas || "");
+        var badgesHtml = [];
+        for (var rIdx = 0; rIdx < roles.length; rIdx++) {
+          var rItem = roles[rIdx];
+          var uRole = getPegawaiUnitFromRole(rItem);
+          var jRole = getPegawaiJabatanFromRole(rItem);
+          var isRQR = isRumahQuranRole(rItem);
+          var tagBadge = isRQR ? ' <span class="badge badge-free" style="font-size:9px;padding:1px 5px;">Bebas</span>' : '';
+          badgesHtml.push('<span style="display:inline-block;margin:1px 0;"><span class="badge badge-info" style="font-size:11px;margin-right:4px;">' + uRole + '</span> ' + (jRole !== "-" && jRole !== uRole ? jRole : "") + tagBadge + '</span>');
+        }
+        sub = badgesHtml.join("<br>");
       } else {
         var isRQSis = String(s.kelas || "").toLowerCase().indexOf("rumah quran") > -1;
         var rqBadgeSis = isRQSis ? ' <span class="badge badge-free" style="font-size:10px;padding:1px 5px;">Bebas</span>' : '';
@@ -2078,12 +2280,21 @@ function showAddModal() {
         '<option value="Kebersihan">' +
         '</datalist>';
       catFormHtml =
-        '<div class="form-group"><label class="form-label">Unit Kerja Pegawai</label>' +
+        '<div class="form-group"><label class="form-label">Unit Kerja Utama Pegawai</label>' +
         '<select class="form-select" id="add-unit">' + unitOptions + '</select></div>' +
         '<div class="form-group"><label class="form-label">Jabatan Pegawai</label>' +
         '<input type="text" class="form-input" id="add-jabatan" placeholder="Contoh: Guru Kelas, Wali Kelas, Kepala Sekolah" list="jabatan-suggestions">' +
         jabatanDatalist +
-        '<small style="color:var(--gray);font-size:11px">Pilih dari saran atau ketik jabatan custom.</small></div>';
+        '<small style="color:var(--gray);font-size:11px">Pilih dari saran atau ketik jabatan custom.</small></div>' +
+        '<div class="form-group" style="background:#f8fafc;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;margin-top:10px;">' +
+        '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#1e293b;margin:0;">' +
+        '<input type="checkbox" id="add-merangkap-rq" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">' +
+        '<span>Merangkap Jabatan: Guru Rumah Qur\'an (Jadwal Bebas)</span>' +
+        '</label>' +
+        '<small style="color:var(--gray);font-size:11px;display:block;margin-top:4px;line-height:1.4;">' +
+        'Centang jika pegawai ini juga mengajar di Rumah Qur\'an. Sistem akan memisahkan absensi tugas reguler dan tugas Rumah Qur\'an secara mandiri agar rekap tugas reguler tetap mencatat Alpa jika tidak hadir.' +
+        '</small>' +
+        '</div>';
     } else {
       var classOptions = "";
       var seenCls = {};
@@ -2260,10 +2471,14 @@ function submitAdd() {
   if (activeType === "guru") {
     var uEl = document.getElementById("add-unit");
     var jEl = document.getElementById("add-jabatan");
+    var mrqEl = document.getElementById("add-merangkap-rq");
     var uVal = uEl ? uEl.value.trim() : "Yayasan";
     var jVal = jEl ? jEl.value.trim() : "";
     if (!jVal) jVal = uVal;
     var kl = uVal + " - " + jVal;
+    if (mrqEl && mrqEl.checked && uVal !== "Rumah Quran" && jVal.toLowerCase().indexOf("rumah quran") === -1) {
+      kl += ", Guru Rumah Quran";
+    }
 
     if (!bc || !nm) {
       showToast("Lengkapi NIP dan Nama Lengkap", "error");
@@ -2322,8 +2537,13 @@ function editSiswa(id) {
   
   var catEditHtml = "";
   if (activeType === "guru") {
-    var curUnit = getPegawaiUnit(s);
-    var curJab = getPegawaiJabatan(s);
+    var rawJabatan = String(s.jabatan || s.kelas || "");
+    var roles = parsePegawaiRoles(rawJabatan);
+    var regRoles = roles.filter(function(r) { return !isRumahQuranRole(r); });
+    var hasRQ = roles.some(function(r) { return isRumahQuranRole(r); });
+
+    var curUnit = regRoles.length > 0 ? getPegawaiUnitFromRole(regRoles[0]) : getPegawaiUnit(s);
+    var curJab = regRoles.length > 0 ? getPegawaiJabatanFromRole(regRoles[0]) : getPegawaiJabatan(s);
     var unitOptions = "";
     for (var u = 1; u < PEGAWAI_UNITS.length; u++) {
       var uN = PEGAWAI_UNITS[u];
@@ -2344,13 +2564,23 @@ function editSiswa(id) {
       '<option value="Keamanan">' +
       '<option value="Kebersihan">' +
       '</datalist>';
+    var isMerangkapChecked = (hasRQ && curUnit !== "Rumah Quran") ? "checked" : "";
     catEditHtml =
-      '<div class="form-group"><label class="form-label">Unit Kerja Pegawai</label>' +
+      '<div class="form-group"><label class="form-label">Unit Kerja Utama</label>' +
       '<select class="form-select" id="edit-unit">' + unitOptions + '</select></div>' +
-      '<div class="form-group"><label class="form-label">Jabatan</label>' +
+      '<div class="form-group"><label class="form-label">Jabatan Utama</label>' +
       '<input type="text" class="form-input" id="edit-jabatan" value="' + (curJab === "-" ? "" : curJab) + '" placeholder="Contoh: Guru Kelas, Wali Kelas, Kepala Sekolah" list="edit-jabatan-suggestions">' +
       jabatanDatalist +
-      '<small style="color:var(--gray);font-size:11px">Ubah Unit Kerja atau Jabatan pegawai.</small></div>';
+      '<small style="color:var(--gray);font-size:11px">Ubah Unit Kerja atau Jabatan pegawai.</small></div>' +
+      '<div class="form-group" style="background:#f8fafc;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;margin-top:10px;">' +
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#1e293b;margin:0;">' +
+      '<input type="checkbox" id="edit-merangkap-rq" ' + isMerangkapChecked + ' style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">' +
+      '<span>Merangkap Jabatan: Guru Rumah Qur\'an (Jadwal Bebas)</span>' +
+      '</label>' +
+      '<small style="color:var(--gray);font-size:11px;display:block;margin-top:4px;line-height:1.4;">' +
+      'Centang jika pegawai ini juga mengajar di Rumah Qur\'an. Absensi tugas reguler dan tugas Rumah Qur\'an akan dipisahkan secara otomatis agar rekap tugas reguler tetap mencatat Alpa jika tidak hadir.' +
+      '</small>' +
+      '</div>';
   } else {
     var curClass = (s.kelas || "").trim();
     var classOptions = "";
@@ -2422,10 +2652,14 @@ function submitEdit(id) {
   if (activeType === "guru") {
     var uEl = document.getElementById("edit-unit");
     var jEl = document.getElementById("edit-jabatan");
+    var mrqEl = document.getElementById("edit-merangkap-rq");
     var uVal = uEl ? uEl.value.trim() : "Yayasan";
     var jVal = jEl ? jEl.value.trim() : "";
     if (!jVal) jVal = uVal;
     var kl = uVal + " - " + jVal;
+    if (mrqEl && mrqEl.checked && uVal !== "Rumah Quran" && jVal.toLowerCase().indexOf("rumah quran") === -1) {
+      kl += ", Guru Rumah Quran";
+    }
 
     if (!bc || !nm) {
       showToast("Lengkapi NIP dan Nama Lengkap", "error");
