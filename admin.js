@@ -300,13 +300,30 @@ var currentRekapYear = new Date().getFullYear();
 var globalSearchQuery = "";
 var masterFilterKelas = "Semua";
 var currentFilteredAttendance = [];
+var rekapViewMode = (typeof window !== "undefined" && window.innerWidth <= 768) ? "card" : "table";
+var rekapNoticeCollapsed = (typeof window !== "undefined" && window.innerWidth <= 768);
+var rekapExpandedCards = {};
+var rekapLocalSearch = "";
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 function handleGlobalSearch(val) {
   globalSearchQuery = (val || "").trim();
   var topbarSearch = document.getElementById("topbar-search");
   var siswaSearch = document.getElementById("siswa-search-input");
+  var rekapSearch = document.getElementById("rekap-search-input");
   if (topbarSearch && topbarSearch.value !== val) topbarSearch.value = val;
   if (siswaSearch && siswaSearch.value !== val) siswaSearch.value = val;
+  if (rekapSearch && rekapSearch.value !== val) rekapSearch.value = val;
+  rekapLocalSearch = globalSearchQuery;
 
   if (currentPage === "siswa") {
     renderSiswaTable();
@@ -1805,60 +1822,77 @@ function renderRekap() {
     '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Siswa</button>' +
     '</div></div>' +
     getAuthAlertHtml() +
-    '<div class="card no-print" style="margin-bottom:15px;"><div class="card-body" style="padding:15px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;">' +
-    '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
-    '<span style="font-weight:600;font-size:13px;color:var(--gray);">Pilih Periode:</span>' +
-    '<select class="form-select" id="rekap-month" style="width:140px;display:inline-block;" onchange="changeRekapPeriod()">' + monthOptions + '</select>' +
-    '<select class="form-select" id="rekap-year" style="width:100px;display:inline-block;" onchange="changeRekapPeriod()">' + yearOptions + '</select>' +
+    '<div class="card no-print rekap-toolbar-card"><div class="card-body rekap-toolbar-body">' +
+    // 1. Period Selector
+    '<div class="rekap-period-box">' +
+      '<div class="rekap-period-label"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--primary)"></i> <span>Pilih Periode:</span></div>' +
+      '<select class="form-select" id="rekap-month" onchange="changeRekapPeriod()">' + monthOptions + '</select>' +
+      '<select class="form-select" id="rekap-year" onchange="changeRekapPeriod()">' + yearOptions + '</select>' +
     '</div>' +
-    '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">' +
-    '<!-- Dropdown Cetak (Portrait & Landscape) -->' +
-    '<div class="app-dropdown" id="dropdown-print-rekap">' +
-      '<button type="button" class="btn btn-outline btn-sm app-dropdown-toggle" onclick="toggleAppDropdown(\'dropdown-print-rekap\', event)" title="Pilih orientasi cetak rekap">' +
-        '<i data-lucide="printer" style="width:14px"></i> Cetak <i data-lucide="chevron-down" class="dropdown-chevron"></i>' +
-      '</button>' +
-      '<div class="app-dropdown-menu">' +
-        '<div class="app-dropdown-header">Orientasi Cetak</div>' +
-        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'portrait\');" title="Cetak Rekap Portrait (Tegak - Dipaksa Horizontal)">' +
-          '<i data-lucide="file" style="color:var(--primary)"></i>' +
-          '<div><div>Cetak Portrait</div><small>Format Tegak</small></div>' +
+    // 2. In-Page Search
+    '<div class="rekap-search-box">' +
+      '<i data-lucide="search" class="search-icon"></i>' +
+      '<input type="text" id="rekap-search-input" placeholder="Cari nama / kelas..." value="' + escapeHtml(rekapLocalSearch) + '" oninput="handleRekapSearch(this.value)">' +
+      (rekapLocalSearch ? '<button type="button" class="rekap-search-clear" onclick="clearRekapSearch()">✕</button>' : '') +
+    '</div>' +
+    // 3. Actions Row & View Switcher
+    '<div class="rekap-actions-row">' +
+      '<div class="rekap-view-switcher">' +
+        '<button type="button" class="view-switch-btn ' + (rekapViewMode === "card" ? "active" : "") + '" onclick="setRekapViewMode(\'card\')" title="Tampilan Kartu Ringkas (Optimal untuk Layar HP/Mobile)">' +
+          '<i data-lucide="layout-grid" style="width:14px;height:14px"></i> <span>Kartu</span>' +
         '</button>' +
-        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'landscape\');" title="Cetak Rekap Landscape (Mendatar - Sangat Disarankan)">' +
-          '<i data-lucide="file-text" style="color:var(--primary)"></i>' +
-          '<div><div>Cetak Landscape</div><small>Format Mendatar (31 Hari Rapi)</small></div>' +
+        '<button type="button" class="view-switch-btn ' + (rekapViewMode === "table" ? "active" : "") + '" onclick="setRekapViewMode(\'table\')" title="Tampilan Tabel Matriks 31 Hari Lengkap">' +
+          '<i data-lucide="table" style="width:14px;height:14px"></i> <span>Tabel 31 Hari</span>' +
         '</button>' +
       '</div>' +
-    '</div>' +
-    '<!-- Dropdown Ekspor (Portrait & Landscape + Excel) -->' +
-    '<div class="app-dropdown" id="dropdown-export-rekap">' +
-      '<button type="button" class="btn btn-danger btn-sm app-dropdown-toggle" onclick="toggleAppDropdown(\'dropdown-export-rekap\', event)" title="Pilih format dan orientasi ekspor">' +
-        '<i data-lucide="download" style="width:14px"></i> Ekspor <i data-lucide="chevron-down" class="dropdown-chevron"></i>' +
-      '</button>' +
-      '<div class="app-dropdown-menu">' +
-        '<div class="app-dropdown-header">Dokumen PDF</div>' +
-        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'portrait\');" title="Unduh Rekap Bulanan ke PDF (Portrait)">' +
-          '<i data-lucide="file-text" style="color:#ef4444"></i>' +
-          '<div><div>PDF Portrait</div><small>Format Tegak</small></div>' +
+      '<!-- Dropdown Cetak (Portrait & Landscape) -->' +
+      '<div class="app-dropdown" id="dropdown-print-rekap">' +
+        '<button type="button" class="btn btn-outline btn-sm app-dropdown-toggle" onclick="toggleAppDropdown(\'dropdown-print-rekap\', event)" title="Pilih orientasi cetak rekap">' +
+          '<i data-lucide="printer" style="width:14px"></i> Cetak <i data-lucide="chevron-down" class="dropdown-chevron"></i>' +
         '</button>' +
-        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'landscape\');" title="Unduh Rekap Bulanan ke PDF (Landscape)">' +
-          '<i data-lucide="file-text" style="color:#ef4444"></i>' +
-          '<div><div>PDF Landscape</div><small>Format Mendatar (31 Hari)</small></div>' +
-        '</button>' +
-        '<div class="app-dropdown-divider"></div>' +
-        '<div class="app-dropdown-header">Spreadsheet</div>' +
-        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapExcel();" title="Unduh Rekap Bulanan ke Excel (.xlsx)">' +
-          '<i data-lucide="file-spreadsheet" style="color:#10b981"></i>' +
-          '<div><div>Excel (.xlsx)</div><small>Data Rekap 31 Hari Lengkap</small></div>' +
-        '</button>' +
+        '<div class="app-dropdown-menu">' +
+          '<div class="app-dropdown-header">Orientasi Cetak</div>' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'portrait\');" title="Cetak Rekap Portrait (Tegak - Dipaksa Horizontal)">' +
+            '<i data-lucide="file" style="color:var(--primary)"></i>' +
+            '<div><div>Cetak Portrait</div><small>Format Tegak</small></div>' +
+          '</button>' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'landscape\');" title="Cetak Rekap Landscape (Mendatar - Sangat Disarankan)">' +
+            '<i data-lucide="file-text" style="color:var(--primary)"></i>' +
+            '<div><div>Cetak Landscape</div><small>Format Mendatar (31 Hari Rapi)</small></div>' +
+          '</button>' +
+        '</div>' +
       '</div>' +
-    '</div>' +
-    '<button type="button" class="btn btn-success btn-sm" onclick="exportRekapExcel()" title="Unduh Rekap Bulanan ke Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
+      '<!-- Dropdown Ekspor (Portrait & Landscape + Excel) -->' +
+      '<div class="app-dropdown" id="dropdown-export-rekap">' +
+        '<button type="button" class="btn btn-danger btn-sm app-dropdown-toggle" onclick="toggleAppDropdown(\'dropdown-export-rekap\', event)" title="Pilih format dan orientasi ekspor">' +
+          '<i data-lucide="download" style="width:14px"></i> Ekspor <i data-lucide="chevron-down" class="dropdown-chevron"></i>' +
+        '</button>' +
+        '<div class="app-dropdown-menu">' +
+          '<div class="app-dropdown-header">Dokumen PDF</div>' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'portrait\');" title="Unduh Rekap Bulanan ke PDF (Portrait)">' +
+            '<i data-lucide="file-text" style="color:#ef4444"></i>' +
+            '<div><div>PDF Portrait</div><small>Format Tegak</small></div>' +
+          '</button>' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'landscape\');" title="Unduh Rekap Bulanan ke PDF (Landscape)">' +
+            '<i data-lucide="file-text" style="color:#ef4444"></i>' +
+            '<div><div>PDF Landscape</div><small>Format Mendatar (31 Hari)</small></div>' +
+          '</button>' +
+          '<div class="app-dropdown-divider"></div>' +
+          '<div class="app-dropdown-header">Spreadsheet</div>' +
+          '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapExcel();" title="Unduh Rekap Bulanan ke Excel (.xlsx)">' +
+            '<i data-lucide="file-spreadsheet" style="color:#10b981"></i>' +
+            '<div><div>Excel (.xlsx)</div><small>Data Rekap 31 Hari Lengkap</small></div>' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      '<button type="button" class="btn btn-success btn-sm btn-export-excel-standalone" onclick="exportRekapExcel()" title="Unduh Rekap Bulanan ke Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
     '</div>' +
     '</div></div>' +
-    '<div class="card"><div class="card-body" id="rekap-content"><p style="text-align:center;padding:30px;color:var(--gray)">Memuat data ' +
+    '<div class="card"><div class="card-body" id="rekap-content" style="padding:18px;"><p style="text-align:center;padding:30px;color:var(--gray)">Memuat data ' +
     targetType +
     "...</p></div></div>";
-  lucide.createIcons();
+
+  if (typeof lucide !== "undefined" && lucide.createIcons) lucide.createIcons();
   loadRekapData();
 }
 
@@ -1994,16 +2028,19 @@ function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
 
 function showRekapTable() {
   var rc = document.getElementById("rekap-content");
+  if (!rc) return;
   if (!rekapData || !rekapData.students || rekapData.students.length === 0) {
     rc.innerHTML =
-      '<p style="text-align:center;padding:30px;color:var(--gray)">Tidak ada data rekap</p>';
+      '<p style="text-align:center;padding:40px 20px;color:var(--gray)"><i data-lucide="calendar-x" style="width:36px;height:36px;margin-bottom:10px;color:var(--gray)"></i><br>Tidak ada data rekap untuk periode ini.</p>';
+    if (typeof lucide !== "undefined" && lucide.createIcons) lucide.createIcons();
     return;
   }
+
   // Extract unique roles for filtering
   var roles = [];
   var isPegawai = activeType === "guru";
   if (isPegawai) {
-    // Filter Pegawai berdasarkan Unit Kerja!
+    // Filter Pegawai berdasarkan Unit Kerja
     for (var uIdx = 0; uIdx < PEGAWAI_UNITS.length; uIdx++) {
       roles.push(PEGAWAI_UNITS[uIdx]);
     }
@@ -2012,7 +2049,7 @@ function showRekapTable() {
       if (uItem && roles.indexOf(uItem) === -1) roles.push(uItem);
     }
   } else {
-    // Filter Siswa berdasarkan Kelas (kategori standar: Rumah Quran, TK/PAUD, SDIT Kelas 1-6)
+    // Filter Siswa berdasarkan Kelas
     roles.push("Semua");
     for (var sc = 0; sc < STANDARD_STUDENT_CLASSES.length; sc++) {
       if (roles.indexOf(STANDARD_STUDENT_CLASSES[sc]) === -1) roles.push(STANDARD_STUDENT_CLASSES[sc]);
@@ -2029,27 +2066,46 @@ function showRekapTable() {
     }
   }
 
+  // 1. Horizontal Scroll Filter Chips
   var filterLabel = isPegawai ? "Filter Unit Kerja Pegawai" : "Filter Kelas Siswa";
-  var filterHtml = '<div class="filters no-print" style="margin-bottom:16px; padding:15px; border-radius:var(--radius-md);"><div class="filter-group"><div class="filter-label">' + filterLabel + '</div><div class="filter-tabs">';
+  var filterHtml =
+    '<div class="filters no-print" style="margin-bottom:14px; padding:12px 14px; border-radius:var(--radius-md);">' +
+      '<div class="filter-group" style="width:100%;">' +
+        '<div class="filter-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+          '<span><i data-lucide="layers" style="width:13px;height:13px;vertical-align:-1px;margin-right:4px;color:var(--primary);"></i> ' + filterLabel + '</span>' +
+          '<span style="font-size:11px;color:var(--text-muted);font-weight:600;">' + roles.length + ' Pilihan</span>' +
+        '</div>' +
+        '<div class="rekap-filter-scroll">';
   for (var j = 0; j < roles.length; j++) {
     var rName = roles[j];
     var isRQ = rName.toLowerCase().indexOf("rumah quran") > -1;
     var label = isRQ ? '📖 ' + rName + ' (Bebas)' : rName;
-    filterHtml += '<button class="filter-tab ' + (filterKelas == rName ? "active" : "") + '" onclick="filterRekap(\'' + rName + '\')">' + label + '</button>';
+    filterHtml += '<button type="button" class="filter-tab ' + (filterKelas == rName ? "active" : "") + '" onclick="filterRekap(\'' + rName.replace(/'/g, "\\'") + '\')">' + label + '</button>';
   }
   filterHtml += '</div></div></div>';
 
+  // 2. Collapsible Notice Banner
+  var noticeChevron = rekapNoticeCollapsed ? "chevron-down" : "chevron-up";
+  var noticeBodyDisplay = rekapNoticeCollapsed ? "none" : "block";
   var rekapNoticeHtml =
-    '<div class="no-print" style="margin-bottom:16px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;line-height:1.5;">' +
-    '<div style="display:flex;align-items:flex-start;gap:10px;">' +
-    '<i data-lucide="info" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
-    '<div><strong style="color:#b45309;">Ketentuan Kalender Libur Indonesia & Rekap Kehadiran:</strong>' +
-    '<ul style="margin:4px 0 0 18px;padding:0;color:#78350f;">' +
-    '<li><strong>Hari Libur Nasional & Akhir Pekan (Sabtu/Minggu):</strong> Kolom bertanda merah muda atau tanda bintang (<span style="color:#dc2626;">★</span>). Default absensi <strong>bukan Alpa (-)</strong>.</li>' +
-    '<li><strong>Alpa (A):</strong> HANYA jika pada <strong>hari efektif belajar (Senin s/d Jumat bukan hari libur)</strong> tidak mengisi absensi sama sekali.</li>' +
-    '<li><strong>Rumah Qur\'an:</strong> <strong>Tidak ada hari libur tertentu (semua hari Senin s/d Minggu dapat digunakan)</strong>, bebas absen kapan saja tanpa batasan jam terlambat (selalu Hadir), dan tidak pernah dikenakan status Alpa (-).</li>' +
-    '</ul></div></div></div>';
+    '<div class="rekap-notice-box no-print">' +
+      '<button type="button" class="rekap-notice-toggle-btn" onclick="toggleRekapNotice()">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<i data-lucide="info" style="width:18px;height:18px;color:#d97706;flex-shrink:0;"></i>' +
+          '<span>Ketentuan Kalender Libur & Rekap Kehadiran</span>' +
+        '</div>' +
+        '<i data-lucide="' + noticeChevron + '" id="rekap-notice-chevron" style="width:18px;height:18px;color:#d97706;"></i>' +
+      '</button>' +
+      '<div class="rekap-notice-body" id="rekap-notice-body" style="display:' + noticeBodyDisplay + ';">' +
+        '<ul style="margin:4px 0 0 16px;padding:0;">' +
+          '<li><strong>Hari Libur Nasional & Akhir Pekan (Sabtu/Minggu):</strong> Kolom bertanda merah muda atau tanda bintang (<span style="color:#dc2626;">★</span>). Default absensi <strong>bukan Alpa (-)</strong>.</li>' +
+          '<li><strong>Alpa (A):</strong> HANYA jika pada <strong>hari efektif belajar (Senin s/d Jumat bukan hari libur)</strong> tidak mengisi absensi sama sekali.</li>' +
+          '<li><strong>Rumah Qur\'an:</strong> <strong>Tidak ada hari libur tertentu (semua hari Senin s/d Minggu dapat digunakan)</strong>, bebas absen kapan saja tanpa batasan jam terlambat (selalu Hadir), dan tidak pernah dikenakan status Alpa (-).</li>' +
+        '</ul>' +
+      '</div>' +
+    '</div>';
 
+  // 3. Official Print Header
   var printHeader = 
     '<div class="print-header print-only">' +
       '<div class="kop-surat">' +
@@ -2069,9 +2125,238 @@ function showRekapTable() {
       '</div>' +
     '</div>';
 
-  var h = filterHtml + rekapNoticeHtml + printHeader + '<div class="table-responsive"><table class="table rekap-table"><thead><tr><th style="text-align:left;min-width:160px;padding-left:14px;">Nama</th>';
-  
+  // 4. Hitung Ulang Data untuk yang Cocok dengan Filter & Search
+  var visibleStudents = [];
+  var totalH = 0, totalT = 0, totalS = 0, totalI = 0, totalA = 0;
+  var displayStudents = isPegawai ? splitPegawaiEntries(rekapData.students) : rekapData.students;
+
+  var query = (rekapLocalSearch || globalSearchQuery || "").toLowerCase();
+
+  for (var k = 0; k < displayStudents.length; k++) {
+    var s = displayStudents[k];
+    var matchCategory = isPegawai ? matchPegawaiUnit(s, filterKelas) : matchSiswaKelas(s, filterKelas);
+    if (!matchCategory) continue;
+
+    if (query) {
+      var sRoles = isPegawai ? (s.recapRole || s.kelas || "") : s.kelas;
+      if ((s.nama || "").toLowerCase().indexOf(query) === -1 && sRoles.toLowerCase().indexOf(query) === -1) {
+        continue;
+      }
+    }
+
+    var recapCalc = calculateStudentRecap(s, rekapData, currentRekapMonth, currentRekapYear);
+    totalH += (recapCalc.totals.H || 0);
+    totalT += (recapCalc.totals.T || 0);
+    totalS += (recapCalc.totals.S || 0);
+    totalI += (recapCalc.totals.I || 0);
+    totalA += (recapCalc.totals.A || 0);
+
+    visibleStudents.push({
+      student: s,
+      recap: recapCalc,
+      index: k
+    });
+  }
+
+  // 5. High-level Summary Strip (Ringkasan Cepat)
+  var totalRecords = totalH + totalT + totalS + totalI + totalA;
+  var avgRate = totalRecords > 0 ? Math.round(((totalH + totalT) / totalRecords) * 100) : 100;
+  var summaryStripHtml =
+    '<div class="rekap-summary-strip no-print">' +
+      '<div class="rekap-summary-pill">' +
+        '<div class="pill-icon" style="background:#e0f2fe;color:#0284c7;"><i data-lucide="users" style="width:18px;height:18px;"></i></div>' +
+        '<div><div class="pill-val">' + visibleStudents.length + '</div><div class="pill-label">Total ' + (isPegawai ? 'Pegawai' : 'Siswa') + '</div></div>' +
+      '</div>' +
+      '<div class="rekap-summary-pill">' +
+        '<div class="pill-icon" style="background:#dcfce7;color:#16a34a;"><i data-lucide="percent" style="width:18px;height:18px;"></i></div>' +
+        '<div><div class="pill-val">' + avgRate + '%</div><div class="pill-label">Rata-rata Hadir</div></div>' +
+      '</div>' +
+      '<div class="rekap-summary-pill">' +
+        '<div class="pill-icon" style="background:#fef3c7;color:#d97706;"><i data-lucide="clock" style="width:18px;height:18px;"></i></div>' +
+        '<div><div class="pill-val">' + totalT + '</div><div class="pill-label">Total Terlambat</div></div>' +
+      '</div>' +
+      '<div class="rekap-summary-pill">' +
+        '<div class="pill-icon" style="background:#fee2e2;color:#dc2626;"><i data-lucide="user-x" style="width:18px;height:18px;"></i></div>' +
+        '<div><div class="pill-val">' + totalA + '</div><div class="pill-label">Total Alpa (A)</div></div>' +
+      '</div>' +
+    '</div>';
+
+  // 6. View Rendering
+  var contentHtml = "";
+  if (visibleStudents.length === 0) {
+    contentHtml =
+      '<div style="text-align:center;padding:45px 20px;color:var(--gray);background:var(--surface);border-radius:12px;border:1px dashed var(--border);margin-bottom:16px;">' +
+        '<i data-lucide="search-x" style="width:36px;height:36px;margin-bottom:10px;color:var(--gray);"></i>' +
+        '<p style="font-size:14px;font-weight:600;margin:0 0 6px 0;color:var(--text);">Tidak ada data yang cocok</p>' +
+        '<p style="font-size:12px;margin:0;color:var(--text-muted);">Coba ubah kata kunci pencarian atau ganti filter kategori di atas.</p>' +
+      '</div>';
+  } else if (rekapViewMode === "card") {
+    // Mode Kartu untuk Layar Mobile / Ringkas
+    contentHtml = renderRekapCards(visibleStudents, rekapData);
+  } else {
+    // Mode Tabel Matriks 31 Hari Lengkap (Mobile Optimized)
+    contentHtml = renderRekapTableHtml(visibleStudents, rekapData);
+  }
+
+  // 7. Hidden Print Table (agar cetak A4 selalu menghasilkan tabel resmi lengkap meskipun di layar sedang mode Kartu)
+  var printTableHtml = "";
+  if (rekapViewMode === "card") {
+    printTableHtml = '<div class="print-only" style="display:none;">' + renderRekapTableHtml(visibleStudents, rekapData, true) + '</div>';
+  }
+
+  var printFooter = 
+    '<div class="print-footer print-only">' +
+      '<div class="print-signature">' +
+        '<p class="sig-date">Kamang Baru, ' + formatFullDate(new Date().toISOString().split('T')[0]) + '</p>' +
+        '<p class="sig-title">Mengetahui,<br>Kepala Yayasan Darul Ulum</p>' +
+        '<div class="sig-space"></div>' +
+        '<p class="sig-name"><strong>' + (appSettings.kepalaYayasan || "Pimpinan Yayasan") + '</strong></p>' +
+      '</div>' +
+    '</div>';
+
+  rc.innerHTML = filterHtml + rekapNoticeHtml + summaryStripHtml + printHeader + contentHtml + printTableHtml + printFooter;
+  if (typeof lucide !== "undefined" && lucide.createIcons) lucide.createIcons();
+}
+
+function renderRekapCards(visibleStudents, rekapData) {
+  var h = '<div class="rekap-card-grid no-print">';
+  var daysInMonth = rekapData.daysInMonth;
+  var dayNamesShort = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+  var isPegawai = activeType === "guru";
+
+  for (var i = 0; i < visibleStudents.length; i++) {
+    var item = visibleStudents[i];
+    var s = item.student;
+    var recap = item.recap;
+    var sDays = recap.days;
+    var sTotals = recap.totals;
+    var isRQ = recap.isRumahQuran;
+    var cardId = "card-" + i;
+    var isExpanded = !!rekapExpandedCards[cardId];
+
+    // Persentase Kehadiran
+    var totalAttended = (sTotals.H || 0) + (sTotals.T || 0);
+    var totalReported = totalAttended + (sTotals.S || 0) + (sTotals.I || 0) + (sTotals.A || 0);
+    var rate = totalReported > 0 ? Math.round((totalAttended / totalReported) * 100) : 100;
+    var rateCls = rate >= 90 ? "rate-high" : (rate >= 75 ? "rate-med" : "rate-low");
+
+    var rqBadge = isRQ ? ' <span class="badge badge-free" style="font-size:9px;padding:1px 5px;">Bebas</span>' : '';
+    var subRekap = isPegawai ? (s.subLabel || (getPegawaiUnit(s) + (getPegawaiJabatan(s) !== "-" ? " • " + getPegawaiJabatan(s) : ""))) : s.kelas;
+
+    // Progress bar
+    var pH = totalReported > 0 ? ((sTotals.H || 0) / totalReported) * 100 : 0;
+    var pT = totalReported > 0 ? ((sTotals.T || 0) / totalReported) * 100 : 0;
+    var pS = totalReported > 0 ? ((sTotals.S || 0) / totalReported) * 100 : 0;
+    var pI = totalReported > 0 ? ((sTotals.I || 0) / totalReported) * 100 : 0;
+    var pA = totalReported > 0 ? ((sTotals.A || 0) / totalReported) * 100 : 0;
+
+    h +=
+      '<div class="rekap-person-card" id="' + cardId + '">' +
+        '<div class="rekap-card-top">' +
+          '<div class="rekap-card-person-info">' +
+            '<div class="rekap-card-avatar avatar ' + getColor(item.index) + '">' + getInit(s.nama) + '</div>' +
+            '<div class="rekap-card-names">' +
+              '<div class="rekap-card-name" title="' + escapeHtml(s.nama) + '">' + escapeHtml(s.nama) + rqBadge + '</div>' +
+              '<div class="rekap-card-sub" title="' + escapeHtml(subRekap) + '">' + escapeHtml(subRekap) + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<span class="rekap-rate-badge ' + rateCls + '">' + rate + '% Hadir</span>' +
+        '</div>' +
+
+        // Multi-segment Mini Progress Bar
+        '<div class="rekap-progress-track" title="Hadir: ' + sTotals.H + ', Terlambat: ' + sTotals.T + ', Sakit: ' + sTotals.S + ', Izin: ' + sTotals.I + ', Alpa: ' + sTotals.A + '">' +
+          (pH > 0 ? '<div class="rekap-progress-bar bar-h" style="width:' + pH + '%;"></div>' : '') +
+          (pT > 0 ? '<div class="rekap-progress-bar bar-t" style="width:' + pT + '%;"></div>' : '') +
+          (pS > 0 ? '<div class="rekap-progress-bar bar-s" style="width:' + pS + '%;"></div>' : '') +
+          (pI > 0 ? '<div class="rekap-progress-bar bar-i" style="width:' + pI + '%;"></div>' : '') +
+          (pA > 0 ? '<div class="rekap-progress-bar bar-a" style="width:' + pA + '%;"></div>' : '') +
+        '</div>' +
+
+        // 5 Metrics Row
+        '<div class="rekap-stats-row">' +
+          '<div class="rekap-stat-chip chip-h"><strong>' + (sTotals.H || 0) + '</strong><span>Hadir (H)</span></div>' +
+          '<div class="rekap-stat-chip chip-t"><strong>' + (sTotals.T || 0) + '</strong><span>Late (T)</span></div>' +
+          '<div class="rekap-stat-chip chip-s"><strong>' + (sTotals.S || 0) + '</strong><span>Sakit (S)</span></div>' +
+          '<div class="rekap-stat-chip chip-i"><strong>' + (sTotals.I || 0) + '</strong><span>Izin (I)</span></div>' +
+          '<div class="rekap-stat-chip chip-a"><strong>' + (sTotals.A || 0) + '</strong><span>Alpa (A)</span></div>' +
+        '</div>' +
+
+        // Expand/Collapse Button
+        '<button type="button" class="rekap-expand-btn" id="btn-' + cardId + '" onclick="toggleRekapCard(\'' + cardId + '\')">' +
+          '<span>' + (isExpanded ? 'Tutup Detail Harian' : 'Lihat Detail Harian (31 Hari)') + '</span>' +
+          '<i data-lucide="' + (isExpanded ? 'chevron-up' : 'chevron-down') + '" style="width:14px;height:14px;"></i>' +
+        '</button>' +
+
+        // Expandable Daily Grid Tray
+        '<div class="rekap-calendar-tray" id="tray-' + cardId + '" style="display:' + (isExpanded ? 'block' : 'none') + ';">' +
+          '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">' +
+            '<span>Status Tanggal 1 - ' + daysInMonth + ':</span>' +
+            '<span style="font-size:10px;color:var(--gray);"><i data-lucide="touch-pad" style="width:11px;height:11px;vertical-align:-1px;"></i> Sentuh tgl untuk info</span>' +
+          '</div>' +
+          '<div class="rekap-days-flow">';
+
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dCode = sDays[d] || "-";
+      var dObj = new Date(currentRekapYear, currentRekapMonth - 1, d);
+      var dow = dObj.getDay();
+      var isWk = (dow === 0 || dow === 6);
+      var isoKey = currentRekapYear + '-' + String(currentRekapMonth).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      var holidayInfo = window.HolidayManager ? window.HolidayManager.getHoliday(isoKey) : null;
+      var isNatH = !!(holidayInfo && holidayInfo.isHoliday);
+      var isHol = isWk || isNatH;
+
+      var chipCls = "";
+      if (dCode === "H") chipCls = "day-h";
+      else if (dCode === "T" || dCode === "TL1" || dCode === "TL2") chipCls = isRQ ? "day-h" : "day-t";
+      else if (dCode === "S") chipCls = "day-s";
+      else if (dCode === "I") chipCls = "day-i";
+      else if (dCode === "A") chipCls = isRQ ? "day-dash" : "day-a";
+      else if (isHol && !isRQ) chipCls = "day-weekend";
+      else chipCls = "day-dash";
+
+      var holName = isNatH ? holidayInfo.name : (isWk ? (dow === 0 ? "Minggu (Akhir Pekan)" : "Sabtu (Akhir Pekan)") : "");
+      var statusDetail = dCode === "H" ? "Hadir" : (dCode === "T" || dCode.startsWith("TL") ? "Terlambat (" + dCode + ")" : (dCode === "S" ? "Sakit" : (dCode === "I" ? "Izin" : (dCode === "A" ? "Alpa" : "Tidak ada absensi"))));
+      var escapedHolName = holName ? holName.replace(/'/g, "\\'") : "";
+
+      h +=
+        '<div class="rekap-day-chip ' + chipCls + '" onclick="showRekapDayDetail(' + d + ', \'' + dayNamesShort[dow] + '\', \'' + statusDetail + '\', \'' + escapedHolName + '\')" title="' + d + ' ' + dayNamesShort[dow] + ': ' + statusDetail + (holName ? ' (' + holName + ')' : '') + '">' +
+          '<span class="day-num">' + d + '<br>' + dayNamesShort[dow] + '</span>' +
+          '<span class="day-code">' + (isNatH && dCode === '-' ? '★' : dCode) + '</span>' +
+        '</div>';
+    }
+
+    h += '</div></div></div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function renderRekapTableHtml(visibleStudents, rekapData, isPrintOnly) {
+  var isPegawai = activeType === "guru";
   var dayNamesShort = ["M", "S", "S", "R", "K", "J", "S"];
+  var todayObj = new Date();
+  var todayYear = todayObj.getFullYear();
+  var todayMonth = todayObj.getMonth() + 1;
+  var todayDay = todayObj.getDate();
+
+  var quickNavHtml = "";
+  if (!isPrintOnly) {
+    quickNavHtml =
+      '<div class="rekap-quick-nav-bar no-print">' +
+        '<div class="rekap-jump-group">' +
+          '<span style="font-weight:700;color:var(--text-muted);font-size:11.5px;">Lompat Cepat:</span>' +
+          '<button type="button" class="rekap-jump-btn" onclick="scrollRekapTable(\'start\')"><i data-lucide="arrow-left"></i> <span>Nama</span></button>' +
+          '<button type="button" class="rekap-jump-btn" onclick="scrollRekapTable(\'today\')"><i data-lucide="calendar"></i> <span>Hari Ini</span></button>' +
+          '<button type="button" class="rekap-jump-btn" onclick="scrollRekapTable(\'summary\')"><span>Total (H T S I A)</span> <i data-lucide="arrow-right"></i></button>' +
+        '</div>' +
+        '<div class="rekap-scroll-hint"><i data-lucide="move-horizontal" style="width:13px;height:13px;"></i> Geser tabel horizontal</div>' +
+      '</div>';
+  }
+
+  var h = quickNavHtml +
+    '<div class="table-responsive rekap-table-container">' +
+    '<table class="table rekap-table"><thead><tr><th style="text-align:left;min-width:160px;padding-left:14px;">Nama</th>';
+
   for (var d = 1; d <= rekapData.daysInMonth; d++) {
     var dObj = new Date(currentRekapYear, currentRekapMonth - 1, d);
     var dow = dObj.getDay();
@@ -2082,47 +2367,34 @@ function showRekapTable() {
     var isHolidayCol = isWeekend || isNatHoliday;
 
     var thCls = isHolidayCol ? ' class="col-weekend"' : '';
-    var thTitle = '';
-    if (isNatHoliday) {
-      thTitle = 'Libur Nasional: ' + holidayInfo.name;
-    } else if (isWeekend) {
-      thTitle = (dow === 0 ? 'Minggu (Libur Akhir Pekan)' : 'Sabtu (Libur Akhir Pekan)');
-    } else {
-      thTitle = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][dow];
+    var isTodayCol = (currentRekapYear === todayYear && currentRekapMonth === todayMonth && d === todayDay);
+    var thId = isTodayCol ? ' id="rekap-col-today"' : '';
+    if (isTodayCol) {
+      thCls += ' style="border:2px solid var(--primary);box-shadow:inset 0 0 0 1px var(--primary);"';
     }
+
+    var thTitle = '';
+    if (isNatHoliday) thTitle = 'Libur Nasional: ' + holidayInfo.name;
+    else if (isWeekend) thTitle = (dow === 0 ? 'Minggu (Libur Akhir Pekan)' : 'Sabtu (Libur Akhir Pekan)');
+    else thTitle = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][dow];
+
     var starIcon = isNatHoliday ? ' <span style="color:#dc2626;font-size:9px;" title="' + thTitle + '">★</span>' : '';
-    h += '<th' + thCls + ' title="' + thTitle + '">' + d + starIcon + '<br><span style="font-size:9px;font-weight:600;opacity:0.85;">' + dayNamesShort[dow] + '</span></th>';
+    var todayTag = (isTodayCol && !isPrintOnly) ? '<span style="display:block;font-size:8px;color:var(--primary);font-weight:800;line-height:1;">HARI INI</span>' : '';
+    h += '<th' + thCls + thId + ' title="' + thTitle + '">' + d + starIcon + '<br><span style="font-size:9px;font-weight:600;opacity:0.85;">' + dayNamesShort[dow] + '</span>' + todayTag + '</th>';
   }
-  
+
   h +=
-    '<th style="background:#dcfce7;color:#15803d;font-weight:700;" title="Total Hadir">H</th>' +
-    '<th style="background:#fef3c7;color:#b45309;font-weight:700;" title="Total Terlambat">T</th>' +
-    '<th style="background:#ede9fe;color:#6d28d9;font-weight:700;" title="Total Sakit">S</th>' +
-    '<th style="background:#cffafe;color:#0369a1;font-weight:700;" title="Total Izin">I</th>' +
-    '<th style="background:#fee2e2;color:#b91c1c;font-weight:700;" title="Total Alpa (Hanya Hari Efektif Belajar)">A</th>' +
+    '<th id="rekap-col-summary" class="col-summary-h" title="Total Hadir">H</th>' +
+    '<th class="col-summary-t" title="Total Terlambat">T</th>' +
+    '<th class="col-summary-s" title="Total Sakit">S</th>' +
+    '<th class="col-summary-i" title="Total Izin">I</th>' +
+    '<th class="col-summary-a" title="Total Alpa (Hanya Hari Efektif Belajar)">A</th>' +
     '</tr></thead><tbody>';
 
-  var visibleCount = 0;
-  var displayStudents = isPegawai ? splitPegawaiEntries(rekapData.students) : rekapData.students;
-  for (var k = 0; k < displayStudents.length; k++) {
-    var s = displayStudents[k];
-    
-    // Terapkan Filter
-    var matchCategory = isPegawai ? matchPegawaiUnit(s, filterKelas) : matchSiswaKelas(s, filterKelas);
-    if (!matchCategory) {
-      continue;
-    }
-    if (globalSearchQuery) {
-      var q = globalSearchQuery.toLowerCase();
-      var sRoles = isPegawai ? (s.recapRole || s.kelas || "") : s.kelas;
-      if ((s.nama || "").toLowerCase().indexOf(q) === -1 && sRoles.toLowerCase().indexOf(q) === -1) {
-        continue;
-      }
-    }
-    visibleCount++;
-
-    // Hitung ulang rekap berdasarkan aturan libur Sabtu/Minggu, Libur Nasional, dan Rumah Qur'an
-    var recapCalc = calculateStudentRecap(s, rekapData, currentRekapMonth, currentRekapYear);
+  for (var k = 0; k < visibleStudents.length; k++) {
+    var vItem = visibleStudents[k];
+    var s = vItem.student;
+    var recapCalc = vItem.recap;
     var sDays = recapCalc.days;
     var sTotals = recapCalc.totals;
     var isRQ = recapCalc.isRumahQuran;
@@ -2132,10 +2404,10 @@ function showRekapTable() {
 
     h +=
       '<tr><td style="text-align:left;padding-left:14px;"><div class="student-cell"><div class="avatar ' +
-      getColor(k) +
-      '" style="width:28px;height:28px;font-size:10px">' +
+      getColor(vItem.index) +
+      '">' +
       getInit(s.nama) +
-      '</div><div><strong style="font-size:12px">' +
+      '</div><div><strong>' +
       s.nama +
       '</strong>' + rqBadge + '<br><small style="color:var(--gray)">' +
       subRekap +
@@ -2165,35 +2437,86 @@ function showRekapTable() {
     }
 
     h +=
-      '<td style="font-weight:700;color:var(--success)">' +
-      (sTotals.H || 0) +
-      '</td><td style="font-weight:700;color:var(--warning)">' +
-      (sTotals.T || 0) +
-      '</td><td style="font-weight:700;color:var(--purple)">' +
-      (sTotals.S || 0) +
-      '</td><td style="font-weight:700;color:var(--info)">' +
-      (sTotals.I || 0) +
-      '</td><td style="font-weight:700;color:var(--danger)">' +
-      (sTotals.A || 0) +
-      "</td></tr>";
+      '<td class="col-summary-h">' + (sTotals.H || 0) + '</td>' +
+      '<td class="col-summary-t">' + (sTotals.T || 0) + '</td>' +
+      '<td class="col-summary-s">' + (sTotals.S || 0) + '</td>' +
+      '<td class="col-summary-i">' + (sTotals.I || 0) + '</td>' +
+      '<td class="col-summary-a">' + (sTotals.A || 0) + '</td>' +
+      '</tr>';
   }
 
-  if (visibleCount === 0) {
-    h += '<tr><td colspan="' + (rekapData.daysInMonth + 6) + '" style="text-align:center;padding:35px;color:var(--gray)">Tidak ada data siswa/pegawai yang cocok dengan filter.</td></tr>';
-  }
+  h += "</tbody></table></div>";
+  return h;
+}
 
-  var printFooter = 
-    '<div class="print-footer print-only">' +
-      '<div class="print-signature">' +
-        '<p class="sig-date">Kamang Baru, ' + formatFullDate(new Date().toISOString().split('T')[0]) + '</p>' +
-        '<p class="sig-title">Mengetahui,<br>Kepala Yayasan Darul Ulum</p>' +
-        '<div class="sig-space"></div>' +
-        '<p class="sig-name"><strong>' + (appSettings.kepalaYayasan || "Pimpinan Yayasan") + '</strong></p>' +
-      '</div>' +
-    '</div>';
-  h += "</tbody></table></div>" + printFooter;
-  rc.innerHTML = h;
-  lucide.createIcons();
+function setRekapViewMode(mode) {
+  rekapViewMode = mode;
+  var switchBtns = document.querySelectorAll(".view-switch-btn");
+  switchBtns.forEach(function(btn) {
+    var isTarget = (mode === "card" && btn.innerHTML.indexOf("Kartu") > -1) || (mode === "table" && btn.innerHTML.indexOf("Tabel") > -1);
+    if (isTarget) btn.classList.add("active");
+    else btn.classList.remove("active");
+  });
+  showRekapTable();
+}
+
+function toggleRekapNotice() {
+  rekapNoticeCollapsed = !rekapNoticeCollapsed;
+  var body = document.getElementById("rekap-notice-body");
+  var chevron = document.getElementById("rekap-notice-chevron");
+  if (body) body.style.display = rekapNoticeCollapsed ? "none" : "block";
+  if (chevron) {
+    chevron.setAttribute("data-lucide", rekapNoticeCollapsed ? "chevron-down" : "chevron-up");
+    if (typeof lucide !== "undefined" && lucide.createIcons) lucide.createIcons();
+  }
+}
+
+function toggleRekapCard(cardId) {
+  rekapExpandedCards[cardId] = !rekapExpandedCards[cardId];
+  var tray = document.getElementById("tray-" + cardId);
+  var btn = document.getElementById("btn-" + cardId);
+  if (tray) tray.style.display = rekapExpandedCards[cardId] ? "block" : "none";
+  if (btn) {
+    var isExp = !!rekapExpandedCards[cardId];
+    btn.innerHTML = '<span>' + (isExp ? 'Tutup Detail Harian' : 'Lihat Detail Harian (31 Hari)') + '</span><i data-lucide="' + (isExp ? 'chevron-up' : 'chevron-down') + '" style="width:14px;height:14px;"></i>';
+    if (typeof lucide !== "undefined" && lucide.createIcons) lucide.createIcons();
+  }
+}
+
+function handleRekapSearch(val) {
+  rekapLocalSearch = (val || "").trim();
+  showRekapTable();
+}
+
+function clearRekapSearch() {
+  rekapLocalSearch = "";
+  var inp = document.getElementById("rekap-search-input");
+  if (inp) inp.value = "";
+  showRekapTable();
+}
+
+function scrollRekapTable(target) {
+  var container = document.querySelector(".rekap-table-container");
+  if (!container) return;
+  if (target === "start") {
+    container.scrollTo({ left: 0, behavior: "smooth" });
+  } else if (target === "summary") {
+    container.scrollTo({ left: container.scrollWidth, behavior: "smooth" });
+  } else if (target === "today") {
+    var todayEl = document.getElementById("rekap-col-today");
+    if (todayEl) {
+      var leftPos = todayEl.offsetLeft - 120;
+      container.scrollTo({ left: Math.max(0, leftPos), behavior: "smooth" });
+    } else {
+      showToast("Tanggal hari ini tidak berada pada bulan yang dipilih", "info");
+    }
+  }
+}
+
+function showRekapDayDetail(dayNum, dowName, status, holidayName) {
+  var msg = "Tanggal " + dayNum + " (" + dowName + ")\nStatus: " + status;
+  if (holidayName) msg += "\nKeterangan: " + holidayName;
+  showToast(msg, "info");
 }
 
 function filterRekap(f) {
