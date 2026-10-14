@@ -1277,13 +1277,47 @@ function renderLaporan() {
         '<!-- Baris 1: Aksi Cepat -->' +
         '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
           '<div class="report-actions" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">' +
-            '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;">Cetak:</span>' +
-            '<button class="btn btn-outline btn-sm" onclick="printReport(\'portrait\')" title="Cetak halaman dengan orientasi tegak (Portrait) dipaksa horizontal"><i data-lucide="printer" style="width:14px"></i> Cetak Portrait</button>' +
-            '<button class="btn btn-outline btn-sm" onclick="printReport(\'landscape\')" title="Cetak halaman dengan orientasi mendatar (Landscape) dipaksa horizontal"><i data-lucide="printer" style="width:14px"></i> Cetak Landscape</button>' +
-            '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:0 4px 0 8px;">Ekspor:</span>' +
-            '<button class="btn btn-danger btn-sm" onclick="exportPDF(\'landscape\')" title="Unduh file PDF (Landscape)"><i data-lucide="file-text" style="width:14px"></i> Export PDF</button>' +
-            '<button class="btn btn-outline btn-sm" onclick="exportPDF(\'portrait\')" title="Unduh file PDF (Portrait)" style="border-color:var(--danger);color:var(--danger);"><i data-lucide="file-text" style="width:14px"></i> PDF Portrait</button>' +
-            '<button class="btn btn-success btn-sm" onclick="exportExcel()" title="Unduh file Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
+            '<!-- Dropdown Cetak (Portrait & Landscape) -->' +
+            '<div class="app-dropdown" id="dropdown-print-lap">' +
+              '<button type="button" class="btn btn-outline btn-sm app-dropdown-toggle" onclick="toggleAppDropdown(\'dropdown-print-lap\', event)" title="Pilih orientasi cetak dokumen">' +
+                '<i data-lucide="printer" style="width:14px"></i> Cetak <i data-lucide="chevron-down" class="dropdown-chevron"></i>' +
+              '</button>' +
+              '<div class="app-dropdown-menu">' +
+                '<div class="app-dropdown-header">Orientasi Cetak</div>' +
+                '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'portrait\');" title="Cetak halaman dengan orientasi tegak (Portrait)">' +
+                  '<i data-lucide="file" style="color:var(--primary)"></i>' +
+                  '<div><div>Cetak Portrait</div><small>Format Tegak (A4)</small></div>' +
+                '</button>' +
+                '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'landscape\');" title="Cetak halaman dengan orientasi mendatar (Landscape)">' +
+                  '<i data-lucide="file-text" style="color:var(--primary)"></i>' +
+                  '<div><div>Cetak Landscape</div><small>Format Mendatar (Lebar)</small></div>' +
+                '</button>' +
+              '</div>' +
+            '</div>' +
+            '<!-- Dropdown Ekspor (Portrait & Landscape + Excel) -->' +
+            '<div class="app-dropdown" id="dropdown-export-lap">' +
+              '<button type="button" class="btn btn-danger btn-sm app-dropdown-toggle" onclick="toggleAppDropdown(\'dropdown-export-lap\', event)" title="Pilih format dan orientasi ekspor">' +
+                '<i data-lucide="download" style="width:14px"></i> Ekspor <i data-lucide="chevron-down" class="dropdown-chevron"></i>' +
+              '</button>' +
+              '<div class="app-dropdown-menu">' +
+                '<div class="app-dropdown-header">Dokumen PDF</div>' +
+                '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportPDF(\'portrait\');" title="Unduh file PDF (Portrait)">' +
+                  '<i data-lucide="file-text" style="color:#ef4444"></i>' +
+                  '<div><div>PDF Portrait</div><small>Format Tegak Standar</small></div>' +
+                '</button>' +
+                '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportPDF(\'landscape\');" title="Unduh file PDF (Landscape)">' +
+                  '<i data-lucide="file-text" style="color:#ef4444"></i>' +
+                  '<div><div>PDF Landscape</div><small>Format Mendatar Lebar</small></div>' +
+                '</button>' +
+                '<div class="app-dropdown-divider"></div>' +
+                '<div class="app-dropdown-header">Spreadsheet</div>' +
+                '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportExcel();" title="Unduh file Excel (.xlsx)">' +
+                  '<i data-lucide="file-spreadsheet" style="color:#10b981"></i>' +
+                  '<div><div>Excel (.xlsx)</div><small>Data Presensi Harian</small></div>' +
+                '</button>' +
+              '</div>' +
+            '</div>' +
+            '<button type="button" class="btn btn-success btn-sm" onclick="exportExcel()" title="Unduh file Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
             sendWaliBtn +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
@@ -1752,12 +1786,47 @@ function renderRekap() {
     '<select class="form-select" id="rekap-year" style="width:100px;display:inline-block;" onchange="changeRekapPeriod()">' + yearOptions + '</select>' +
     '</div>' +
     '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">' +
-    '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:2px;">Cetak:</span>' +
-    '<button class="btn btn-outline btn-sm" onclick="printReport(\'landscape\')" title="Cetak Rekap Landscape (Mendatar - Sangat Disarankan agar 31 Hari Muat Rapi)"><i data-lucide="printer" style="width:14px"></i> Cetak Landscape</button>' +
-    '<button class="btn btn-outline btn-sm" onclick="printReport(\'portrait\')" title="Cetak Rekap Portrait (Tegak - Dipaksa Horizontal)"><i data-lucide="printer" style="width:14px"></i> Cetak Portrait</button>' +
-    '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:0 2px 0 6px;">Ekspor:</span>' +
-    '<button class="btn btn-success btn-sm" onclick="exportRekapExcel()" title="Unduh Rekap Bulanan ke Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
-    '<button class="btn btn-danger btn-sm" onclick="exportRekapPDF(\'landscape\')" title="Unduh Rekap Bulanan ke PDF (Landscape)"><i data-lucide="file-text" style="width:14px"></i> Export PDF</button>' +
+    '<!-- Dropdown Cetak (Portrait & Landscape) -->' +
+    '<div class="app-dropdown" id="dropdown-print-rekap">' +
+      '<button type="button" class="btn btn-outline btn-sm app-dropdown-toggle" onclick="toggleAppDropdown(\'dropdown-print-rekap\', event)" title="Pilih orientasi cetak rekap">' +
+        '<i data-lucide="printer" style="width:14px"></i> Cetak <i data-lucide="chevron-down" class="dropdown-chevron"></i>' +
+      '</button>' +
+      '<div class="app-dropdown-menu">' +
+        '<div class="app-dropdown-header">Orientasi Cetak</div>' +
+        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'portrait\');" title="Cetak Rekap Portrait (Tegak - Dipaksa Horizontal)">' +
+          '<i data-lucide="file" style="color:var(--primary)"></i>' +
+          '<div><div>Cetak Portrait</div><small>Format Tegak</small></div>' +
+        '</button>' +
+        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); printReport(\'landscape\');" title="Cetak Rekap Landscape (Mendatar - Sangat Disarankan)">' +
+          '<i data-lucide="file-text" style="color:var(--primary)"></i>' +
+          '<div><div>Cetak Landscape</div><small>Format Mendatar (31 Hari Rapi)</small></div>' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+    '<!-- Dropdown Ekspor (Portrait & Landscape + Excel) -->' +
+    '<div class="app-dropdown" id="dropdown-export-rekap">' +
+      '<button type="button" class="btn btn-danger btn-sm app-dropdown-toggle" onclick="toggleAppDropdown(\'dropdown-export-rekap\', event)" title="Pilih format dan orientasi ekspor">' +
+        '<i data-lucide="download" style="width:14px"></i> Ekspor <i data-lucide="chevron-down" class="dropdown-chevron"></i>' +
+      '</button>' +
+      '<div class="app-dropdown-menu">' +
+        '<div class="app-dropdown-header">Dokumen PDF</div>' +
+        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'portrait\');" title="Unduh Rekap Bulanan ke PDF (Portrait)">' +
+          '<i data-lucide="file-text" style="color:#ef4444"></i>' +
+          '<div><div>PDF Portrait</div><small>Format Tegak</small></div>' +
+        '</button>' +
+        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapPDF(\'landscape\');" title="Unduh Rekap Bulanan ke PDF (Landscape)">' +
+          '<i data-lucide="file-text" style="color:#ef4444"></i>' +
+          '<div><div>PDF Landscape</div><small>Format Mendatar (31 Hari)</small></div>' +
+        '</button>' +
+        '<div class="app-dropdown-divider"></div>' +
+        '<div class="app-dropdown-header">Spreadsheet</div>' +
+        '<button type="button" class="app-dropdown-item" onclick="closeAllDropdowns(); exportRekapExcel();" title="Unduh Rekap Bulanan ke Excel (.xlsx)">' +
+          '<i data-lucide="file-spreadsheet" style="color:#10b981"></i>' +
+          '<div><div>Excel (.xlsx)</div><small>Data Rekap 31 Hari Lengkap</small></div>' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+    '<button type="button" class="btn btn-success btn-sm" onclick="exportRekapExcel()" title="Unduh Rekap Bulanan ke Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
     '</div>' +
     '</div></div>' +
     '<div class="card"><div class="card-body" id="rekap-content"><p style="text-align:center;padding:30px;color:var(--gray)">Memuat data ' +
@@ -3563,6 +3632,33 @@ function printReport(orientation) {
 
 window.addEventListener("afterprint", function() {
   document.body.classList.remove("print-mode-portrait", "print-mode-landscape");
+});
+
+/* === APP DROPDOWN HELPER FUNCTIONS === */
+function toggleAppDropdown(id, e) {
+  if (e) {
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
+  }
+  var el = document.getElementById(id);
+  if (!el) return;
+  var wasActive = el.classList.contains("active");
+  closeAllDropdowns();
+  if (!wasActive) {
+    el.classList.add("active");
+  }
+}
+
+function closeAllDropdowns() {
+  var activeDropdowns = document.querySelectorAll(".app-dropdown.active");
+  for (var i = 0; i < activeDropdowns.length; i++) {
+    activeDropdowns[i].classList.remove("active");
+  }
+}
+
+document.addEventListener("click", function(e) {
+  if (e && e.target && !e.target.closest(".app-dropdown")) {
+    closeAllDropdowns();
+  }
 });
 
 function downloadBlob(blob, filename) {
