@@ -1319,7 +1319,7 @@ function renderLaporan() {
       '</div>' +
     '</div>' +
     getAuthAlertHtml() +
-    '<div class="card no-print" style="margin-bottom:20px;">' +
+    '<div class="card no-print lap-toolbar-card" style="margin-bottom:20px;">' +
       '<div class="card-body" style="padding:16px 20px;">' +
         '<!-- Baris 1: Aksi Cepat -->' +
         '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">' +
@@ -1744,20 +1744,7 @@ function renderRekap() {
   var btnS = activeType == "siswa" ? "btn-primary" : "btn-outline";
   var btnG = activeType == "guru" ? "btn-primary" : "btn-outline";
   var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
-
-  var monthOptions = "";
-  var monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-  for (var mIdx = 1; mIdx <= 12; mIdx++) {
-    var mSel = (mIdx === currentRekapMonth) ? "selected" : "";
-    monthOptions += '<option value="' + mIdx + '" ' + mSel + '>' + monthNames[mIdx - 1] + '</option>';
-  }
-
-  var yearOptions = "";
-  var thisYear = new Date().getFullYear();
-  for (var y = thisYear - 1; y <= thisYear + 1; y++) {
-    var ySel = (y === currentRekapYear) ? "selected" : "";
-    yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
-  }
+  var currentPeriodVal = currentRekapYear + '-' + String(currentRekapMonth).padStart(2, '0');
 
   c.innerHTML =
     '<div class="page-header"><div><h1>Rekap Bulanan ' +
@@ -1772,13 +1759,29 @@ function renderRekap() {
     '</div></div>' +
     getAuthAlertHtml() +
     '<div class="card no-print rekap-toolbar-card"><div class="card-body rekap-toolbar-body">' +
-    // 1. Period & Category Filter Selector
+    // 1. Period (Calendar Mode) & Category Filter Selector
     '<div class="rekap-period-box">' +
-      '<div class="rekap-period-label"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--primary)"></i> <span>Periode:</span></div>' +
-      '<select class="form-select" id="rekap-month" onchange="changeRekapPeriod()">' + monthOptions + '</select>' +
-      '<select class="form-select" id="rekap-year" onchange="changeRekapPeriod()">' + yearOptions + '</select>' +
-      '<div style="width:1px;height:24px;background:var(--border);margin:0 4px;" class="hide-mobile"></div>' +
-      '<select class="form-select" id="rekap-filter-select" onchange="filterRekap(this.value)" style="font-weight:600;min-width:140px;"></select>' +
+      '<div class="rekap-period-label" onclick="openRekapCalendar()" style="cursor:pointer;" title="Klik untuk membuka kalender">' +
+        '<i data-lucide="calendar" style="width:16px;height:16px;color:var(--primary)"></i> <span>Periode:</span>' +
+      '</div>' +
+      '<div class="rekap-calendar-control">' +
+        '<button type="button" class="btn btn-outline btn-sm rekap-step-btn" onclick="stepRekapMonth(-1)" title="Bulan Sebelumnya">' +
+          '<i data-lucide="chevron-left" style="width:16px;height:16px;"></i>' +
+        '</button>' +
+        '<div class="rekap-calendar-input-wrap">' +
+          '<input type="month" class="form-input rekap-period-picker" id="rekap-period-picker" value="' + currentPeriodVal + '" onchange="changeRekapPeriod(this.value)" onclick="openRekapCalendar()" title="Pilih Bulan & Tahun dari Kalender">' +
+        '</div>' +
+        '<button type="button" class="btn btn-outline btn-sm rekap-step-btn" onclick="stepRekapMonth(1)" title="Bulan Berikutnya">' +
+          '<i data-lucide="chevron-right" style="width:16px;height:16px;"></i>' +
+        '</button>' +
+        '<button type="button" class="btn btn-outline btn-sm rekap-today-btn" onclick="setRekapPeriodCurrentMonth()" title="Kembali ke Bulan Berjalan">' +
+          '<i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i> <span>Bulan Ini</span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="rekap-period-divider hide-mobile"></div>' +
+      '<div class="rekap-filter-wrap">' +
+        '<select class="form-select" id="rekap-filter-select" onchange="filterRekap(this.value)" style="font-weight:600;min-width:140px;"></select>' +
+      '</div>' +
     '</div>' +
     // 2. In-Page Search
     '<div class="rekap-search-box">' +
@@ -1846,12 +1849,72 @@ function renderRekap() {
   loadRekapData();
 }
 
-function changeRekapPeriod() {
-  var mEl = document.getElementById("rekap-month");
-  var yEl = document.getElementById("rekap-year");
-  if (mEl) currentRekapMonth = parseInt(mEl.value, 10);
-  if (yEl) currentRekapYear = parseInt(yEl.value, 10);
+function changeRekapPeriod(val) {
+  if (typeof val === "string" && val.indexOf("-") > -1) {
+    var parts = val.split("-");
+    if (parts.length === 2) {
+      var y = parseInt(parts[0], 10);
+      var m = parseInt(parts[1], 10);
+      if (!isNaN(y) && !isNaN(m) && m >= 1 && m <= 12) {
+        currentRekapYear = y;
+        currentRekapMonth = m;
+      }
+    }
+  } else {
+    var picker = document.getElementById("rekap-period-picker");
+    if (picker && picker.value) {
+      var pParts = picker.value.split("-");
+      if (pParts.length === 2) {
+        var py = parseInt(pParts[0], 10);
+        var pm = parseInt(pParts[1], 10);
+        if (!isNaN(py) && !isNaN(pm)) {
+          currentRekapYear = py;
+          currentRekapMonth = pm;
+        }
+      }
+    } else {
+      var mEl = document.getElementById("rekap-month");
+      var yEl = document.getElementById("rekap-year");
+      if (mEl) currentRekapMonth = parseInt(mEl.value, 10);
+      if (yEl) currentRekapYear = parseInt(yEl.value, 10);
+    }
+  }
   loadRekapData();
+}
+
+function stepRekapMonth(delta) {
+  var d = new Date(currentRekapYear, (currentRekapMonth - 1) + delta, 1);
+  currentRekapYear = d.getFullYear();
+  currentRekapMonth = d.getMonth() + 1;
+  var picker = document.getElementById("rekap-period-picker");
+  if (picker) {
+    picker.value = currentRekapYear + "-" + String(currentRekapMonth).padStart(2, "0");
+  }
+  loadRekapData();
+}
+
+function setRekapPeriodCurrentMonth() {
+  var now = new Date();
+  currentRekapYear = now.getFullYear();
+  currentRekapMonth = now.getMonth() + 1;
+  var picker = document.getElementById("rekap-period-picker");
+  if (picker) {
+    picker.value = currentRekapYear + "-" + String(currentRekapMonth).padStart(2, "0");
+  }
+  loadRekapData();
+}
+
+function openRekapCalendar() {
+  var picker = document.getElementById("rekap-period-picker");
+  if (picker) {
+    if (typeof picker.showPicker === "function") {
+      try {
+        picker.showPicker();
+        return;
+      } catch (e) {}
+    }
+    picker.focus();
+  }
 }
 
 function loadRekapData() {
@@ -3981,6 +4044,10 @@ function toggleAppDropdown(id, e) {
   closeAllDropdowns();
   if (!wasActive) {
     el.classList.add("active");
+    var parentCard = el.closest(".card");
+    if (parentCard) {
+      parentCard.classList.add("card-dropdown-open");
+    }
   }
 }
 
@@ -3988,6 +4055,10 @@ function closeAllDropdowns() {
   var activeDropdowns = document.querySelectorAll(".app-dropdown.active");
   for (var i = 0; i < activeDropdowns.length; i++) {
     activeDropdowns[i].classList.remove("active");
+  }
+  var openCards = document.querySelectorAll(".card.card-dropdown-open");
+  for (var c = 0; c < openCards.length; c++) {
+    openCards[c].classList.remove("card-dropdown-open");
   }
 }
 
