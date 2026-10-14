@@ -7,19 +7,91 @@ document.addEventListener("DOMContentLoaded", function () {
   showOptions();
   loadFace(); // Pre-load FaceAPI models
 });
+var currentTeacherTab = "camera"; // "camera" | "history"
+var currentHistoryMonth = new Date().getMonth() + 1;
+var currentHistoryYear = new Date().getFullYear();
+
 function showOptions() {
   stopCam();
+  var attBox = document.querySelector(".att-box");
+  if (attBox) attBox.classList.remove("wide");
   var c = document.getElementById("student-content");
   c.innerHTML =
-    '<button class="opt-btn" onclick="startScanner()"><div class="opt-icon blue"><i data-lucide="scan-barcode"></i></div><div class="opt-text"><h3>Scan Barcode</h3><p>Pindai kartu pelajar / NIP</p></div></button><button class="opt-btn" onclick="showManual()"><div class="opt-icon green"><i data-lucide="keyboard"></i></div><div class="opt-text"><h3>Input Manual</h3><p>Ketik barcode / NIP</p></div></button><button class="opt-btn" onclick="showSick()"><div class="opt-icon purple"><i data-lucide="thermometer"></i></div><div class="opt-text"><h3>Sakit / Izin</h3><p>Form tidak hadir</p></div></button>';
+    '<button class="opt-btn" onclick="startScanner()"><div class="opt-icon blue"><i data-lucide="scan-barcode"></i></div><div class="opt-text"><h3>Scan Barcode</h3><p>Pindai kartu pelajar / NIP</p></div></button>' +
+    '<button class="opt-btn" onclick="showManual()"><div class="opt-icon green"><i data-lucide="keyboard"></i></div><div class="opt-text"><h3>Input Manual</h3><p>Ketik barcode / NIP</p></div></button>' +
+    '<button class="opt-btn" onclick="showRiwayatManual()"><div class="opt-icon orange"><i data-lucide="history"></i></div><div class="opt-text"><h3>Riwayat Absen Pegawai</h3><p>Cek rekap kehadiran & riwayat NIP</p></div></button>' +
+    '<button class="opt-btn" onclick="showSick()"><div class="opt-icon purple"><i data-lucide="thermometer"></i></div><div class="opt-text"><h3>Sakit / Izin</h3><p>Form tidak hadir</p></div></button>';
   lucide.createIcons();
 }
+
 function showManual() {
+  stopCam();
+  var attBox = document.querySelector(".att-box");
+  if (attBox) attBox.classList.remove("wide");
   var c = document.getElementById("student-content");
   c.innerHTML =
-    '<div class="form-group"><label class="form-label">Barcode / NIS / NIP</label><input type="text" class="form-input" id="barcode"></div><button class="btn btn-primary" style="width:100%" onclick="findStudent()">Cari Data</button><button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showOptions()">Kembali</button>';
+    '<div style="text-align:center;margin-bottom:15px"><div class="opt-icon green" style="margin:0 auto 10px"><i data-lucide="keyboard"></i></div><h3>Input Manual Barcode / NIP</h3><p style="color:var(--gray);font-size:13px">Masukkan ID untuk presensi atau cek riwayat</p></div>' +
+    '<form onsubmit="handleManualSearchSubmit(event)">' +
+      '<div class="form-group"><label class="form-label">Barcode / NIS / NIP</label><input type="text" class="form-input" id="barcode" placeholder="Ketik barcode / NIS / NIP..." autocomplete="off" required></div>' +
+      '<button type="submit" class="btn btn-primary" style="width:100%"><i data-lucide="search" style="width:16px"></i> Cari Data</button>' +
+      '<button type="button" class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showOptions()">Kembali</button>' +
+    '</form>';
+  lucide.createIcons();
+  setTimeout(function() {
+    var el = document.getElementById("barcode");
+    if (el) el.focus();
+  }, 100);
 }
+
+function handleManualSearchSubmit(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  findStudent();
+}
+
+function showRiwayatManual() {
+  stopCam();
+  var attBox = document.querySelector(".att-box");
+  if (attBox) attBox.classList.remove("wide");
+  var c = document.getElementById("student-content");
+  c.innerHTML =
+    '<div style="text-align:center;margin-bottom:18px">' +
+      '<div class="opt-icon orange" style="margin:0 auto 10px"><i data-lucide="history"></i></div>' +
+      '<h3 style="margin:0 0 4px 0;font-size:18px;">Riwayat Absen Pegawai</h3>' +
+      '<p style="color:var(--gray);font-size:13px;margin:0;">Masukkan NIP untuk melihat riwayat & rekap kehadiran Anda</p>' +
+    '</div>' +
+    '<form onsubmit="handleFindTeacherHistory(event)">' +
+      '<div class="form-group">' +
+        '<label class="form-label" style="font-weight:600;font-size:13px;">Nomor Induk Pegawai (NIP)</label>' +
+        '<input type="text" class="form-input" id="nip-history-input" placeholder="Masukkan NIP (Contoh: 100101)" required style="height:44px;font-size:15px;" autocomplete="off">' +
+      '</div>' +
+      '<button type="submit" class="btn btn-primary" style="width:100%">' +
+        '<i data-lucide="search" style="width:16px"></i> Lihat Riwayat Absen' +
+      '</button>' +
+      '<button type="button" class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showOptions()">' +
+        'Kembali' +
+      '</button>' +
+    '</form>';
+  lucide.createIcons();
+  setTimeout(function() {
+    var inp = document.getElementById("nip-history-input");
+    if (inp) inp.focus();
+  }, 100);
+}
+
+function handleFindTeacherHistory(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  var inp = document.getElementById("nip-history-input");
+  var bc = inp ? inp.value.trim() : "";
+  if (!bc) {
+    showToast("Masukkan NIP pegawai", "error");
+    return;
+  }
+  findByCode(bc, "history");
+}
+
 function startScanner() {
+  var attBox = document.querySelector(".att-box");
+  if (attBox) attBox.classList.remove("wide");
   var c = document.getElementById("student-content");
   c.innerHTML =
     '<div id="scanner" style="width:100%;height:260px;border-radius:12px;overflow:hidden;margin-bottom:15px"></div><button class="btn btn-outline" style="width:100%" onclick="stopScan();showOptions()">Batal</button>';
@@ -35,7 +107,7 @@ function startScanner() {
       function () { },
     );
   } catch (e) {
-    showToast("Error", "error");
+    showToast("Error kamera pemindai", "error");
     showOptions();
   }
 }
@@ -47,29 +119,542 @@ function stopScan() {
   }
 }
 function findStudent() {
-  var bc = document.getElementById("barcode").value.trim();
+  var el = document.getElementById("barcode");
+  var bc = el ? el.value.trim() : "";
   if (!bc) {
-    showToast("Masukkan barcode", "error");
+    showToast("Masukkan barcode / NIP", "error");
     return;
   }
-  findByCode(bc);
+  findByCode(bc, "camera");
 }
-function findByCode(bc) {
-  document.getElementById("student-content").innerHTML =
-    "<div style='text-align:center;padding:20px;'><p>Mencari data ke database...</p></div>";
+function findByCode(bc, initialTab) {
+  stopCam();
+  var c = document.getElementById("student-content");
+  c.innerHTML =
+    "<div style='text-align:center;padding:35px 20px;'><p><i data-lucide='loader' style='animation:spin 1s linear infinite;width:24px;height:24px;display:inline-block;vertical-align:-4px;margin-right:8px;color:var(--primary);'></i> Mencari data ke database...</p></div>";
+  lucide.createIcons();
+
   window.callGasAPI(
     "getStudentByBarcode",
     { barcode: bc },
     function (r) {
       currentStudent = r.student;
-      showSelfie();
+      var isTeacher = (currentStudent.type === "guru" || (currentStudent.id && String(currentStudent.id).indexOf("TCH") === 0));
+      if (isTeacher) {
+        showTeacherPortal(initialTab || "camera");
+      } else {
+        showSelfie();
+      }
     },
     function (err) {
-      showToast("Data tidak ditemukan", "error");
+      showToast("Data tidak ditemukan untuk barcode / NIP tersebut", "error");
       showOptions();
     },
   );
 }
+function getIndonesianMonthName(m) {
+  var names = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+  return names[m - 1] || "";
+}
+
+function getIndonesianDayName(dow) {
+  var days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  return days[dow] || "";
+}
+
+function showTeacherPortal(tab) {
+  currentTeacherTab = tab || "camera";
+  var attBox = document.querySelector(".att-box");
+  if (attBox) {
+    if (currentTeacherTab === "history") attBox.classList.add("wide");
+    else attBox.classList.remove("wide");
+  }
+
+  var c = document.getElementById("student-content");
+  var nipDisplay = currentStudent.barcode || currentStudent.id || "-";
+  var unitDisplay = currentStudent.kelas || "-";
+
+  var h =
+    '<div class="teacher-portal-header" style="text-align:center;margin-bottom:14px;">' +
+      '<span class="badge" style="display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 12px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:8px;">' +
+        '<i data-lucide="briefcase" style="width:13px;height:13px"></i> PEGAWAI / GURU' +
+      '</span>' +
+      '<div class="avatar blue" style="width:52px;height:52px;font-size:18px;margin:0 auto 8px">' +
+        getInit(currentStudent.nama) +
+      '</div>' +
+      '<h3 style="margin:0 0 4px 0;font-size:17px;font-weight:700;">' + currentStudent.nama + '</h3>' +
+      '<p style="color:var(--gray);font-size:12px;margin:0;">' +
+        'NIP: <strong style="color:var(--text);">' + nipDisplay + '</strong> &nbsp;•&nbsp; ' +
+        '<span>' + unitDisplay + '</span>' +
+      '</p>' +
+    '</div>' +
+    '<div class="teacher-portal-tabs">' +
+      '<button class="t-tab-btn ' + (currentTeacherTab === 'camera' ? 'active' : '') + '" id="tab-btn-camera" onclick="switchTeacherTab(\'camera\')">' +
+        '<i data-lucide="camera" style="width:15px;height:15px;"></i> Presensi Selfie' +
+      '</button>' +
+      '<button class="t-tab-btn ' + (currentTeacherTab === 'history' ? 'active' : '') + '" id="tab-btn-history" onclick="switchTeacherTab(\'history\')">' +
+        '<i data-lucide="history" style="width:15px;height:15px;"></i> Riwayat Absen' +
+      '</button>' +
+    '</div>' +
+    '<div id="teacher-tab-body"></div>';
+
+  c.innerHTML = h;
+  lucide.createIcons();
+
+  if (currentTeacherTab === "camera") {
+    renderTeacherCameraTab();
+  } else {
+    renderTeacherHistoryTab(currentHistoryMonth, currentHistoryYear);
+  }
+}
+
+function switchTeacherTab(tab) {
+  if (tab === currentTeacherTab) return;
+  showTeacherPortal(tab);
+}
+
+function renderTeacherCameraTab() {
+  locationData = { lat: "", lng: "", alamat: "" };
+  getLoc();
+
+  var bodyEl = document.getElementById("teacher-tab-body");
+  if (!bodyEl) return;
+
+  var kStr = String(currentStudent.kelas || "");
+  var roleSelectHTML = "";
+
+  if (kStr.indexOf(",") > -1) {
+    var roles = kStr.split(",");
+    roleSelectHTML = '<div style="margin:8px auto 14px; text-align:left;">' +
+      '<label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:5px;"><i data-lucide="layers" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;color:var(--primary);"></i> Pilih Unit Presensi Hari Ini:</label>' +
+      '<select id="role-select" style="width:100%; display:block; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; font-family:inherit; font-size:13px; background:#fff; font-weight:500;">';
+    for (var i = 0; i < roles.length; i++) {
+      var rClean = roles[i].trim();
+      var isRQ = rClean.toLowerCase().indexOf("rumah quran") > -1 || rClean.toLowerCase().indexOf("rumah qur'an") > -1;
+      var optLabel = isRQ ? '📖 Unit Rumah Qur\'an (Jadwal Bebas)' : '🏫 Unit ' + rClean + ' (Presensi Reguler)';
+      roleSelectHTML += '<option value="' + rClean + '">' + optLabel + '</option>';
+    }
+    roleSelectHTML += '</select>' +
+      '<small style="display:block;margin-top:4px;font-size:11px;color:var(--gray);">Pegawai dapat absen 2 kali terpisah hari ini: untuk Unit Reguler dan Unit Rumah Qur\'an.</small>' +
+      '</div>';
+  }
+
+  bodyEl.innerHTML =
+    '<div class="teacher-quick-summary">' +
+      '<span><i data-lucide="calendar" style="width:14px;height:14px;vertical-align:-2px;color:var(--primary);margin-right:4px;"></i> Rekap Kehadiran Bulan Ini</span>' +
+      '<a onclick="switchTeacherTab(\'history\')">Lihat Riwayat &rarr;</a>' +
+    '</div>' +
+    roleSelectHTML +
+    '<div class="camera-box"><video id="selfie-video" class="camera-video" autoplay playsinline></video></div>' +
+    '<div class="face-status loading" id="fs">Memuat kamera...</div>' +
+    '<div class="loc-info" id="li"><i data-lucide="map-pin" style="width:14px"></i>Mendeteksi lokasi...</div>' +
+    '<button class="btn btn-success" style="width:100%" id="sbtn" disabled onclick="captureSubmit()">' +
+      '<i data-lucide="camera" style="width:16px"></i> Absen Sekarang' +
+    '</button>' +
+    '<button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="stopCam();showOptions()">' +
+      'Batal' +
+    '</button>';
+
+  lucide.createIcons();
+  startSelfie();
+}
+
+function renderTeacherHistoryTab(m, y) {
+  stopCam();
+  var bodyEl = document.getElementById("teacher-tab-body");
+  if (!bodyEl) return;
+
+  var monthOptions = "";
+  for (var mi = 1; mi <= 12; mi++) {
+    monthOptions += '<option value="' + mi + '" ' + (mi === m ? 'selected' : '') + '>' + getIndonesianMonthName(mi) + '</option>';
+  }
+
+  var currentYr = new Date().getFullYear();
+  var yearOptions = "";
+  for (var yi = currentYr - 1; yi <= currentYr + 1; yi++) {
+    yearOptions += '<option value="' + yi + '" ' + (yi === y ? 'selected' : '') + '>' + yi + '</option>';
+  }
+
+  bodyEl.innerHTML =
+    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">' +
+      '<div style="flex:1.5;">' +
+        '<label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:3px;">Pilih Bulan:</label>' +
+        '<select id="th-month" class="form-select" style="width:100%;padding:8px 10px;font-size:13px;" onchange="onTeacherHistoryFilterChange()">' +
+          monthOptions +
+        '</select>' +
+      '</div>' +
+      '<div style="flex:1;">' +
+        '<label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:3px;">Tahun:</label>' +
+        '<select id="th-year" class="form-select" style="width:100%;padding:8px 10px;font-size:13px;" onchange="onTeacherHistoryFilterChange()">' +
+          yearOptions +
+        '</select>' +
+      '</div>' +
+    '</div>' +
+    '<div id="th-content-box">' +
+      '<div style="text-align:center;padding:35px 20px;color:var(--gray);">' +
+        '<i data-lucide="loader" style="width:24px;height:24px;animation:spin 1s linear infinite;color:var(--primary);margin-bottom:10px;"></i>' +
+        '<p style="font-size:13px;margin:0;">Memuat riwayat kehadiran...</p>' +
+      '</div>' +
+    '</div>';
+
+  lucide.createIcons();
+  fetchAndRenderTeacherHistory(m, y);
+}
+
+var currentTeacherFilterUnit = "all";
+var teacherCachedRecap = null;
+var teacherCachedToday = null;
+
+function onTeacherHistoryFilterChange() {
+  var mEl = document.getElementById("th-month");
+  var yEl = document.getElementById("th-year");
+  if (mEl) currentHistoryMonth = parseInt(mEl.value, 10);
+  if (yEl) currentHistoryYear = parseInt(yEl.value, 10);
+  renderTeacherHistoryTab(currentHistoryMonth, currentHistoryYear);
+}
+
+function selectTeacherUnitFilter(unitName) {
+  currentTeacherFilterUnit = unitName;
+  if (teacherCachedRecap) {
+    renderTeacherHistoryContent(teacherCachedRecap, teacherCachedToday, currentHistoryMonth, currentHistoryYear);
+  }
+}
+
+function fetchAndRenderTeacherHistory(m, y) {
+  var contentBox = document.getElementById("th-content-box");
+  if (!contentBox) return;
+
+  var now = new Date();
+  var isCurrentMonth = (m === (now.getMonth() + 1) && y === now.getFullYear());
+
+  window.callGasAPI(
+    "getMonthlyRecap",
+    { month: m, year: y, type: "guru" },
+    function (recapRes) {
+      teacherCachedRecap = recapRes;
+      if (isCurrentMonth) {
+        window.callGasAPI(
+          "getAttendanceToday",
+          {},
+          function (todayRes) {
+            teacherCachedToday = todayRes;
+            renderTeacherHistoryContent(recapRes, todayRes, m, y);
+          },
+          function () {
+            teacherCachedToday = null;
+            renderTeacherHistoryContent(recapRes, null, m, y);
+          }
+        );
+      } else {
+        teacherCachedToday = null;
+        renderTeacherHistoryContent(recapRes, null, m, y);
+      }
+    },
+    function (err) {
+      contentBox.innerHTML =
+        '<div style="text-align:center;padding:30px 15px;color:var(--danger);">' +
+          '<i data-lucide="alert-circle" style="width:32px;height:32px;margin-bottom:8px;"></i>' +
+          '<p style="font-size:13px;font-weight:600;margin:0 0 12px 0;">Gagal memuat riwayat: ' + err + '</p>' +
+          '<button class="btn btn-outline btn-sm" onclick="fetchAndRenderTeacherHistory(' + m + ',' + y + ')">Coba Lagi</button>' +
+        '</div>';
+      lucide.createIcons();
+    }
+  );
+}
+
+function renderTeacherHistoryContent(recapRes, todayRes, m, y) {
+  var contentBox = document.getElementById("th-content-box");
+  if (!contentBox) return;
+
+  var mySid = String(currentStudent.id || "").replace(/#.*$/, "").trim();
+  var myBarcode = String(currentStudent.barcode || "").trim();
+
+  var matched = [];
+  if (recapRes && recapRes.students) {
+    matched = recapRes.students.filter(function (s) {
+      var sid = String(s.originalId || s.id || "").replace(/#.*$/, "").trim();
+      return sid === mySid || s.id === mySid || (myBarcode && String(s.barcode).trim() === myBarcode);
+    });
+  }
+
+  if (matched.length === 0) {
+    contentBox.innerHTML =
+      '<div style="text-align:center;padding:35px 20px;color:var(--gray);">' +
+        '<i data-lucide="calendar-x" style="width:32px;height:32px;margin-bottom:8px;color:var(--gray);"></i>' +
+        '<p style="font-size:13px;margin:0;">Tidak ditemukan catatan riwayat untuk NIP ini pada ' + getIndonesianMonthName(m) + ' ' + y + '.</p>' +
+        '<div style="margin-top:16px;">' +
+          '<button class="btn btn-success btn-sm" onclick="switchTeacherTab(\'camera\')"><i data-lucide="camera" style="width:14px"></i> Ambil Absen</button>' +
+        '</div>' +
+      '</div>';
+    lucide.createIcons();
+    return;
+  }
+
+  // Identifikasi Semua Unit / Jabatan yang dimiliki Pegawai
+  var availableUnits = [];
+  matched.forEach(function (ent) {
+    var u = String(ent.kelas || "").trim();
+    if (u && !availableUnits.includes(u)) availableUnits.push(u);
+  });
+  if (currentStudent && currentStudent.kelas) {
+    var rawK = String(currentStudent.kelas);
+    if (rawK.indexOf(",") > -1) {
+      rawK.split(",").forEach(function (p) {
+        var clean = p.trim();
+        if (clean && !availableUnits.includes(clean)) availableUnits.push(clean);
+      });
+    } else if (rawK.trim() && !availableUnits.includes(rawK.trim())) {
+      availableUnits.push(rawK.trim());
+    }
+  }
+
+  // Filter Entitas Sesuai Pilihan Unit / Jabatan
+  var activeEntities = matched;
+  if (currentTeacherFilterUnit !== "all") {
+    activeEntities = matched.filter(function (ent) {
+      var ek = String(ent.kelas || "").toLowerCase();
+      var uk = String(currentTeacherFilterUnit).toLowerCase();
+      return ek.indexOf(uk) > -1 || uk.indexOf(ek) > -1;
+    });
+    if (activeEntities.length === 0) activeEntities = matched;
+  }
+
+  // Agregasi Totals Berdasarkan Unit Aktif
+  var totals = { H: 0, T: 0, S: 0, I: 0, A: 0 };
+  activeEntities.forEach(function (ent) {
+    if (ent.totals) {
+      totals.H += (ent.totals.H || 0);
+      totals.T += (ent.totals.T || 0);
+      totals.S += (ent.totals.S || 0);
+      totals.I += (ent.totals.I || 0);
+      totals.A += (ent.totals.A || 0);
+    }
+  });
+
+  // Today Attendance Map
+  var todayRecords = [];
+  if (todayRes && todayRes.attendance) {
+    todayRecords = todayRes.attendance.filter(function (att) {
+      var asid = String(att.studentId || "").trim();
+      var matchId = (asid === mySid || asid === currentStudent.id);
+      if (!matchId) return false;
+      if (currentTeacherFilterUnit !== "all") {
+        var attK = String(att.kelas || "").toLowerCase();
+        var fuk = String(currentTeacherFilterUnit).toLowerCase();
+        return attK.indexOf(fuk) > -1 || fuk.indexOf(attK) > -1;
+      }
+      return true;
+    });
+  }
+
+  // Filter Bar Unit / Jabatan (Jika Pegawai Memiliki > 1 Unit)
+  var unitFilterHTML = "";
+  if (availableUnits.length > 1) {
+    unitFilterHTML =
+      '<div style="margin-bottom:14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+          '<span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;"><i data-lucide="layers" style="width:12px;height:12px;vertical-align:-1px;margin-right:4px;color:var(--primary);"></i> Pilihan Unit / Jabatan:</span>' +
+          (currentTeacherFilterUnit !== "all" ? '<span style="font-size:11px;color:var(--primary);font-weight:700;">' + currentTeacherFilterUnit + '</span>' : '<span style="font-size:11px;color:var(--gray);">Semua Unit</span>') +
+        '</div>' +
+        '<div class="teacher-unit-pills">' +
+          '<button type="button" class="t-unit-pill ' + (currentTeacherFilterUnit === "all" ? "active" : "") + '" onclick="selectTeacherUnitFilter(\'all\')">' +
+            '<i data-lucide="layers" style="width:13px;height:13px;"></i> Semua Unit' +
+          '</button>';
+
+    availableUnits.forEach(function (u) {
+      var isRQ = u.toLowerCase().indexOf("rumah quran") > -1 || u.toLowerCase().indexOf("rumah qur'an") > -1;
+      var iconName = isRQ ? "book-open" : "school";
+      var activeCls = currentTeacherFilterUnit === u ? "active" : "";
+      unitFilterHTML +=
+        '<button type="button" class="t-unit-pill ' + activeCls + '" onclick="selectTeacherUnitFilter(\'' + u.replace(/'/g, "\\'") + '\')">' +
+          '<i data-lucide="' + iconName + '" style="width:13px;height:13px;"></i> ' + u +
+        '</button>';
+    });
+
+    unitFilterHTML += '</div></div>';
+  } else if (availableUnits.length === 1) {
+    unitFilterHTML =
+      '<div style="margin-bottom:12px;padding:6px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:space-between;">' +
+        '<span>Unit / Jabatan:</span><strong style="color:var(--text);">' + availableUnits[0] + '</strong>' +
+      '</div>';
+  }
+
+  // Stats Cards Grid
+  var statsHTML =
+    '<div class="teacher-stats-grid">' +
+      '<div class="t-stat-card stat-h">' +
+        '<span class="t-stat-num">' + totals.H + '</span>' +
+        '<span class="t-stat-label">Hadir</span>' +
+      '</div>' +
+      '<div class="t-stat-card stat-t">' +
+        '<span class="t-stat-num">' + totals.T + '</span>' +
+        '<span class="t-stat-label">Terlambat</span>' +
+      '</div>' +
+      '<div class="t-stat-card stat-i">' +
+        '<span class="t-stat-num">' + totals.I + '</span>' +
+        '<span class="t-stat-label">Izin</span>' +
+      '</div>' +
+      '<div class="t-stat-card stat-s">' +
+        '<span class="t-stat-num">' + totals.S + '</span>' +
+        '<span class="t-stat-label">Sakit</span>' +
+      '</div>' +
+      '<div class="t-stat-card stat-a">' +
+        '<span class="t-stat-num">' + totals.A + '</span>' +
+        '<span class="t-stat-label">Alpa</span>' +
+      '</div>' +
+    '</div>';
+
+  var daysInMonth = recapRes.daysInMonth || new Date(y, m, 0).getDate();
+  var now = new Date();
+  var isCurrentMonth = (m === (now.getMonth() + 1) && y === now.getFullYear());
+  var todayDate = now.getDate();
+
+  var listHTML = '<div class="teacher-history-list">';
+  var shortDayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+
+  // Urutkan dari hari terakhir (atau hari ini) menurun ke tanggal 1
+  for (var d = daysInMonth; d >= 1; d--) {
+    var dObj = new Date(y, m - 1, d);
+    var dow = dObj.getDay();
+    var isWeekend = (dow === 0 || dow === 6);
+    var mPad = m < 10 ? "0" + m : "" + m;
+    var dPad = d < 10 ? "0" + d : "" + d;
+    var isoKey = y + "-" + mPad + "-" + dPad;
+
+    var hMgr = window.HolidayManager;
+    var holidayInfo = hMgr ? hMgr.getHoliday(isoKey) : null;
+    var isNatHoliday = !!(holidayInfo && holidayInfo.isHoliday);
+
+    var isToday = (isCurrentMonth && d === todayDate);
+    var isFuture = (isCurrentMonth && d > todayDate) || (y > now.getFullYear()) || (y === now.getFullYear() && m > (now.getMonth() + 1));
+
+    // Dapatkan status dari matched entities aktif
+    var dayCodes = [];
+    activeEntities.forEach(function (ent) {
+      if (ent.days && ent.days[d]) {
+        dayCodes.push({
+          role: ent.kelas || ent.roleType || "",
+          code: ent.days[d],
+          isRQ: ent.isRumahQuran
+        });
+      }
+    });
+
+    var primaryCode = "-";
+    var roleLabelInfo = "";
+    if (dayCodes.length > 0) {
+      var present = dayCodes.find(function (dc) { return dc.code && dc.code !== "-" && dc.code !== "A"; });
+      if (present) {
+        primaryCode = present.code;
+        roleLabelInfo = present.role;
+      } else {
+        primaryCode = dayCodes[0].code;
+        roleLabelInfo = dayCodes[0].role;
+      }
+    }
+
+    var badgeHTML = "";
+    var statusText = "";
+    var rowClass = "history-row-item";
+    var timeDisplay = "";
+
+    if (isToday) rowClass += " today";
+    else if (isNatHoliday) rowClass += " holiday";
+    else if (isWeekend) rowClass += " weekend";
+
+    if (isFuture) {
+      badgeHTML = '<span style="font-size:11px;color:var(--gray);font-style:italic;">Belum berjalan</span>';
+      statusText = isWeekend ? (dow === 0 ? "Minggu (Akhir Pekan)" : "Sabtu (Akhir Pekan)") : (isNatHoliday ? holidayInfo.name : "Hari Belajar");
+    } else if (primaryCode === "H") {
+      badgeHTML = '<span class="badge badge-success" style="font-size:11px;padding:3px 8px;">Hadir</span>';
+      statusText = "Tepat Waktu";
+    } else if (primaryCode === "TL1") {
+      badgeHTML = '<span class="badge badge-tl1" style="font-size:11px;padding:3px 8px;">TL1 (≤ 30m)</span>';
+      statusText = "Terlambat Toleransi 1";
+    } else if (primaryCode === "TL2") {
+      badgeHTML = '<span class="badge badge-tl2" style="font-size:11px;padding:3px 8px;">TL2 (31-60m)</span>';
+      statusText = "Terlambat Toleransi 2";
+    } else if (primaryCode === "T") {
+      badgeHTML = '<span class="badge badge-warning" style="font-size:11px;padding:3px 8px;">Terlambat</span>';
+      statusText = "Terlambat";
+    } else if (primaryCode === "S") {
+      badgeHTML = '<span class="badge badge-sakit" style="font-size:11px;padding:3px 8px;">Sakit</span>';
+      statusText = "Surat Keterangan Sakit";
+    } else if (primaryCode === "I") {
+      badgeHTML = '<span class="badge badge-izin" style="font-size:11px;padding:3px 8px;">Izin</span>';
+      statusText = "Pengajuan Izin";
+    } else if (primaryCode === "A") {
+      badgeHTML = '<span class="badge badge-alpa" style="font-size:11px;padding:3px 8px;">Alpa</span>';
+      statusText = "Tidak Mengisi Presensi";
+    } else {
+      // Code is "-"
+      if (isNatHoliday) {
+        badgeHTML = '<span class="badge badge-holiday" style="font-size:11px;padding:3px 8px;"><i data-lucide="star" style="width:10px;height:10px;vertical-align:-1px;"></i> Libur</span>';
+        statusText = "Libur Nasional: " + holidayInfo.name;
+      } else if (isWeekend) {
+        badgeHTML = '<span class="badge badge-holiday" style="font-size:11px;padding:3px 8px;">Libur</span>';
+        statusText = (dow === 0 ? "Minggu (Akhir Pekan)" : "Sabtu (Akhir Pekan)");
+      } else if (activeEntities.some(function (ent) { return ent.isRumahQuran; })) {
+        badgeHTML = '<span class="badge badge-free" style="font-size:11px;padding:3px 8px;">Bebas</span>';
+        statusText = "Rumah Qur'an - Jadwal Bebas";
+      } else {
+        badgeHTML = '<span class="badge badge-secondary" style="font-size:11px;padding:3px 8px;">-</span>';
+        statusText = "-";
+      }
+    }
+
+    // Detail jam jika hari ini dan ada di todayRecords
+    if (isToday && todayRecords.length > 0) {
+      var latestRec = todayRecords[0];
+      if (latestRec.waktu) timeDisplay = latestRec.waktu.substring(0, 5) + " WIB";
+      if (latestRec.keterangan) statusText = latestRec.keterangan;
+    }
+
+    // Tambahkan label unit jika sedang menampilkan 'Semua Unit' dan ada indikasi role
+    if (currentTeacherFilterUnit === "all" && roleLabelInfo) {
+      statusText += ' • ' + roleLabelInfo;
+    }
+
+    var fullDateStr = getIndonesianDayName(dow) + ", " + d + " " + getIndonesianMonthName(m) + " " + y;
+    var todayIndicator = isToday ? ' <span style="background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;">HARI INI</span>' : '';
+
+    listHTML +=
+      '<div class="' + rowClass + '">' +
+        '<div class="history-row-left">' +
+          '<div class="history-day-circle">' +
+            '<strong>' + d + '</strong>' +
+            '<span>' + shortDayNames[dow] + '</span>' +
+          '</div>' +
+          '<div class="history-detail-text">' +
+            '<h4>' + fullDateStr + todayIndicator + '</h4>' +
+            '<p title="' + statusText + '">' + (timeDisplay ? '<strong style="color:var(--text);">' + timeDisplay + '</strong> &nbsp;•&nbsp; ' : '') + statusText + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="history-row-right">' +
+          badgeHTML +
+        '</div>' +
+      '</div>';
+  }
+  listHTML += '</div>';
+
+  var actionsHTML =
+    '<div style="display:flex;gap:10px;margin-top:14px;">' +
+      '<button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="showOptions()">' +
+        '<i data-lucide="arrow-left" style="width:15px"></i> Menu Awal' +
+      '</button>' +
+      '<button class="btn btn-success" style="flex:1.2;justify-content:center;" onclick="switchTeacherTab(\'camera\')">' +
+        '<i data-lucide="camera" style="width:15px"></i> Absen Sekarang' +
+      '</button>' +
+    '</div>';
+
+  contentBox.innerHTML = unitFilterHTML + statsHTML + listHTML + actionsHTML;
+  lucide.createIcons();
+}
+
+
 function showSelfie() {
   locationData = { lat: "", lng: "", alamat: "" };
   getLoc();
@@ -581,6 +1166,10 @@ function showSuccess(st, tm, fm, isFirstReg, ket) {
 
   var iconName = (st === "Alpa") ? "alert-circle" : (st === "TL1" || st === "TL2" ? "clock" : "check");
 
+  var teacherHistoryBtn = isTeacher 
+    ? '<button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showTeacherPortal(\'history\')"><i data-lucide="history" style="width:16px"></i> Lihat Riwayat Absen Saya</button>'
+    : '';
+
   c.innerHTML =
     '<div class="success-screen"><div class="success-icon" style="background:' +
     col +
@@ -600,7 +1189,9 @@ function showSuccess(st, tm, fm, isFirstReg, ket) {
     verifDisplay +
     '</p>' +
     ketHtml +
-    '</div><button class="btn btn-primary" style="width:100%" onclick="showOptions()">Selesai</button></div>';
+    '</div><button class="btn btn-primary" style="width:100%" onclick="showOptions()">Selesai</button>' +
+    teacherHistoryBtn +
+    '</div>';
   lucide.createIcons();
 }
 function showToast(m, t) {

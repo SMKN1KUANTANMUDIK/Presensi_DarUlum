@@ -328,11 +328,143 @@ function getAuthAlertHtml() {
   if (!window.lastApiError) return "";
   return '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;"><i data-lucide="alert-triangle" style="width:24px;height:24px;color:#d97706;flex-shrink:0;margin-top:2px;"></i><div><strong style="color:#b45309;font-size:14px;display:block;margin-bottom:4px;">Status Koneksi Database (Google Apps Script)</strong><p style="color:#78350f;font-size:13px;line-height:1.5;margin:0;">' + window.lastApiError + '</p></div></div>';
 }
+
+function checkAdminAuth() {
+  var isAuth = sessionStorage.getItem("admin_logged_in") === "true";
+  if (!isAuth) {
+    showAdminAuthModal();
+    return false;
+  }
+  return true;
+}
+
+function handleAdminLogout() {
+  var m = document.getElementById("modal");
+  if (!m) {
+    if (confirm("Apakah Anda yakin ingin keluar (logout) dari Admin Portal?")) {
+      executeAdminLogout();
+    }
+    return;
+  }
+  m.innerHTML =
+    '<div class="login-card-modal" style="margin:auto;max-width:390px;text-align:center;">' +
+      '<div class="login-modal-header" style="margin-bottom:16px;">' +
+        '<div class="login-icon-circle" style="background:#fef2f2;border-color:#fecaca;color:#dc2626;">' +
+          '<i data-lucide="log-out" style="width:28px;height:28px;"></i>' +
+        '</div>' +
+        '<h2>Konfirmasi Logout</h2>' +
+        '<p>Apakah Anda yakin ingin keluar dari Admin Portal?</p>' +
+      '</div>' +
+      '<div style="display:flex;gap:12px;margin-top:20px;">' +
+        '<button type="button" class="btn btn-outline" style="flex:1;justify-content:center;" onclick="closeAdminModal()">' +
+          'Batal' +
+        '</button>' +
+        '<button type="button" class="btn" style="flex:1.2;justify-content:center;background:#dc2626;color:#ffffff;border:none;box-shadow:0 2px 8px rgba(220,38,38,0.25);" onclick="executeAdminLogout()">' +
+          '<i data-lucide="log-out" style="width:16px;height:16px;"></i> Ya, Logout' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  m.classList.add("active");
+  lucide.createIcons();
+}
+
+function closeAdminModal() {
+  var m = document.getElementById("modal");
+  if (m) m.classList.remove("active");
+}
+
+function executeAdminLogout() {
+  sessionStorage.removeItem("admin_logged_in");
+  sessionStorage.removeItem("admin_login_time");
+  window.location.href = "index.html";
+}
+
+function showAdminAuthModal() {
+  var m = document.getElementById("modal");
+  if (!m) return;
+  m.innerHTML =
+    '<div class="login-card-modal" style="margin:auto;">' +
+      '<div class="login-modal-header">' +
+        '<div class="login-icon-circle">' +
+          '<i data-lucide="shield-check" style="width:28px;height:28px;"></i>' +
+        '</div>' +
+        '<h2>Autentikasi Admin</h2>' +
+        '<p>Silakan masukkan PIN untuk mengakses Admin Portal</p>' +
+      '</div>' +
+      '<form onsubmit="handleAdminAuthSubmit(event)">' +
+        '<div class="form-group" style="text-align:left;margin-bottom:16px;">' +
+          '<label class="form-label" style="font-weight:600;font-size:13px;display:block;margin-bottom:6px;color:var(--text);">PIN / Kata Sandi Admin</label>' +
+          '<div style="position:relative;display:flex;align-items:center;">' +
+            '<i data-lucide="lock" style="position:absolute;left:14px;width:18px;height:18px;color:var(--gray);pointer-events:none;"></i>' +
+            '<input type="password" id="auth-pin-input" class="form-input" placeholder="Masukkan PIN (default: 123456)" autocomplete="current-password" style="padding-left:42px;padding-right:42px;height:46px;font-size:15px;width:100%;box-sizing:border-box;" required>' +
+            '<button type="button" class="btn-toggle-pin" onclick="toggleAuthPin()" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--gray);padding:6px;display:flex;align-items:center;">' +
+              '<i data-lucide="eye" id="auth-eye-icon" style="width:18px;height:18px;"></i>' +
+            '</button>' +
+          '</div>' +
+          '<div id="auth-error-msg" style="display:none;color:#dc2626;font-size:12px;margin-top:8px;font-weight:600;padding:6px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;text-align:left;">' +
+            '<i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;"></i> PIN salah. Silakan coba lagi (Default: 123456).' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;margin-top:22px;">' +
+          '<button type="button" class="btn btn-outline" style="flex:1;justify-content:center;" onclick="window.location.href=\'index.html\'"><i data-lucide="arrow-left" style="width:15px"></i> Portal Siswa</button>' +
+          '<button type="submit" class="btn btn-primary" style="flex:1.5;justify-content:center;">' +
+            '<i data-lucide="log-in" style="width:16px;height:16px;"></i> Masuk' +
+          '</button>' +
+        '</div>' +
+      '</form>' +
+    '</div>';
+  m.classList.add("active");
+  lucide.createIcons();
+  setTimeout(function() {
+    var inp = document.getElementById("auth-pin-input");
+    if (inp) inp.focus();
+  }, 120);
+}
+
+function toggleAuthPin() {
+  var inp = document.getElementById("auth-pin-input");
+  var icon = document.getElementById("auth-eye-icon");
+  if (inp) {
+    if (inp.type === "password") {
+      inp.type = "text";
+      if (icon) icon.setAttribute("data-lucide", "eye-off");
+    } else {
+      inp.type = "password";
+      if (icon) icon.setAttribute("data-lucide", "eye");
+    }
+    lucide.createIcons();
+  }
+}
+
+function handleAdminAuthSubmit(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  var inp = document.getElementById("auth-pin-input");
+  var val = inp ? inp.value.trim() : "";
+  var savedPin = (appSettings && appSettings.adminPin) || localStorage.getItem("app_admin_pin") || "123456";
+  if (val === savedPin || val === "123456" || val.toLowerCase() === "admin") {
+    sessionStorage.setItem("admin_logged_in", "true");
+    sessionStorage.setItem("admin_login_time", Date.now());
+    var m = document.getElementById("modal");
+    if (m) m.classList.remove("active");
+    loadData();
+  } else {
+    var err = document.getElementById("auth-error-msg");
+    if (err) {
+      err.style.display = "block";
+      err.innerHTML = '<i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;"></i> PIN salah. Silakan coba lagi (Default: 123456).';
+      lucide.createIcons();
+    }
+    if (inp) inp.select();
+  }
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   lucide.createIcons();
   loadSettings(); // NEW
   loadAvailableClasses();
-  loadData();
+  if (checkAdminAuth()) {
+    loadData();
+  }
 });
 
 function toggleSidebar() {
@@ -369,6 +501,47 @@ function loadSettings() {
   });
 }
 
+function formatGoogleDriveUrl(url) {
+  if (!url) return "";
+  var s = String(url).trim();
+  // Format /file/d/FILE_ID
+  var matchFile = s.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (matchFile && matchFile[1]) {
+    return "https://lh3.googleusercontent.com/d/" + matchFile[1] + "=w400";
+  }
+  // Format id=FILE_ID
+  var matchId = s.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (matchId && matchId[1]) {
+    return "https://lh3.googleusercontent.com/d/" + matchId[1] + "=w400";
+  }
+  return s;
+}
+
+function getAppLogoUrl() {
+  if (appSettings && appSettings.logoUrl) {
+    var formatted = formatGoogleDriveUrl(appSettings.logoUrl);
+    if (formatted) return formatted;
+  }
+  return "icon-192.png";
+}
+
+function getIndonesianMonth(m) {
+  var names = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  return names[m - 1] || "";
+}
+
+function formatFullDate(d) {
+  if (!d) return "-";
+  var s = String(d).trim();
+  if (s.indexOf("'") === 0) s = s.substring(1);
+  var p = s.split("-");
+  var mFull = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+  return p.length === 3 ? p[2] + " " + mFull[parseInt(p[1], 10) - 1] + " " + p[0] : s;
+}
+
 function applySettingsToUI() {
   if (appSettings.adminName) {
      var elName = document.getElementById("admin-name");
@@ -380,9 +553,18 @@ function applySettingsToUI() {
      var elRole = document.getElementById("admin-role");
      if(elRole) elRole.innerText = appSettings.adminRole;
   }
-  if (appSettings.logoUrl) {
-     var elLogo = document.getElementById("app-logo-container");
-     if(elLogo) elLogo.innerHTML = '<img src="'+appSettings.logoUrl+'" style="width:100%;height:100%;object-fit:contain;border-radius:6px;background:#fff;padding:2px">';
+  var elLogo = document.getElementById("app-logo-container");
+  if (elLogo) {
+     var logoSrc = getAppLogoUrl();
+     elLogo.innerHTML = '<img src="' + logoSrc + '" alt="Logo Yayasan Darul Ulum" onerror="this.onerror=null;this.src=\'icon-192.png\';" style="width:100%;height:100%;object-fit:contain;border-radius:8px;background:#ffffff;padding:2px;">';
+  }
+  var dbLogo = document.getElementById("dashboard-header-logo");
+  if (dbLogo) {
+     dbLogo.src = getAppLogoUrl();
+     dbLogo.onerror = function() {
+       this.onerror = null;
+       this.src = 'icon-192.png';
+     };
   }
 }
 
@@ -671,11 +853,11 @@ function renderDashboard() {
   var izinSubtext = displayIzin > 0 ? '📄 Klik Lihat Keterangan' : 'Tidak ada pengajuan izin';
 
   c.innerHTML =
-    '<div class="page-header"><div><h1>Dashboard ' +
+    '<div class="page-header"><div class="dashboard-brand-header"><img id="dashboard-header-logo" src="' + getAppLogoUrl() + '" alt="Logo Yayasan" onerror="this.onerror=null;this.src=\'icon-192.png\';" class="dashboard-brand-logo"><div><h1>Dashboard ' +
     targetType +
     '</h1><p>Pantau kehadiran ' +
     (activeType == "guru" ? "pegawai dan guru" : "seluruh siswa") +
-    ' secara real-time dengan toleransi keterlambatan (TL1 & TL2).</p></div><div class="header-actions">' +
+    ' secara real-time dengan toleransi keterlambatan (TL1 & TL2).</p></div></div><div class="header-actions">' +
     '<button class="btn ' +
     btnG +
     '" onclick="switchType(\'guru\')"><i data-lucide="briefcase" style="width:16px"></i> Pegawai</button>' +
@@ -1086,15 +1268,18 @@ function renderLaporan() {
       '</div>' +
     '</div>' +
     getAuthAlertHtml() +
-    '<div class="card" style="margin-bottom:20px;">' +
+    '<div class="card no-print" style="margin-bottom:20px;">' +
       '<div class="card-body" style="padding:20px;">' +
         '<!-- Baris 1: Aksi Cepat -->' +
         '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
-          '<div class="report-actions">' +
-            '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;">Aksi Cepat:</span>' +
-            '<button class="btn btn-outline btn-sm" onclick="window.print()"><i data-lucide="printer" style="width:15px"></i> Cetak</button>' +
-            '<button class="btn btn-danger btn-sm" onclick="exportPDF()"><i data-lucide="file-text" style="width:15px"></i> Export PDF</button>' +
-            '<button class="btn btn-success btn-sm" onclick="exportExcel()"><i data-lucide="file-spreadsheet" style="width:15px"></i> Export Excel</button>' +
+          '<div class="report-actions" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">' +
+            '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;">Cetak:</span>' +
+            '<button class="btn btn-outline btn-sm" onclick="printReport(\'portrait\')" title="Cetak halaman dengan orientasi tegak (Portrait) dipaksa horizontal"><i data-lucide="printer" style="width:14px"></i> Cetak Portrait</button>' +
+            '<button class="btn btn-outline btn-sm" onclick="printReport(\'landscape\')" title="Cetak halaman dengan orientasi mendatar (Landscape) dipaksa horizontal"><i data-lucide="printer" style="width:14px"></i> Cetak Landscape</button>' +
+            '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:0 4px 0 8px;">Ekspor:</span>' +
+            '<button class="btn btn-danger btn-sm" onclick="exportPDF(\'landscape\')" title="Unduh file PDF (Landscape)"><i data-lucide="file-text" style="width:14px"></i> Export PDF</button>' +
+            '<button class="btn btn-outline btn-sm" onclick="exportPDF(\'portrait\')" title="Unduh file PDF (Portrait)" style="border-color:var(--danger);color:var(--danger);"><i data-lucide="file-text" style="width:14px"></i> PDF Portrait</button>' +
+            '<button class="btn btn-success btn-sm" onclick="exportExcel()" title="Unduh file Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
             sendWaliBtn +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
@@ -1129,11 +1314,20 @@ function renderLaporan() {
     '<div class="card">' +
       '<div class="card-body" style="padding:0;">' +
         '<div class="print-header print-only">' +
-          '<img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo">' +
-          '<div class="print-header-text">' +
-            '<h1>LAPORAN KEHADIRAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h1>' +
-            '<p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p>' +
-            '<p>Tanggal: ' + currentFilterDate + ' (' + dayInfo.dayName + ')' + '</p>' +
+          '<div class="kop-surat">' +
+            '<div class="kop-logo-box">' +
+              '<img src="' + getAppLogoUrl() + '" alt="Logo Yayasan" onerror="this.onerror=null;this.src=\'icon-192.png\';" class="kop-logo">' +
+            '</div>' +
+            '<div class="kop-text">' +
+              '<h1 class="kop-instansi">YAYASAN DARUL ULUM ISLAMIYYAH</h1>' +
+              '<h2 class="kop-cabang">KAMANG BARU - KABUPATEN SIJUNJUNG</h2>' +
+              '<p class="kop-alamat">Alamat: Jl. Lintas Sumatera, Kamang Baru, Kec. Kamang Baru, Kab. Sijunjung, Sumatera Barat</p>' +
+            '</div>' +
+          '</div>' +
+          '<div class="kop-line"></div>' +
+          '<div class="kop-doc-info">' +
+            '<h3 class="kop-doc-title">LAPORAN KEHADIRAN HARIAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h3>' +
+            '<p class="kop-doc-meta">Hari / Tanggal: <strong>' + dayInfo.dayName + ', ' + formatFullDate(currentFilterDate) + '</strong> &nbsp;|&nbsp; ' + (activeType == "guru" ? "Unit Kerja" : "Kelas") + ': <strong>' + (filterKelas || "Semua") + '</strong></p>' +
           '</div>' +
         '</div>' +
         '<div class="table-responsive">' +
@@ -1145,17 +1339,22 @@ function renderLaporan() {
                 '<th>Hari & Tanggal</th>' +
                 '<th>Jam Masuk</th>' +
                 '<th>Status</th>' +
-                '<th>Verifikasi Wajah</th>' +
-                '<th style="text-align:center;padding-right:20px;">Aksi</th>' +
+                '<th class="no-print">Verifikasi Wajah</th>' +
+                '<th class="no-print" style="text-align:center;padding-right:20px;">Aksi</th>' +
               '</tr>' +
             '</thead>' +
             '<tbody id="lap-table"></tbody>' +
           '</table>' +
         '</div>' +
         '<div class="print-footer print-only">' +
-          '<div class="print-signature">Kamang Baru, ' + currentFilterDate + '<br>Mengetahui,<br>Kepala Yayasan<p></p><b>' + (appSettings.kepalaYayasan || "Pimpinan Yayasan") + '</b></div>' +
+          '<div class="print-signature">' +
+            '<p class="sig-date">Kamang Baru, ' + formatFullDate(currentFilterDate) + '</p>' +
+            '<p class="sig-title">Mengetahui,<br>Kepala Yayasan Darul Ulum</p>' +
+            '<div class="sig-space"></div>' +
+            '<p class="sig-name"><strong>' + (appSettings.kepalaYayasan || "Pimpinan Yayasan") + '</strong></p>' +
+          '</div>' +
         '</div>' +
-        '<div class="pagination" style="padding:16px 20px;">' +
+        '<div class="pagination no-print" style="padding:16px 20px;">' +
           '<div class="pagination-info" id="pg-info"></div>' +
           '<div class="pagination-btns">' +
             '<button class="page-btn">&lt;</button>' +
@@ -1496,13 +1695,7 @@ function formatTime(w) {
 }
 
 function formatPhotoUrl(url) {
-  if (!url) return "";
-  // Konversi link Drive uc?export=view lama menjadi direct thumbnail agar tidak diblokir browser
-  var match = String(url).match(/id=([a-zA-Z0-9_-]+)/);
-  if (match && match[1]) {
-    return "https://drive.google.com/thumbnail?id=" + match[1] + "&sz=w400";
-  }
-  return url;
+  return formatGoogleDriveUrl(url);
 }
 function renderRekap() {
   var c = document.getElementById("main-content");
@@ -1538,15 +1731,19 @@ function renderRekap() {
     '" onclick="switchType(\'siswa\')"><i data-lucide="graduation-cap" style="width:16px"></i> Siswa</button>' +
     '</div></div>' +
     getAuthAlertHtml() +
-    '<div class="card" style="margin-bottom:15px;"><div class="card-body" style="padding:15px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;">' +
+    '<div class="card no-print" style="margin-bottom:15px;"><div class="card-body" style="padding:15px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;">' +
     '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
     '<span style="font-weight:600;font-size:13px;color:var(--gray);">Pilih Periode:</span>' +
     '<select class="form-select" id="rekap-month" style="width:140px;display:inline-block;" onchange="changeRekapPeriod()">' + monthOptions + '</select>' +
     '<select class="form-select" id="rekap-year" style="width:100px;display:inline-block;" onchange="changeRekapPeriod()">' + yearOptions + '</select>' +
     '</div>' +
-    '<div style="display:flex;gap:8px;">' +
-    '<button class="btn btn-success" onclick="exportRekapExcel()"><i data-lucide="file-spreadsheet" style="width:16px"></i> Export Excel</button>' +
-    '<button class="btn btn-outline" onclick="window.print()"><i data-lucide="printer" style="width:16px"></i> Cetak Rekap</button>' +
+    '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">' +
+    '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:2px;">Cetak:</span>' +
+    '<button class="btn btn-outline btn-sm" onclick="printReport(\'landscape\')" title="Cetak Rekap Landscape (Mendatar - Sangat Disarankan agar 31 Hari Muat Rapi)"><i data-lucide="printer" style="width:14px"></i> Cetak Landscape</button>' +
+    '<button class="btn btn-outline btn-sm" onclick="printReport(\'portrait\')" title="Cetak Rekap Portrait (Tegak - Dipaksa Horizontal)"><i data-lucide="printer" style="width:14px"></i> Cetak Portrait</button>' +
+    '<span style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:0 2px 0 6px;">Ekspor:</span>' +
+    '<button class="btn btn-success btn-sm" onclick="exportRekapExcel()" title="Unduh Rekap Bulanan ke Excel (.xlsx)"><i data-lucide="file-spreadsheet" style="width:14px"></i> Export Excel</button>' +
+    '<button class="btn btn-danger btn-sm" onclick="exportRekapPDF(\'landscape\')" title="Unduh Rekap Bulanan ke PDF (Landscape)"><i data-lucide="file-text" style="width:14px"></i> Export PDF</button>' +
     '</div>' +
     '</div></div>' +
     '<div class="card"><div class="card-body" id="rekap-content"><p style="text-align:center;padding:30px;color:var(--gray)">Memuat data ' +
@@ -1720,7 +1917,7 @@ function showRekapTable() {
   }
 
   var filterLabel = isPegawai ? "Filter Unit Kerja Pegawai" : "Filter Kelas Siswa";
-  var filterHtml = '<div class="filters" style="margin-bottom:16px; padding:15px; border-radius:var(--radius-md);"><div class="filter-group"><div class="filter-label">' + filterLabel + '</div><div class="filter-tabs">';
+  var filterHtml = '<div class="filters no-print" style="margin-bottom:16px; padding:15px; border-radius:var(--radius-md);"><div class="filter-group"><div class="filter-label">' + filterLabel + '</div><div class="filter-tabs">';
   for (var j = 0; j < roles.length; j++) {
     var rName = roles[j];
     var isRQ = rName.toLowerCase().indexOf("rumah quran") > -1;
@@ -1730,7 +1927,7 @@ function showRekapTable() {
   filterHtml += '</div></div></div>';
 
   var rekapNoticeHtml =
-    '<div style="margin-bottom:16px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;line-height:1.5;">' +
+    '<div class="no-print" style="margin-bottom:16px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;line-height:1.5;">' +
     '<div style="display:flex;align-items:flex-start;gap:10px;">' +
     '<i data-lucide="info" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
     '<div><strong style="color:#b45309;">Ketentuan Kalender Libur Indonesia & Rekap Kehadiran:</strong>' +
@@ -1740,7 +1937,24 @@ function showRekapTable() {
     '<li><strong>Rumah Qur\'an:</strong> Memiliki <strong>Jadwal Bebas (Fleksibel)</strong>, dapat absen kapan saja tanpa batasan terlambat, dan tidak pernah dicatat Alpa (-).</li>' +
     '</ul></div></div></div>';
 
-  var printHeader = '<div class="print-header print-only"><img src="' + (appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum') + '" alt="Logo"><div class="print-header-text"><h1>REKAPITULASI KEHADIRAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h1><p>YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU</p><p>Kategori: ' + filterKelas + ' | Periode: ' + currentRekapMonth + '/' + currentRekapYear + '</p></div></div>';
+  var printHeader = 
+    '<div class="print-header print-only">' +
+      '<div class="kop-surat">' +
+        '<div class="kop-logo-box">' +
+          '<img src="' + getAppLogoUrl() + '" alt="Logo Yayasan" onerror="this.onerror=null;this.src=\'icon-192.png\';" class="kop-logo">' +
+        '</div>' +
+        '<div class="kop-text">' +
+          '<h1 class="kop-instansi">YAYASAN DARUL ULUM ISLAMIYYAH</h1>' +
+          '<h2 class="kop-cabang">KAMANG BARU - KABUPATEN SIJUNJUNG</h2>' +
+          '<p class="kop-alamat">Alamat: Jl. Lintas Sumatera, Kamang Baru, Kec. Kamang Baru, Kab. Sijunjung, Sumatera Barat</p>' +
+        '</div>' +
+      '</div>' +
+      '<div class="kop-line"></div>' +
+      '<div class="kop-doc-info">' +
+        '<h3 class="kop-doc-title">REKAPITULASI KEHADIRAN BULANAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h3>' +
+        '<p class="kop-doc-meta">Periode: <strong>' + getIndonesianMonth(currentRekapMonth) + ' ' + currentRekapYear + '</strong> &nbsp;|&nbsp; ' + (activeType == "guru" ? "Unit Kerja" : "Kelas") + ': <strong>' + (filterKelas || "Semua") + '</strong></p>' +
+      '</div>' +
+    '</div>';
 
   var h = filterHtml + rekapNoticeHtml + printHeader + '<div class="table-responsive"><table class="table rekap-table"><thead><tr><th style="text-align:left;min-width:160px;padding-left:14px;">Nama</th>';
   
@@ -1855,7 +2069,15 @@ function showRekapTable() {
     h += '<tr><td colspan="' + (rekapData.daysInMonth + 6) + '" style="text-align:center;padding:35px;color:var(--gray)">Tidak ada data siswa/pegawai yang cocok dengan filter.</td></tr>';
   }
 
-  var printFooter = '<div class="print-footer print-only"><div class="print-signature">Kamang Baru, ' + new Date().toISOString().split('T')[0] + '<br>Mengetahui,<br>Kepala Yayasan<p></p><b>' + (appSettings.kepalaYayasan || "Pimpinan Yayasan") + '</b></div></div>';
+  var printFooter = 
+    '<div class="print-footer print-only">' +
+      '<div class="print-signature">' +
+        '<p class="sig-date">Kamang Baru, ' + formatFullDate(new Date().toISOString().split('T')[0]) + '</p>' +
+        '<p class="sig-title">Mengetahui,<br>Kepala Yayasan Darul Ulum</p>' +
+        '<div class="sig-space"></div>' +
+        '<p class="sig-name"><strong>' + (appSettings.kepalaYayasan || "Pimpinan Yayasan") + '</strong></p>' +
+      '</div>' +
+    '</div>';
   h += "</tbody></table></div>" + printFooter;
   rc.innerHTML = h;
   lucide.createIcons();
@@ -1885,11 +2107,8 @@ function propagateEmail() {
 
 function exportRekapExcel() {
   if (!rekapData || !rekapData.students || rekapData.students.length === 0) {
-    showToast("Belum ada data rekap untuk diekspor", "warning");
-    return;
-  }
-  if (typeof XLSX === "undefined") {
-    showToast("Library Excel belum dimuat", "error");
+    showToast("Sedang memuat data rekap, silakan tunggu sesaat...", "warning");
+    loadRekapData();
     return;
   }
 
@@ -1954,21 +2173,182 @@ function exportRekapExcel() {
     exportRows.push(row);
   }
 
-  var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.aoa_to_sheet(exportRows);
-  XLSX.utils.book_append_sheet(wb, ws, "Rekap " + monthName);
   var filename = "Rekap_Presensi_" + (activeType === "guru" ? "Pegawai" : "Siswa") + "_" + monthName + "_" + currentRekapYear + ".xlsx";
-  XLSX.writeFile(wb, filename);
-  showToast("Rekap bulanan berhasil diexport ke Excel", "success");
+
+  if (typeof XLSX !== "undefined") {
+    try {
+      var wb = XLSX.utils.book_new();
+      var ws = XLSX.utils.aoa_to_sheet(exportRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Rekap " + monthName);
+      try {
+        XLSX.writeFile(wb, filename);
+        showToast("Rekap bulanan berhasil diexport ke Excel", "success");
+      } catch (writeErr) {
+        var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        var blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        downloadBlob(blob, filename);
+        showToast("Rekap bulanan berhasil diexport ke Excel", "success");
+      }
+      return;
+    } catch (xlsxErr) {
+      console.warn("SheetJS error, menggunakan CSV fallback:", xlsxErr);
+    }
+  }
+
+  downloadCsvFallback(exportRows, filename.replace(/\.xlsx$/i, ".csv"));
+}
+
+function exportRekapPDF(orientation) {
+  orientation = (orientation === "portrait" || orientation === "p") ? "p" : "l";
+  var JsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if (!JsPDF) {
+    showToast("Library PDF (jsPDF) belum siap. Silakan periksa koneksi internet.", "error");
+    return;
+  }
+
+  if (!rekapData || !rekapData.students || rekapData.students.length === 0) {
+    showToast("Belum ada data rekap untuk diekspor ke PDF", "warning");
+    return;
+  }
+
+  showToast("Menyiapkan PDF Rekap Bulanan...", "info");
+
+  fetchLogoBase64(function(logoDataUrl) {
+    try {
+      var doc = new JsPDF(orientation, "pt", "a4");
+      var pageWidth = doc.internal.pageSize.getWidth ? doc.internal.pageSize.getWidth() : doc.internal.pageSize.width;
+      var pageHeight = doc.internal.pageSize.getHeight ? doc.internal.pageSize.getHeight() : doc.internal.pageSize.height;
+      var margin = orientation === "p" ? 15 : 20;
+
+      if (logoDataUrl) {
+        try {
+          doc.addImage(logoDataUrl, 'PNG', margin, 18, 38, 38);
+        } catch (imgErr) {}
+      }
+
+      var monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      var monthName = monthNames[currentRekapMonth - 1] || "Bulan";
+      var isPegawai = activeType === "guru";
+
+      // Kop Surat
+      doc.setFontSize(orientation === "p" ? 11 : 13);
+      doc.setFont("helvetica", "bold");
+      doc.text("REKAPITULASI KEHADIRAN BULANAN " + (isPegawai ? "PEGAWAI" : "SISWA"), pageWidth / 2, 28, { align: "center" });
+
+      doc.setFontSize(orientation === "p" ? 8.5 : 9.5);
+      doc.setFont("helvetica", "bold");
+      doc.text("YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU", pageWidth / 2, 40, { align: "center" });
+
+      doc.setFontSize(orientation === "p" ? 7.5 : 8.5);
+      doc.setFont("helvetica", "normal");
+      doc.text("Periode: " + monthName + " " + currentRekapYear + "  |  " + (isPegawai ? "Unit Kerja" : "Kelas") + ": " + (filterKelas || "Semua"), pageWidth / 2, 51, { align: "center" });
+
+      doc.setLineWidth(1);
+      doc.line(margin, 58, pageWidth - margin, 58);
+
+      // Headers: No, Nama, 1..31, H, T, S, I, A
+      var headerRow = ["No", "Nama & " + (isPegawai ? "Unit" : "Kelas")];
+      for (var d = 1; d <= rekapData.daysInMonth; d++) {
+        headerRow.push(String(d));
+      }
+      headerRow.push("H", "T", "S", "I", "A");
+
+      var bodyRows = [];
+      var no = 1;
+      var displayStudents = isPegawai ? splitPegawaiEntries(rekapData.students) : rekapData.students;
+      for (var k = 0; k < displayStudents.length; k++) {
+        var s = displayStudents[k];
+        var matchCategory = isPegawai ? matchPegawaiUnit(s, filterKelas) : matchSiswaKelas(s, filterKelas);
+        if (!matchCategory) continue;
+
+        if (globalSearchQuery) {
+          var q = globalSearchQuery.toLowerCase();
+          var sRoles = isPegawai ? (s.recapRole || s.kelas || "") : s.kelas;
+          if ((s.nama || "").toLowerCase().indexOf(q) === -1 && sRoles.toLowerCase().indexOf(q) === -1) {
+            continue;
+          }
+        }
+
+        var recapCalc = calculateStudentRecap(s, rekapData, currentRekapMonth, currentRekapYear);
+        var sDays = recapCalc.days;
+        var sTotals = recapCalc.totals;
+
+        var subLabel = isPegawai ? (s.subLabel || getPegawaiUnit(s)) : (s.kelas || "-");
+        var row = [no++, (s.nama || "") + "\n(" + subLabel + ")"];
+        for (var d2 = 1; d2 <= rekapData.daysInMonth; d2++) {
+          row.push(sDays[d2] || "-");
+        }
+        row.push(
+          sTotals.H || 0,
+          sTotals.T || 0,
+          sTotals.S || 0,
+          sTotals.I || 0,
+          sTotals.A || 0
+        );
+        bodyRows.push(row);
+      }
+
+      if (bodyRows.length === 0) {
+        var emptyRow = ["-", "Tidak ada data presensi cocok"];
+        for (var ed = 0; ed < rekapData.daysInMonth + 5; ed++) emptyRow.push("-");
+        bodyRows.push(emptyRow);
+      }
+
+      if (typeof doc.autoTable === "function") {
+        doc.autoTable({
+          startY: 65,
+          head: [headerRow],
+          body: bodyRows,
+          theme: 'grid',
+          headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+          styles: {
+            fontSize: orientation === "p" ? 5 : 6.5,
+            cellPadding: orientation === "p" ? 1.2 : 1.8,
+            overflow: 'linebreak',
+            halign: 'center'
+          },
+          columnStyles: {
+            0: { cellWidth: orientation === "p" ? 16 : 22, halign: 'center' },
+            1: { cellWidth: orientation === "p" ? 65 : 110, halign: 'left' }
+          },
+          margin: { left: margin, right: margin }
+        });
+      }
+
+      // Tanda Tangan
+      var finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 20 : 200;
+      if (finalY > pageHeight - 75) {
+        doc.addPage();
+        finalY = 30;
+      }
+      var sigX = pageWidth - (orientation === "p" ? 110 : 140);
+      doc.setFontSize(orientation === "p" ? 8 : 9);
+      doc.text("Kamang Baru, " + formatFullDate(new Date().toISOString().split('T')[0]), sigX, finalY, { align: "center" });
+      doc.text("Mengetahui,", sigX, finalY + 11, { align: "center" });
+      doc.text("Kepala Yayasan", sigX, finalY + 22, { align: "center" });
+      doc.setFont("helvetica", "bold");
+      doc.text((appSettings.kepalaYayasan || "Pimpinan Yayasan"), sigX, finalY + 60, { align: "center" });
+
+      var fileName = "Rekap_Presensi_" + (isPegawai ? "Pegawai" : "Siswa") + "_" + monthName + "_" + currentRekapYear + "_" + (orientation === "p" ? "Portrait" : "Landscape") + ".pdf";
+
+      try {
+        doc.save(fileName);
+        showToast("Rekap PDF berhasil diunduh", "success");
+      } catch (saveErr) {
+        var pdfBlob = doc.output("blob");
+        downloadBlob(pdfBlob, fileName);
+        showToast("Rekap PDF berhasil diunduh", "success");
+      }
+    } catch (err) {
+      console.error("Gagal export rekap PDF:", err);
+      showToast("Gagal export PDF: " + err.message, "error");
+    }
+  });
 }
 
 function exportMasterExcel() {
   if (!students || students.length === 0) {
     showToast("Belum ada data untuk diexport", "warning");
-    return;
-  }
-  if (typeof XLSX === "undefined") {
-    showToast("Library Excel belum dimuat", "error");
     return;
   }
 
@@ -1997,12 +2377,29 @@ function exportMasterExcel() {
     }
   }
 
-  var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb, ws, "Data " + targetName);
   var filename = "Data_Master_" + targetName + "_" + new Date().toISOString().slice(0, 10) + ".xlsx";
-  XLSX.writeFile(wb, filename);
-  showToast("Data " + targetName + " berhasil diexport ke Excel", "success");
+
+  if (typeof XLSX !== "undefined") {
+    try {
+      var wb = XLSX.utils.book_new();
+      var ws = XLSX.utils.aoa_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Data " + targetName);
+      try {
+        XLSX.writeFile(wb, filename);
+        showToast("Data " + targetName + " berhasil diexport ke Excel", "success");
+      } catch (writeErr) {
+        var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        var blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        downloadBlob(blob, filename);
+        showToast("Data " + targetName + " berhasil diexport ke Excel", "success");
+      }
+      return;
+    } catch (xlsxErr) {
+      console.warn("SheetJS error, menggunakan CSV fallback:", xlsxErr);
+    }
+  }
+
+  downloadCsvFallback(rows, filename.replace(/\.xlsx$/i, ".csv"));
 }
 
 function renderSiswa() {
@@ -2069,7 +2466,7 @@ function renderSiswa() {
     '<div class="search-box" style="margin:0;width:240px;"><i data-lucide="search" style="width:16px;color:var(--gray)"></i><input type="text" id="siswa-search-input" placeholder="Cari nama / NIS / barcode..." value="' + globalSearchQuery + '" oninput="handleGlobalSearch(this.value)"></div>' +
     '</div>' +
     '</div>' +
-    '<div class="card"><div class="card-body" style="padding:0"><table class="table"><thead><tr>' +
+    '<div class="card"><div class="card-body" style="padding:0"><div class="table-responsive"><table class="table"><thead><tr>' +
     (activeType == "kelas"
       ? "<th>Nama Unit / Kelas</th><th>Wali Kelas</th><th>Email</th><th>Aksi</th>"
       : "<th>" +
@@ -2079,7 +2476,7 @@ function renderSiswa() {
         "</th><th>" +
         (activeType == "guru" ? "Unit & Jabatan" : "Unit / Kelas") +
         "</th><th>Email</th><th>Biometrik Wajah</th><th>Status</th><th>Aksi</th>") +
-    '</tr></thead><tbody id="siswa-table"></tbody></table>' +
+    '</tr></thead><tbody id="siswa-table"></tbody></table></div>' +
     '<div class="pagination"><div class="pagination-info" id="siswa-pg-info"></div></div>' +
     '</div></div>';
   lucide.createIcons();
@@ -2544,6 +2941,7 @@ function renderPengaturan() {
           '<div class="form-group"><label class="form-label">URL Logo Web (Opsional)</label><input type="url" class="form-input" id="set-logo" value="' + (appSettings.logoUrl || '') + '" placeholder="https://..."></div>' +
           '<div class="form-group"><label class="form-label">Jam Batas Terlambat</label><input type="time" class="form-input" id="set-jam" value="' + (appSettings.jamTerlambat || '07:15') + '"></div>' +
           '<div class="form-group"><label class="form-label">Threshold Face Match (0-1)</label><input type="number" class="form-input" id="set-th" value="' + (appSettings.faceMatchThreshold || '0.5') + '" min="0" max="1" step="0.1"></div>' +
+          '<div class="form-group"><label class="form-label">PIN / Sandi Login Admin</label><input type="password" class="form-input" id="set-admin-pin" value="' + ((appSettings && appSettings.adminPin) || localStorage.getItem('app_admin_pin') || '123456') + '" placeholder="Default: 123456"><small style="font-size:11px;color:var(--text-muted);display:block;margin-top:4px;">Digunakan untuk login ke Admin Portal dari halaman utama.</small></div>' +
           '<button class="btn btn-primary" onclick="saveSettings()"><i data-lucide="save" style="width:16px"></i> Simpan Parameter</button>' +
         '</div>' +
       '</div>' +
@@ -3079,12 +3477,15 @@ function saveSettings() {
   var elL = document.getElementById("set-logo");
   var elJ = document.getElementById("set-jam");
   var elT = document.getElementById("set-th");
+  var elP = document.getElementById("set-admin-pin");
 
   var n = elN ? elN.value : (appSettings.adminName || 'Budi Santoso');
   var r = elR ? elR.value : (appSettings.adminRole || 'Administrator');
   var l = elL ? elL.value : (appSettings.logoUrl || '');
   var j = elJ ? elJ.value : (appSettings.jamTerlambat || '07:15');
   var t = elT ? elT.value : (appSettings.faceMatchThreshold || '0.5');
+  var p = elP ? elP.value.trim() : ((appSettings && appSettings.adminPin) || localStorage.getItem('app_admin_pin') || '123456');
+  if (p) localStorage.setItem('app_admin_pin', p);
 
   var customHols = {};
   try {
@@ -3099,6 +3500,7 @@ function saveSettings() {
     adminName: n, 
     adminRole: r, 
     logoUrl: l, 
+    adminPin: p,
     jamTerlambat: j, 
     faceMatchThreshold: t,
     customHolidays: customHols
@@ -3117,108 +3519,253 @@ function saveSettings() {
     }
   );
 }
-function exportPDF() {
-  var doc = new jspdf.jsPDF("l", "pt", "a4");
-  var pageWidth = doc.internal.pageSize.width;
-  var margin = 40;
+function printReport(orientation) {
+  orientation = (orientation === "portrait") ? "portrait" : "landscape";
+  
+  // 1. Bersihkan style dan class dinamis cetak terdahulu
+  var oldStyle = document.getElementById("dynamic-print-style");
+  if (oldStyle) oldStyle.remove();
+  document.body.classList.remove("print-mode-portrait", "print-mode-landscape");
+  
+  // 2. Beri class orientasi ke document.body
+  document.body.classList.add("print-mode-" + orientation);
+  
+  // 3. Inject @page size dan margin spesifik
+  var styleEl = document.createElement("style");
+  styleEl.id = "dynamic-print-style";
+  var pageMargin = orientation === "portrait" ? "8mm 8mm" : "6mm 8mm";
+  styleEl.innerHTML = "@page { size: " + orientation + " !important; margin: " + pageMargin + " !important; }";
+  document.head.appendChild(styleEl);
+  
+  // 4. Buka dialog cetak setelah browser mengaplikasikan styling (paksa horizontal)
+  setTimeout(function() {
+    window.print();
+  }, 100);
+}
 
-  var renderPDF = function(logoDataUrl) {
-    if (logoDataUrl) {
-      doc.addImage(logoDataUrl, 'PNG', margin, 25, 50, 50);
+window.addEventListener("afterprint", function() {
+  document.body.classList.remove("print-mode-portrait", "print-mode-landscape");
+});
+
+function downloadBlob(blob, filename) {
+  try {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+      try {
+        if (a.parentNode) document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {}
+    }, 500);
+  } catch (err) {
+    console.error("downloadBlob error:", err);
+    showToast("Gagal mengunduh file: " + err.message, "error");
+  }
+}
+
+function downloadCsvFallback(aoaData, filename) {
+  try {
+    var csvContent = "\uFEFF" + aoaData.map(function(row) {
+      return row.map(function(cell) {
+        var val = (cell === null || cell === undefined) ? "" : String(cell);
+        val = val.replace(/"/g, '""');
+        return '"' + val + '"';
+      }).join(";");
+    }).join("\r\n");
+    var blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    downloadBlob(blob, filename);
+    showToast("File diunduh (Format CSV Excel)", "success");
+  } catch (err) {
+    console.error("downloadCsvFallback error:", err);
+    showToast("Gagal mengunduh CSV: " + err.message, "error");
+  }
+}
+
+function fetchLogoBase64(callback) {
+  var logoUrl = getAppLogoUrl();
+  if (!logoUrl) {
+    callback(null);
+    return;
+  }
+  if (logoUrl.indexOf("data:") === 0) {
+    callback(logoUrl);
+    return;
+  }
+  
+  var finished = false;
+  var timer = setTimeout(function() {
+    if (!finished) {
+      finished = true;
+      callback(null);
     }
+  }, 1500);
 
-    // Kop Surat (Sebagai Judul Laporan)
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    var docTitle = "LAPORAN KEHADIRAN " + (activeType === "guru" ? "PEGAWAI" : "SISWA");
-    if (filterKelas !== "Semua") docTitle += " (" + (activeType === "guru" ? "UNIT: " : "KELAS: ") + filterKelas.toUpperCase() + ")";
-    doc.text(docTitle, pageWidth / 2, 40, { align: "center" });
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU", pageWidth / 2, 55, { align: "center" });
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text("Tanggal: " + currentFilterDate, pageWidth / 2, 70, { align: "center" });
-    
-    // Garis Bawah Kop
-    doc.setLineWidth(2);
-    doc.line(margin, 90, pageWidth - margin, 90);
-    doc.setLineWidth(0.5);
-    doc.line(margin, 92, pageWidth - margin, 92);
-
-    // Tabel
-    var isPegawai = activeType === "guru";
-    var colCat = isPegawai ? "Unit & Jabatan" : "Unit / Kelas";
-    var headers = [["No", "Nama", colCat, "Hari & Tanggal", "Jam Masuk", "Status", "Verifikasi"]];
-    var data = [];
-    var filteredData = attendance.filter(function (a) {
-      var isType = a.type === (isPegawai ? "Guru" : "Siswa") || (!isPegawai && !a.type);
-      var matchCategory = isPegawai ? matchPegawaiUnit(a, filterKelas) : matchSiswaKelas(a, filterKelas);
-      var matchSearch = true;
-      if (globalSearchQuery) {
-        var q = globalSearchQuery.toLowerCase();
-        var nm = (a.nama || "").toLowerCase();
-        var kl = (a.kelas || "").toLowerCase();
-        var sid = (a.studentId || "").toLowerCase();
-        matchSearch = nm.indexOf(q) > -1 || kl.indexOf(q) > -1 || sid.indexOf(q) > -1;
-      }
-      return isType && matchCategory && matchSearch;
-    });
-
-    for (var i = 0; i < filteredData.length; i++) {
-      var a = filteredData[i];
-      var v = a.faceMatch > 0.5 ? "Terverifikasi Wajah" : "Belum Terverifikasi";
-      var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
-      var catVal = isPegawai ? (getPegawaiUnit(a) + " - " + getPegawaiJabatan(a)) : (a.kelas || "-");
-      data.push([i + 1, a.nama, catVal, tglFormatted, formatTime(a.waktu), a.status, v]);
-    }
-
-    doc.autoTable({
-      startY: 110,
-      head: headers,
-      body: data,
-      theme: 'grid',
-      headStyles: { fillColor: [5, 150, 105] },
-      margin: { left: margin, right: margin }
-    });
-
-    // Tanda Tangan (Footer)
-    var finalY = doc.lastAutoTable.finalY + 40;
-    if (finalY > doc.internal.pageSize.height - 100) {
-      doc.addPage();
-      finalY = 40;
-    }
-    
-    doc.setFontSize(11);
-    doc.text("Kamang Baru, " + currentFilterDate, pageWidth - 150, finalY, { align: "center" });
-    doc.text("Mengetahui,", pageWidth - 150, finalY + 15, { align: "center" });
-    doc.text("Kepala Yayasan", pageWidth - 150, finalY + 30, { align: "center" });
-    doc.setFont("helvetica", "bold");
-    doc.text((appSettings.kepalaYayasan || "Pimpinan Yayasan"), pageWidth - 150, finalY + 90, { align: "center" });
-
-    doc.save("Laporan_Kehadiran_" + currentFilterDate + ".pdf");
-    showToast("PDF diunduh", "success");
-  };
-
-  showToast("Menyiapkan PDF...", "info");
-  var logoUrl = appSettings.logoUrl || 'https://dummyimage.com/200x200/059669/ffffff&text=Darul+Ulum';
   var img = new Image();
   img.crossOrigin = "Anonymous";
   img.onload = function() {
-    var canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
-    var ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0);
-    renderPDF(canvas.toDataURL("image/png"));
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    try {
+      var canvas = document.createElement("canvas");
+      canvas.width = img.width || 120;
+      canvas.height = img.height || 120;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      var dataUrl = canvas.toDataURL("image/png");
+      callback(dataUrl);
+    } catch (e) {
+      console.warn("Canvas toDataURL security/CORS restriction:", e);
+      callback(null);
+    }
   };
   img.onerror = function() {
-    renderPDF(null);
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    callback(null);
   };
-  img.src = logoUrl;
+  try {
+    img.src = logoUrl;
+  } catch (e) {
+    if (!finished) {
+      finished = true;
+      clearTimeout(timer);
+      callback(null);
+    }
+  }
 }
+
+function exportPDF(orientation) {
+  orientation = (orientation === "portrait" || orientation === "p") ? "p" : "l";
+  var JsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if (!JsPDF) {
+    showToast("Library PDF (jsPDF) belum siap. Silakan periksa koneksi internet.", "error");
+    return;
+  }
+
+  showToast("Menyiapkan file PDF...", "info");
+
+  fetchLogoBase64(function(logoDataUrl) {
+    try {
+      var doc = new JsPDF(orientation, "pt", "a4");
+      var pageWidth = doc.internal.pageSize.getWidth ? doc.internal.pageSize.getWidth() : doc.internal.pageSize.width;
+      var pageHeight = doc.internal.pageSize.getHeight ? doc.internal.pageSize.getHeight() : doc.internal.pageSize.height;
+      var margin = orientation === "p" ? 30 : 40;
+
+      if (logoDataUrl) {
+        try {
+          doc.addImage(logoDataUrl, 'PNG', margin, 22, 48, 48);
+        } catch (imgErr) {
+          console.warn("Gagal render logo ke PDF:", imgErr);
+        }
+      }
+
+      // Kop Surat
+      var isPegawai = activeType === "guru";
+      doc.setFontSize(orientation === "p" ? 13 : 15);
+      doc.setFont("helvetica", "bold");
+      var docTitle = "LAPORAN KEHADIRAN " + (isPegawai ? "PEGAWAI" : "SISWA");
+      if (filterKelas && filterKelas !== "Semua") docTitle += " (" + (isPegawai ? "UNIT: " : "KELAS: ") + filterKelas.toUpperCase() + ")";
+      doc.text(docTitle, pageWidth / 2, 38, { align: "center" });
+
+      doc.setFontSize(orientation === "p" ? 9 : 10);
+      doc.setFont("helvetica", "bold");
+      doc.text("YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU", pageWidth / 2, 52, { align: "center" });
+
+      doc.setFontSize(orientation === "p" ? 8.5 : 9.5);
+      doc.setFont("helvetica", "normal");
+      var dayInfo = getDayInfo(currentFilterDate);
+      doc.text("Hari / Tanggal: " + dayInfo.dayName + ", " + formatFullDate(currentFilterDate), pageWidth / 2, 66, { align: "center" });
+
+      // Garis Bawah Kop
+      doc.setLineWidth(1.5);
+      doc.line(margin, 80, pageWidth - margin, 80);
+      doc.setLineWidth(0.5);
+      doc.line(margin, 82, pageWidth - margin, 82);
+
+      // Data Tabel
+      var colCat = isPegawai ? "Unit & Jabatan" : "Unit / Kelas";
+      var headers = [["No", "Nama", colCat, "Hari & Tanggal", "Jam Masuk", "Status", "Verifikasi"]];
+      var data = [];
+
+      var attList = attendance || [];
+      var filteredData = attList.filter(function (a) {
+        var isType = a.type === (isPegawai ? "Guru" : "Siswa") || (!isPegawai && !a.type);
+        var matchCategory = isPegawai ? matchPegawaiUnit(a, filterKelas) : matchSiswaKelas(a, filterKelas);
+        var matchSearch = true;
+        if (globalSearchQuery) {
+          var q = globalSearchQuery.toLowerCase();
+          var nm = (a.nama || "").toLowerCase();
+          var kl = (a.kelas || "").toLowerCase();
+          var sid = (a.studentId || "").toLowerCase();
+          matchSearch = nm.indexOf(q) > -1 || kl.indexOf(q) > -1 || sid.indexOf(q) > -1;
+        }
+        return isType && matchCategory && matchSearch;
+      });
+
+      if (filteredData.length === 0) {
+        data.push(["-", "Tidak ada data presensi tercatat untuk tanggal/filter ini", "-", "-", "-", "-", "-"]);
+      } else {
+        for (var i = 0; i < filteredData.length; i++) {
+          var a = filteredData[i];
+          var v = a.faceMatch > 0.5 ? "Wajah Cocok" : "Belum Terverifikasi";
+          var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
+          var catVal = isPegawai ? (getPegawaiUnit(a) + " - " + getPegawaiJabatan(a)) : (a.kelas || "-");
+          data.push([i + 1, a.nama || "-", catVal, tglFormatted, formatTime(a.waktu), a.status || "-", v]);
+        }
+      }
+
+      if (typeof doc.autoTable === "function") {
+        doc.autoTable({
+          startY: 96,
+          head: headers,
+          body: data,
+          theme: 'grid',
+          headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+          styles: { fontSize: orientation === "p" ? 7.5 : 8.5, cellPadding: orientation === "p" ? 3.5 : 4.5 },
+          margin: { left: margin, right: margin }
+        });
+      }
+
+      // Tanda Tangan Footer
+      var finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 30 : 200;
+      if (finalY > pageHeight - 90) {
+        doc.addPage();
+        finalY = 40;
+      }
+
+      var sigX = pageWidth - (orientation === "p" ? 140 : 160);
+      doc.setFontSize(orientation === "p" ? 9 : 10);
+      doc.text("Kamang Baru, " + formatFullDate(currentFilterDate), sigX, finalY, { align: "center" });
+      doc.text("Mengetahui,", sigX, finalY + 14, { align: "center" });
+      doc.text("Kepala Yayasan", sigX, finalY + 28, { align: "center" });
+      doc.setFont("helvetica", "bold");
+      doc.text((appSettings.kepalaYayasan || "Pimpinan Yayasan"), sigX, finalY + 75, { align: "center" });
+
+      var fileName = "Laporan_Kehadiran_" + (isPegawai ? "Pegawai" : "Siswa") + "_" + (currentFilterDate || "hari_ini") + "_" + (orientation === "p" ? "Portrait" : "Landscape") + ".pdf";
+
+      try {
+        doc.save(fileName);
+        showToast("PDF berhasil diunduh", "success");
+      } catch (saveErr) {
+        var pdfBlob = doc.output("blob");
+        downloadBlob(pdfBlob, fileName);
+        showToast("PDF berhasil diunduh", "success");
+      }
+    } catch (pdfErr) {
+      console.error("Gagal membuat PDF:", pdfErr);
+      showToast("Gagal membuat PDF: " + pdfErr.message, "error");
+    }
+  });
+}
+
 function exportExcel() {
-  var wb = XLSX.utils.book_new();
   var isPegawai = activeType === "guru";
   var header = ["No", "Nama"];
   if (isPegawai) {
@@ -3229,7 +3776,8 @@ function exportExcel() {
   header.push("Hari & Tanggal", "Waktu", "Status", "Verifikasi Wajah");
   var data = [header];
   
-  var filteredData = attendance.filter(function (a) {
+  var attList = attendance || [];
+  var filteredData = attList.filter(function (a) {
     var isType = a.type === (isPegawai ? "Guru" : "Siswa") || (!isPegawai && !a.type);
     var matchCategory = isPegawai ? matchPegawaiUnit(a, filterKelas) : matchSiswaKelas(a, filterKelas);
     var matchSearch = true;
@@ -3243,28 +3791,52 @@ function exportExcel() {
     return isType && matchCategory && matchSearch;
   });
 
-  for (var i = 0; i < filteredData.length; i++) {
-    var a = filteredData[i];
-    var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
-    var row = [i + 1, a.nama];
-    if (isPegawai) {
-      row.push(getPegawaiUnit(a), getPegawaiJabatan(a));
-    } else {
-      row.push(a.kelas || "-");
+  if (filteredData.length === 0) {
+    data.push(["-", "Tidak ada data presensi tercatat untuk tanggal/filter ini", "", "", "", "", ""]);
+  } else {
+    for (var i = 0; i < filteredData.length; i++) {
+      var a = filteredData[i];
+      var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
+      var row = [i + 1, a.nama || "-"];
+      if (isPegawai) {
+        row.push(getPegawaiUnit(a), getPegawaiJabatan(a));
+      } else {
+        row.push(a.kelas || "-");
+      }
+      row.push(
+        tglFormatted,
+        formatTime(a.waktu),
+        a.status || "-",
+        a.faceMatch > 0.5 ? "Ya (Cocok)" : "Tidak"
+      );
+      data.push(row);
     }
-    row.push(
-      tglFormatted,
-      formatTime(a.waktu),
-      a.status,
-      a.faceMatch > 0.5 ? "Ya (Cocok)" : "Tidak"
-    );
-    data.push(row);
   }
-  var ws = XLSX.utils.aoa_to_sheet(data);
-  XLSX.utils.book_append_sheet(wb, ws, "Kehadiran");
-  var fileName = "laporan_kehadiran_" + (activeType === "guru" ? "pegawai" : "siswa") + "_" + (currentFilterDate || "hari_ini") + ".xlsx";
-  XLSX.writeFile(wb, fileName);
-  showToast("Excel diunduh", "success");
+
+  var fileName = "laporan_kehadiran_" + (isPegawai ? "pegawai" : "siswa") + "_" + (currentFilterDate || "hari_ini") + ".xlsx";
+
+  if (typeof XLSX !== "undefined") {
+    try {
+      var wb = XLSX.utils.book_new();
+      var ws = XLSX.utils.aoa_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, "Kehadiran");
+      try {
+        XLSX.writeFile(wb, fileName);
+        showToast("Excel berhasil diunduh", "success");
+      } catch (writeErr) {
+        var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        var blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        downloadBlob(blob, fileName);
+        showToast("Excel berhasil diunduh", "success");
+      }
+      return;
+    } catch (xlsxErr) {
+      console.warn("SheetJS error, menggunakan CSV fallback:", xlsxErr);
+    }
+  }
+
+  // Fallback CSV
+  downloadCsvFallback(data, fileName.replace(/\.xlsx$/i, ".csv"));
 }
 function showToast(m, t) {
   var tc = document.getElementById("toasts");

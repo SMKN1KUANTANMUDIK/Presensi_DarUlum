@@ -15,14 +15,14 @@
   <script src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'></script>
   <script src='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js'></script>
   <script src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <div class='sidebar-overlay' id='sidebar-overlay' onclick='toggleSidebar()'></div>
 <div class='app'>
     <aside class='sidebar' id='sidebar'>
         <div class='sidebar-header'>
-            <div class='logo-icon' id='app-logo-container'><i data-lucide='graduation-cap' style='width:22px;height:22px'></i></div>
+            <div class='logo-icon' id='app-logo-container'><img src='icon-192.png' alt='Logo Yayasan Darul Ulum' onerror="this.onerror=null;this.src='icon-192.png';" style='width:100%;height:100%;object-fit:contain;border-radius:8px;background:#ffffff;padding:2px;'></div>
             <div class='logo-text'><h1 id='app-title'>Darul Ulum Islamiyyah</h1><p>Admin Portal</p></div>
         </div>
         <nav class='nav'>
@@ -31,11 +31,17 @@
             <div class='nav-item' data-page='rekap' onclick='showPage("rekap")'><i data-lucide='calendar-range'></i><span>Rekap Bulanan</span></div>
             <div class='nav-item' data-page='siswa' onclick='showPage("siswa")'><i data-lucide='users'></i><span>Data Master</span></div>
             <div class='nav-item' data-page='pengaturan' onclick='showPage("pengaturan")'><i data-lucide='settings'></i><span>Pengaturan</span></div>
+            <div class='nav-item nav-logout' onclick='handleAdminLogout()' title='Keluar dari Admin Portal'><i data-lucide='log-out'></i><span>Logout</span></div>
         </nav>
         <div class='sidebar-footer'>
-            <div class='user'>
-                <div class='user-avatar' id='admin-avatar'>BS</div>
-                <div class='user-info'><span id='admin-name'>Budi Santoso</span><p id='admin-role'>Administrator</p></div>
+            <div class='sidebar-user-row'>
+                <div class='user'>
+                    <div class='user-avatar' id='admin-avatar'>BS</div>
+                    <div class='user-info'><span id='admin-name'>Budi Santoso</span><p id='admin-role'>Administrator</p></div>
+                </div>
+                <button class='sidebar-logout-icon-btn' onclick='handleAdminLogout()' title='Logout Admin'>
+                    <i data-lucide='log-out' style='width:16px;height:16px;'></i>
+                </button>
             </div>
         </div>
     </aside>
@@ -49,6 +55,10 @@
                 <div class='search-box'><i data-lucide='search' style='width:16px;color:var(--gray)'></i><input type='text' id='topbar-search' placeholder='Cari nama / ID / barcode...' oninput='handleGlobalSearch(this.value)'></div>
                 <div class='topbar-icon' onclick='showNotificationInfo()' title='Notifikasi'><i data-lucide='bell' style='width:20px'></i></div>
                 <div class='topbar-icon' onclick='showPage("pengaturan")' title='Pengaturan'><i data-lucide='settings' style='width:20px'></i></div>
+                <button class='topbar-logout-btn' onclick='handleAdminLogout()' title='Keluar dari Admin Portal'>
+                    <i data-lucide='log-out' style='width:15px;height:15px;'></i>
+                    <span>Logout</span>
+                </button>
             </div>
         </div>
         <div class='content' id='main-content'></div>
@@ -57,9 +67,9 @@
 <div class='modal-overlay' id='modal'></div>
 <div class='toast-container' id='toasts'></div>
 
-<script src="holidays.js?v=6"></script>
-<script src="api_connector.js?v=6"></script>
-<script src="admin.js?v=6"></script>
+<script src="holidays.js?v=7"></script>
+<script src="api_connector.js?v=7"></script>
+<script src="admin.js?v=7"></script>
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
