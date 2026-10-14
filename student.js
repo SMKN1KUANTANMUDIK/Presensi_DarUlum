@@ -331,7 +331,27 @@ function captureSubmit() {
           targetDesc,
         );
         fm = Math.max(0, 1 - dist);
+
+        // Validasi Anti-Bypass: Jika wajah tidak cocok, tolak absensi dan jangan kirim ke server
+        if (fm < 0.5) {
+          showToast("Wajah tidak cocok ! Silakan coba lagi", "error");
+          if (fsEl) {
+            fsEl.className = "face-status error";
+            fsEl.textContent = "Wajah tidak cocok ! Silakan coba lagi";
+          }
+          if (sbtnEl) {
+            sbtnEl.disabled = false;
+            sbtnEl.innerHTML = '<i data-lucide="camera" style="width:16px;"></i> Absen Sekarang';
+            lucide.createIcons();
+          }
+          if (camBox) {
+            camBox.innerHTML = '<video id="selfie-video" class="camera-video" autoplay playsinline></video>';
+            startSelfie();
+          }
+          return;
+        }
       } else {
+        // Tetap diizinkan rekam wajah saat absensi pertama kali
         fm = 1.0;
         newDesc = Array.from(desc);
       }
@@ -366,7 +386,7 @@ function captureSubmit() {
         payload,
         function (r) {
           currentStudent.activeRole = selectedRole;
-          showSuccess(r.status, r.time, fm);
+          showSuccess(r.status, r.time, fm, newDesc !== null);
         },
         function (err) {
           showToast("Gagal: " + err, "error");
@@ -489,7 +509,7 @@ function submitSick() {
   );
 }
 
-function showSuccess(st, tm, fm) {
+function showSuccess(st, tm, fm, isFirstReg) {
   var c = document.getElementById("student-content");
   var col = st === "Terlambat" ? "var(--warning)" : (st === "Hadir" ? "var(--success)" : "var(--info)");
   var isTeacher = (currentStudent.type === "guru" || (currentStudent.id && String(currentStudent.id).indexOf("TCH") === 0));
@@ -498,6 +518,15 @@ function showSuccess(st, tm, fm) {
     : '<span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="graduation-cap" style="width:12px;height:12px"></i> SISWA</span>';
 
   var roleDisplay = currentStudent.activeRole || currentStudent.kelas || "-";
+
+  var verifDisplay = "Pengajuan Izin/Sakit";
+  if (st === "Hadir" || st === "Terlambat") {
+    if (isFirstReg) {
+      verifDisplay = "Wajah Baru Terdaftar";
+    } else {
+      verifDisplay = "Wajah Cocok (" + Math.round((fm || 1) * 100) + "%)";
+    }
+  }
 
   c.innerHTML =
     '<div class="success-screen"><div class="success-icon" style="background:' +
@@ -515,7 +544,7 @@ function showSuccess(st, tm, fm) {
     "</p><p><strong>Waktu:</strong> " +
     tm +
     "</p><p><strong>Verifikasi:</strong> " +
-    (fm > 0.5 ? "Wajah Cocok" : (st === "Hadir" || st === "Terlambat" ? "Bypass / Pertama Kali" : "Pengajuan Izin/Sakit")) +
+    verifDisplay +
     '</p></div><button class="btn btn-primary" style="width:100%" onclick="showOptions()">Selesai</button></div>';
   lucide.createIcons();
 }

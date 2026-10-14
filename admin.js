@@ -11,6 +11,32 @@ var appSettings = {}; // NEW
 var availableClasses = []; // Master data unit / kelas
 var currentRekapMonth = new Date().getMonth() + 1;
 var currentRekapYear = new Date().getFullYear();
+var globalSearchQuery = "";
+var masterFilterKelas = "Semua";
+var currentFilteredAttendance = [];
+
+function handleGlobalSearch(val) {
+  globalSearchQuery = (val || "").trim();
+  var topbarSearch = document.getElementById("topbar-search");
+  var siswaSearch = document.getElementById("siswa-search-input");
+  if (topbarSearch && topbarSearch.value !== val) topbarSearch.value = val;
+  if (siswaSearch && siswaSearch.value !== val) siswaSearch.value = val;
+
+  if (currentPage === "siswa") {
+    renderSiswaTable();
+  } else if (currentPage === "laporan") {
+    renderLapTable();
+  } else if (currentPage === "dashboard") {
+    renderDashboard();
+  } else if (currentPage === "rekap" && rekapData) {
+    showRekapTable();
+  }
+}
+
+function changeMasterClassFilter(val) {
+  masterFilterKelas = val;
+  renderSiswaTable();
+}
 
 function getAuthAlertHtml() {
   if (!window.lastApiError) return "";
@@ -460,15 +486,30 @@ function renderLapTable() {
   var targetType = activeType == "guru" ? "Pegawai" : "Siswa";
   var data = attendance.filter(function (a) {
     var isType = a.type === (activeType == "guru" ? "Guru" : "Siswa") || (activeType == "siswa" && !a.type);
-    return (
-      isType && (filterKelas === "Semua" || a.kelas.indexOf(filterKelas) > -1)
-    );
+    var matchClass = (filterKelas === "Semua" || (a.kelas && a.kelas.indexOf(filterKelas) > -1));
+    var matchSearch = true;
+    if (globalSearchQuery) {
+      var q = globalSearchQuery.toLowerCase();
+      var nm = (a.nama || "").toLowerCase();
+      var kl = (a.kelas || "").toLowerCase();
+      var sid = (a.studentId || "").toLowerCase();
+      matchSearch = nm.indexOf(q) > -1 || kl.indexOf(q) > -1 || sid.indexOf(q) > -1;
+    }
+    return isType && matchClass && matchSearch;
   });
-  document.getElementById("pg-info").innerText =
-    "Menampilkan 1 - " + data.length + " dari " + data.length + " data";
+
+  currentFilteredAttendance = data;
+
+  var pgEl = document.getElementById("pg-info");
+  if (pgEl) {
+    pgEl.innerText = "Menampilkan 1 - " + data.length + " dari " + data.length + " data";
+  }
+
   if (data.length === 0) {
     tb.innerHTML =
-      '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--gray)">Tidak ada data</td></tr>';
+      '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--gray)">' +
+      (attendance.length === 0 ? "Tidak ada data absensi hari ini." : "Tidak ada data yang cocok dengan filter pencarian.") +
+      '</td></tr>';
     return;
   }
   var h = "";
@@ -485,21 +526,21 @@ function renderLapTable() {
     var tc = a.status === "Terlambat" ? ' class="time-late"' : "";
     var v =
       a.faceMatch > 0.5
-        ? '<button class="verify-btn verified"><i data-lucide="camera" style="width:16px"></i></button>'
-        : '<button class="verify-btn not-verified"><i data-lucide="camera-off" style="width:16px"></i></button>';
+        ? '<button class="verify-btn verified" onclick="showAttendanceDetail(' + i + ')" title="Wajah Cocok (Klik untuk detail)"><i data-lucide="camera" style="width:16px"></i></button>'
+        : '<button class="verify-btn not-verified" onclick="showAttendanceDetail(' + i + ')" title="Belum Terverifikasi (Klik untuk detail)"><i data-lucide="camera-off" style="width:16px"></i></button>';
     var photoSrc = a.fotoAbsen ? formatPhotoUrl(a.fotoAbsen) : "";
     var thumb = photoSrc
       ? '<img src="' +
         photoSrc +
-        '" style="width:36px;height:36px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="avatar ' + getColor(i) + '" style="display:none">' + getInit(a.nama) + "</div>"
-      : '<div class="avatar ' + getColor(i) + '">' + getInit(a.nama) + "</div>";
+        '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="showAttendanceDetail(' + i + ')" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="avatar ' + getColor(i) + '" style="display:none;cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' + getInit(a.nama) + "</div>"
+      : '<div class="avatar ' + getColor(i) + '" style="cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' + getInit(a.nama) + "</div>";
     h +=
-      '<tr><td><div class="student-cell">' +
+      '<tr><td><div class="student-cell" style="cursor:pointer;" onclick="showAttendanceDetail(' + i + ')">' +
       thumb +
       '<span style="font-weight:500">' +
       a.nama +
       "</span></div></td><td>" +
-      a.kelas +
+      (a.kelas || "-") +
       "</td><td>" +
       formatDate(a.tanggal) +
       "</td><td" +
@@ -512,9 +553,76 @@ function renderLapTable() {
       a.status +
       "</span></td><td>" +
       v +
-      '</td><td><button class="action-btn"><i data-lucide="more-vertical" style="width:18px"></i></button></td></tr>';
+      '</td><td><button class="action-btn" onclick="showAttendanceDetail(' + i + ')" title="Lihat Detail Absensi (Titik Tiga)"><i data-lucide="more-vertical" style="width:18px"></i></button></td></tr>';
   }
   tb.innerHTML = h;
+  lucide.createIcons();
+}
+
+function showAttendanceDetail(idx) {
+  var a = currentFilteredAttendance[idx];
+  if (!a) return;
+
+  var photoSrc = a.fotoAbsen ? formatPhotoUrl(a.fotoAbsen) : "";
+  var photoHtml = photoSrc
+    ? '<div style="text-align:center;margin-bottom:15px;"><img src="' + photoSrc + '" style="max-width:100%;max-height:260px;border-radius:12px;object-fit:cover;box-shadow:var(--shadow);" onerror="this.parentElement.innerHTML=\'<div class=\\\'avatar ' + getColor(idx) + '\\\' style=\\\'width:80px;height:80px;font-size:28px;margin:0 auto;\\\'>' + getInit(a.nama) + '</div>\'"></div>'
+    : '<div style="text-align:center;margin-bottom:15px;"><div class="avatar ' + getColor(idx) + '" style="width:80px;height:80px;font-size:28px;margin:0 auto;">' + getInit(a.nama) + '</div></div>';
+
+  var stBadge = a.status === "Hadir" ? "success" : (a.status === "Terlambat" ? "warning" : (a.status === "Izin" ? "info" : "danger"));
+  var fmText = (a.faceMatch !== undefined && a.faceMatch !== null && a.faceMatch > 0)
+    ? Math.round(a.faceMatch * 100) + "%"
+    : "-";
+  var isVerified = a.faceMatch > 0.5;
+  var verifBadge = isVerified
+    ? '<span class="badge badge-success"><i data-lucide="check-circle" style="width:12px;height:12px;margin-right:4px;"></i> Wajah Cocok (' + fmText + ')</span>'
+    : '<span class="badge badge-danger"><i data-lucide="x-circle" style="width:12px;height:12px;margin-right:4px;"></i> Belum Terverifikasi</span>';
+
+  var lat = a.lat || a.latitude || "";
+  var lng = a.lng || a.longitude || "";
+  var mapBtn = "";
+  if (lat && lng) {
+    mapBtn = '<a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" class="btn btn-outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;margin-top:8px;"><i data-lucide="map-pin" style="width:14px;color:var(--danger);"></i> Buka Titik Lokasi di Google Maps</a>';
+  }
+
+  var fullPhotoBtn = "";
+  if (photoSrc) {
+    fullPhotoBtn = '<a href="' + photoSrc + '" target="_blank" class="btn btn-outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;margin-top:8px;"><i data-lucide="external-link" style="width:14px;"></i> Buka Foto Asli</a>';
+  }
+
+  var m = document.getElementById("modal");
+  m.innerHTML =
+    '<div class="modal"><div class="modal-header"><span class="modal-title">Detail Absensi</span><button class="modal-close" onclick="closeModal()">&times;</button></div>' +
+    '<div class="modal-body">' +
+    photoHtml +
+    '<div style="text-align:center;margin-bottom:15px;">' +
+    '<h3 style="margin:0 0 4px;">' + a.nama + '</h3>' +
+    '<p style="color:var(--gray);font-size:13px;margin:0;">' + (a.kelas || "-") + ' • ' + (a.type || (activeType === "guru" ? "Pegawai" : "Siswa")) + '</p>' +
+    '</div>' +
+    '<div style="background:var(--bg);border-radius:12px;padding:14px;margin-bottom:15px;display:flex;flex-direction:column;gap:10px;font-size:13px;">' +
+    '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;">' +
+    '<span style="color:var(--gray);">Status Kehadiran:</span>' +
+    '<span class="badge badge-' + stBadge + '">' + a.status + '</span>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;">' +
+    '<span style="color:var(--gray);">Tanggal & Waktu:</span>' +
+    '<strong>' + formatDate(a.tanggal) + ' • ' + (formatTime(a.waktu) || "--:--") + ' WIB</strong>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;align-items:center;">' +
+    '<span style="color:var(--gray);">Biometrik Wajah:</span>' +
+    '<div>' + verifBadge + '</div>' +
+    '</div>' +
+    '<div>' +
+    '<span style="color:var(--gray);display:block;margin-bottom:4px;">Lokasi GPS & Alamat:</span>' +
+    '<div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;line-height:1.4;">' +
+    '<i data-lucide="map-pin" style="width:13px;height:13px;color:var(--danger);vertical-align:-2px;margin-right:4px;"></i>' +
+    (a.alamat || (lat && lng ? 'Lat: ' + lat + ', Lng: ' + lng : 'Lokasi tidak tercatat')) +
+    '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + mapBtn + fullPhotoBtn + '</div>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">Tutup</button></div></div>';
+  m.classList.add("active");
   lucide.createIcons();
 }
 function formatDate(d) {
@@ -599,6 +707,7 @@ function renderRekap() {
     '<select class="form-select" id="rekap-year" style="width:100px;display:inline-block;" onchange="changeRekapPeriod()">' + yearOptions + '</select>' +
     '</div>' +
     '<div style="display:flex;gap:8px;">' +
+    '<button class="btn btn-success" onclick="exportRekapExcel()"><i data-lucide="file-spreadsheet" style="width:16px"></i> Export Excel</button>' +
     '<button class="btn btn-outline" onclick="window.print()"><i data-lucide="printer" style="width:16px"></i> Cetak Rekap</button>' +
     '</div>' +
     '</div></div>' +
@@ -751,6 +860,102 @@ function propagateEmail() {
   }
 }
 
+function exportRekapExcel() {
+  if (!rekapData || !rekapData.students || rekapData.students.length === 0) {
+    showToast("Belum ada data rekap untuk diekspor", "warning");
+    return;
+  }
+  if (typeof XLSX === "undefined") {
+    showToast("Library Excel belum dimuat", "error");
+    return;
+  }
+
+  var monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  var monthName = monthNames[currentRekapMonth - 1] || "Bulan";
+  var headerRow = ["No", "Nama", (activeType === "guru" ? "Jabatan" : "Unit / Kelas")];
+  for (var d = 1; d <= rekapData.daysInMonth; d++) {
+    headerRow.push("Tgl " + d);
+  }
+  headerRow.push("Total Hadir (H)", "Terlambat (T)", "Sakit (S)", "Izin (I)", "Alfa (A)");
+
+  var exportRows = [headerRow];
+  var no = 1;
+  for (var k = 0; k < rekapData.students.length; k++) {
+    var s = rekapData.students[k];
+    if (filterKelas !== "Semua" && s.kelas.indexOf(filterKelas) === -1) {
+      continue;
+    }
+    if (globalSearchQuery) {
+      var q = globalSearchQuery.toLowerCase();
+      if ((s.nama || "").toLowerCase().indexOf(q) === -1 && (s.kelas || "").toLowerCase().indexOf(q) === -1) {
+        continue;
+      }
+    }
+    var row = [no++, s.nama, s.kelas];
+    for (var d2 = 1; d2 <= rekapData.daysInMonth; d2++) {
+      row.push(s.days[d2] || "-");
+    }
+    row.push(
+      s.totals.H || 0,
+      s.totals.T || 0,
+      s.totals.S || 0,
+      s.totals.I || 0,
+      s.totals.A || 0
+    );
+    exportRows.push(row);
+  }
+
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(exportRows);
+  XLSX.utils.book_append_sheet(wb, ws, "Rekap " + monthName);
+  var filename = "Rekap_Presensi_" + (activeType === "guru" ? "Pegawai" : "Siswa") + "_" + monthName + "_" + currentRekapYear + ".xlsx";
+  XLSX.writeFile(wb, filename);
+  showToast("Rekap bulanan berhasil diexport ke Excel", "success");
+}
+
+function exportMasterExcel() {
+  if (!students || students.length === 0) {
+    showToast("Belum ada data untuk diexport", "warning");
+    return;
+  }
+  if (typeof XLSX === "undefined") {
+    showToast("Library Excel belum dimuat", "error");
+    return;
+  }
+
+  var targetName = activeType === "guru" ? "Pegawai" : (activeType === "kelas" ? "Kelas" : "Siswa");
+  var rows = [];
+  if (activeType === "kelas") {
+    rows.push(["No", "Nama Unit / Kelas", "Wali Kelas", "Email Wali"]);
+    for (var i = 0; i < students.length; i++) {
+      var k = students[i];
+      rows.push([i + 1, k.nama || "", k.wali || "", k.email || ""]);
+    }
+  } else {
+    rows.push(["No", "ID", (activeType === "guru" ? "NIP" : "Barcode / NIS"), "Nama Lengkap", (activeType === "guru" ? "Jabatan" : "Unit / Kelas"), "Email", "Biometrik Wajah", "Status"]);
+    for (var j = 0; j < students.length; j++) {
+      var s2 = students[j];
+      rows.push([
+        j + 1,
+        s2.id || "",
+        s2.nip || s2.barcode || "",
+        s2.nama || "",
+        s2.jabatan || s2.kelas || "",
+        s2.email || "-",
+        s2.hasFace ? "Terdaftar" : "Belum",
+        s2.status || "Aktif"
+      ]);
+    }
+  }
+
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Data " + targetName);
+  var filename = "Data_Master_" + targetName + "_" + new Date().toISOString().slice(0, 10) + ".xlsx";
+  XLSX.writeFile(wb, filename);
+  showToast("Data " + targetName + " berhasil diexport ke Excel", "success");
+}
+
 function renderSiswa() {
   var c = document.getElementById("main-content");
   var btnS = activeType == "siswa" ? "btn-primary" : "btn-outline";
@@ -758,6 +963,21 @@ function renderSiswa() {
   var btnK = activeType == "kelas" ? "btn-primary" : "btn-outline";
   var title = activeType == "guru" ? "Data Pegawai" : (activeType == "siswa" ? "Data Siswa" : "Data Unit / Kelas");
   var desc = activeType == "guru" ? "Kelola data Pegawai, Guru, dan Jabatan." : (activeType == "siswa" ? "Kelola data Siswa dan Unit / Kelas." : "Kelola data Unit, Kelas, dan Wali Kelas.");
+
+  var classOptions = '<option value="Semua">Semua Kelas</option>';
+  if (availableClasses && availableClasses.length > 0) {
+    for (var cl = 0; cl < availableClasses.length; cl++) {
+      var cName = (availableClasses[cl].nama || "").trim();
+      if (cName) {
+        var isSel = masterFilterKelas === cName ? "selected" : "";
+        classOptions += '<option value="' + cName + '" ' + isSel + '>' + cName + '</option>';
+      }
+    }
+  }
+
+  var classFilterHtml = activeType === "siswa"
+    ? '<select class="form-select" onchange="changeMasterClassFilter(this.value)" style="max-width:180px;height:38px;padding:6px 12px;font-size:13px;">' + classOptions + '</select>'
+    : '';
 
   c.innerHTML =
     '<div class="page-header"><div><h1>' + title + '</h1><p>' + desc + '</p></div><div class="header-actions">' +
@@ -770,13 +990,21 @@ function renderSiswa() {
     '<button class="btn ' +
     btnK +
     '" onclick="switchType(\'kelas\')"><i data-lucide="building-2" style="width:16px"></i> Data Unit / Kelas</button>' +
-    '</div></div>' + getAuthAlertHtml() + '<div class="header-actions" style="margin-top:10px"><button class="btn btn-primary" onclick="showAddModal()"><i data-lucide="plus" style="width:16px"></i> Tambah ' +
-    (activeType == "guru"
-      ? "Pegawai"
-      : activeType == "kelas"
-        ? "Kelas"
-        : "Siswa") +
-    '</button><button class="btn btn-success" onclick="runSetup()"><i data-lucide="database" style="width:16px"></i> Setup Sheet</button></div></div><div class="card"><div class="card-body" style="padding:0"><table class="table"><thead><tr>' +
+    '</div></div>' + getAuthAlertHtml() +
+    '<div class="header-actions" style="margin-top:10px;margin-bottom:15px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+    '<button class="btn btn-primary" onclick="showAddModal()"><i data-lucide="plus" style="width:16px"></i> Tambah ' +
+    (activeType == "guru" ? "Pegawai" : activeType == "kelas" ? "Kelas" : "Siswa") +
+    '</button>' +
+    '<button class="btn btn-outline" onclick="exportMasterExcel()"><i data-lucide="file-spreadsheet" style="width:16px"></i> Export Excel</button>' +
+    '<button class="btn btn-success" onclick="runSetup()"><i data-lucide="database" style="width:16px"></i> Setup Sheet</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
+    classFilterHtml +
+    '<div class="search-box" style="margin:0;width:240px;"><i data-lucide="search" style="width:16px;color:var(--gray)"></i><input type="text" id="siswa-search-input" placeholder="Cari nama / NIS / barcode..." value="' + globalSearchQuery + '" oninput="handleGlobalSearch(this.value)"></div>' +
+    '</div>' +
+    '</div>' +
+    '<div class="card"><div class="card-body" style="padding:0"><table class="table"><thead><tr>' +
     (activeType == "kelas"
       ? "<th>Nama Unit / Kelas</th><th>Wali Kelas</th><th>Email</th><th>Aksi</th>"
       : "<th>" +
@@ -785,46 +1013,76 @@ function renderSiswa() {
         (activeType == "guru" ? "NIP" : "Barcode") +
         "</th><th>" +
         (activeType == "guru" ? "Jabatan" : "Unit / Kelas") +
-        "</th><th>Email</th><th>Verifikasi</th><th>Status</th><th>Aksi</th>") +
-    '</tr></thead><tbody id="siswa-table"></tbody></table></div></div>';
+        "</th><th>Email</th><th>Biometrik Wajah</th><th>Status</th><th>Aksi</th>") +
+    '</tr></thead><tbody id="siswa-table"></tbody></table>' +
+    '<div class="pagination"><div class="pagination-info" id="siswa-pg-info"></div></div>' +
+    '</div></div>';
   lucide.createIcons();
   renderSiswaTable();
 }
+
 function renderSiswaTable() {
   var tb = document.getElementById("siswa-table");
   if (!tb) return;
-  if (students.length === 0) {
+
+  var filteredStudents = students.filter(function (s) {
+    if (activeType === "siswa" && masterFilterKelas !== "Semua") {
+      var kls = s.kelas || "";
+      if (kls.indexOf(masterFilterKelas) === -1) return false;
+    }
+    if (globalSearchQuery) {
+      var q = globalSearchQuery.toLowerCase();
+      var nm = (s.nama || "").toLowerCase();
+      var bc = (s.barcode || s.nip || "").toLowerCase();
+      var kl = (s.kelas || s.jabatan || s.wali || "").toLowerCase();
+      var em = (s.email || "").toLowerCase();
+      if (nm.indexOf(q) === -1 && bc.indexOf(q) === -1 && kl.indexOf(q) === -1 && em.indexOf(q) === -1) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  var pgInfo = document.getElementById("siswa-pg-info");
+  if (pgInfo) {
+    pgInfo.innerText = "Menampilkan " + filteredStudents.length + " dari " + students.length + " data";
+  }
+
+  if (filteredStudents.length === 0) {
     tb.innerHTML =
-      '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--gray)">Belum ada data.</td></tr>';
+      '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--gray)">' +
+      (students.length === 0 ? "Belum ada data." : "Tidak ada data yang cocok dengan pencarian.") +
+      '</td></tr>';
     return;
   }
+
   var h = "";
-  for (var i = 0; i < students.length; i++) {
-    var s = students[i];
+  for (var i = 0; i < filteredStudents.length; i++) {
+    var s = filteredStudents[i];
     if (activeType === "kelas") {
       h +=
-        "<tr><td>" +
+        "<tr><td><strong>" +
         s.nama +
+        "</strong></td><td>" +
+        (s.wali || "-") +
         "</td><td>" +
-        s.wali +
-        "</td><td>" +
-        s.email +
-        '</td><td style="display:flex;gap:5px"><button class="action-btn" onclick="editSiswa(\'' +
-        s.nama +
-        '\')" title="Edit"><i data-lucide="edit" style="width:18px"></i></button><button class="action-btn" onclick="deleteSiswa(\'' +
-        s.nama +
-        '\')" title="Hapus"><i data-lucide="trash-2" style="width:18px"></i></button></td></tr>';
+        (s.email || "-") +
+        '</td><td style="display:flex;gap:5px;align-items:center;"><button class="action-btn" onclick="editSiswa(\'' +
+        s.nama.replace(/'/g, "\\'") +
+        '\')" title="Edit"><i data-lucide="edit" style="width:16px"></i></button><button class="action-btn" onclick="deleteSiswa(\'' +
+        s.nama.replace(/'/g, "\\'") +
+        '\')" title="Hapus"><i data-lucide="trash-2" style="width:16px"></i></button></td></tr>';
     } else {
       var fb = s.hasFace
-        ? '<button class="verify-btn verified"><i data-lucide="check" style="width:16px"></i></button>'
-        : '<button class="btn btn-outline" style="padding:6px 12px;font-size:12px" onclick="regFace(\'' +
+        ? '<button class="verify-btn verified" onclick="showFaceDetail(\'' + s.id + '\')" title="Wajah Terdaftar (Klik untuk kelola / reset)"><i data-lucide="check" style="width:16px"></i></button>'
+        : '<button class="btn btn-outline" style="padding:4px 10px;font-size:12px;display:inline-flex;align-items:center;gap:4px;" onclick="regFace(\'' +
           s.id +
           "','" +
-          s.nama +
-          '\')" ><i data-lucide="camera" style="width:14px"></i> Register</button>';
+          s.nama.replace(/'/g, "\\'") +
+          '\')" ><i data-lucide="camera" style="width:13px"></i> Register</button>';
       var stBadge = s.status === "Aktif" ? "success" : "danger";
-      var code = s.nip || s.barcode;
-      var sub = s.jabatan || s.kelas;
+      var code = s.nip || s.barcode || "-";
+      var sub = s.jabatan || s.kelas || "-";
       var em = s.email || "-";
       h +=
         '<tr><td><div class="student-cell"><div class="avatar ' +
@@ -833,9 +1091,9 @@ function renderSiswaTable() {
         getInit(s.nama) +
         '</div><span style="font-weight:500">' +
         s.nama +
-        "</span></div></td><td>" +
+        "</span></div></td><td><code>" +
         code +
-        "</td><td>" +
+        "</code></td><td>" +
         sub +
         "</td><td>" +
         em +
@@ -845,14 +1103,200 @@ function renderSiswaTable() {
         stBadge +
         '">' +
         (s.status || "Aktif") +
-        '</span></td><td style="display:flex;gap:5px"><button class="action-btn" onclick="editSiswa(\'' +
+        '</span></td><td style="display:flex;gap:5px;align-items:center;"><button class="action-btn" onclick="editSiswa(\'' +
         s.id +
-        '\')" title="Edit"><i data-lucide="edit" style="width:18px"></i></button><button class="action-btn" onclick="deleteSiswa(\'' +
+        '\')" title="Edit Data"><i data-lucide="edit" style="width:16px"></i></button><button class="action-btn" onclick="showStudentDetail(\'' +
         s.id +
-        '\')" title="Hapus"><i data-lucide="trash-2" style="width:18px"></i></button></td></tr>';
+        '\')" title="Menu Lengkap & ID Card (Titik Tiga)"><i data-lucide="more-vertical" style="width:16px"></i></button><button class="action-btn" onclick="deleteSiswa(\'' +
+        s.id +
+        '\')" title="Hapus Data"><i data-lucide="trash-2" style="width:16px"></i></button></td></tr>';
     }
   }
   tb.innerHTML = h;
+  lucide.createIcons();
+}
+
+function showStudentDetail(id) {
+  var s = students.find(function(x) { return x.id === id; });
+  if (!s) return;
+
+  var code = s.nip || s.barcode || s.id;
+  var sub = s.jabatan || s.kelas || "-";
+  var isTeacher = activeType === "guru";
+  var qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=" + encodeURIComponent(code);
+
+  var faceSection = "";
+  if (s.hasFace) {
+    faceSection = 
+      '<div style="display:flex;align-items:center;justify-content:space-between;background:#ecfdf5;border:1px solid #a7f3d0;padding:10px 14px;border-radius:10px;margin-top:10px;">' +
+      '<div><strong style="color:#065f46;font-size:13px;"><i data-lucide="shield-check" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"></i> Wajah Terdaftar</strong><br><small style="color:#047857;">Data biometrik aktif di database</small></div>' +
+      '<div style="display:flex;gap:6px;">' +
+      '<button class="btn btn-outline" style="padding:4px 8px;font-size:11px;" onclick="regFace(\'' + s.id + '\',\'' + s.nama.replace(/'/g, "\\'") + '\')" title="Perbarui Wajah"><i data-lucide="camera" style="width:12px;"></i> Update</button>' +
+      '<button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="resetFaceData(\'' + s.id + '\')" title="Reset / Hapus Wajah"><i data-lucide="trash-2" style="width:12px;"></i> Reset</button>' +
+      '</div></div>';
+  } else {
+    faceSection = 
+      '<div style="display:flex;align-items:center;justify-content:space-between;background:#fef3c7;border:1px solid #fde68a;padding:10px 14px;border-radius:10px;margin-top:10px;">' +
+      '<div><strong style="color:#92400e;font-size:13px;"><i data-lucide="alert-circle" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"></i> Belum Ada Wajah</strong><br><small style="color:#b45309;">Bisa rekam saat absen pertama atau admin daftarkan</small></div>' +
+      '<button class="btn btn-primary" style="padding:6px 10px;font-size:12px;" onclick="regFace(\'' + s.id + '\',\'' + s.nama.replace(/'/g, "\\'") + '\')"><i data-lucide="camera" style="width:14px;"></i> Daftarkan</button>' +
+      '</div>';
+  }
+
+  // Cari riwayat presensi orang ini jika ada
+  var userAttendance = attendance.filter(function(a) {
+    return (a.studentId && a.studentId === s.id) || (a.nama && a.nama.toLowerCase() === s.nama.toLowerCase());
+  });
+  var attHistoryHtml = "";
+  if (userAttendance.length > 0) {
+    attHistoryHtml = '<div style="margin-top:15px;"><h4 style="font-size:13px;font-weight:700;color:var(--primary-dark);margin-bottom:8px;">Presensi Terakhir Hari Ini</h4>';
+    for (var aIdx = 0; aIdx < Math.min(3, userAttendance.length); aIdx++) {
+      var uAtt = userAttendance[aIdx];
+      var uBadge = uAtt.status === "Hadir" ? "success" : (uAtt.status === "Terlambat" ? "warning" : "info");
+      attHistoryHtml += '<div style="background:var(--bg);border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">' +
+        '<span>' + formatDate(uAtt.tanggal) + ' ' + (formatTime(uAtt.waktu) || "-") + ' WIB</span>' +
+        '<span class="badge badge-' + uBadge + '">' + uAtt.status + '</span>' +
+        '</div>';
+    }
+    attHistoryHtml += '</div>';
+  }
+
+  var m = document.getElementById("modal");
+  m.innerHTML =
+    '<div class="modal"><div class="modal-header"><span class="modal-title">Manajemen ' + (isTeacher ? 'Pegawai' : 'Siswa') + '</span><button class="modal-close" onclick="closeModal()">&times;</button></div>' +
+    '<div class="modal-body">' +
+    // Preview Kartu Barcode
+    '<div id="printable-card" style="background:#fff;border:2px solid var(--border);border-radius:12px;padding:16px;text-align:center;box-shadow:var(--shadow-sm);margin-bottom:15px;position:relative;">' +
+    '<div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Yayasan Darul Ulum Islamiyyah</div>' +
+    '<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px;">' +
+    '<img src="' + qrUrl + '" alt="QR Code" style="width:90px;height:90px;border-radius:6px;border:1px solid #e2e8f0;padding:2px;background:#fff;">' +
+    '<div style="text-align:left;">' +
+    '<h4 style="margin:0 0 2px;font-size:15px;color:var(--text);">' + s.nama + '</h4>' +
+    '<p style="margin:0 0 4px;font-size:12px;color:var(--primary);font-weight:600;">' + (isTeacher ? 'NIP' : 'NIS/Barcode') + ': ' + code + '</p>' +
+    '<p style="margin:0;font-size:12px;color:var(--gray);">' + (isTeacher ? 'Jabatan' : 'Kelas') + ': <strong>' + sub + '</strong></p>' +
+    '</div></div>' +
+    '<div style="font-size:10px;color:var(--gray);border-top:1px dashed var(--border);padding-top:6px;">Tunjukkan QR Code ini pada scanner kamera untuk absen instan</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:15px;">' +
+    '<button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="printIdCard(\'' + s.id + '\')"><i data-lucide="printer" style="width:14px;"></i> Cetak Kartu</button>' +
+    '<button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="editSiswa(\'' + s.id + '\')"><i data-lucide="edit" style="width:14px;"></i> Edit Data</button>' +
+    '</div>' +
+    '<h4 style="font-size:13px;font-weight:700;color:var(--primary-dark);margin:15px 0 6px;">Status Biometrik Wajah</h4>' +
+    faceSection +
+    attHistoryHtml +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">Selesai</button></div></div>';
+  m.classList.add("active");
+  lucide.createIcons();
+}
+
+function printIdCard(id) {
+  var s = students.find(function(x) { return x.id === id; });
+  if (!s) return;
+  var code = s.nip || s.barcode || s.id;
+  var sub = s.jabatan || s.kelas || "-";
+  var isTeacher = activeType === "guru";
+  var qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" + encodeURIComponent(code);
+  var logo = appSettings.logoUrl || "icon-192.png";
+
+  var printWin = window.open("", "_blank", "width=600,height=600");
+  if (!printWin) {
+    showToast("Popup terblokir oleh browser. Izinkan popup untuk mencetak kartu.", "warning");
+    return;
+  }
+  printWin.document.write('<!DOCTYPE html><html><head><title>Kartu ' + (isTeacher ? 'Pegawai' : 'Pelajar') + ' - ' + s.nama + '</title><style>' +
+    'body { font-family: sans-serif; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; background:#f4f4f4; }' +
+    '.card { width: 320px; background:#fff; border:2px solid #064e3b; border-radius:16px; padding:20px; text-align:center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }' +
+    '.header { display:flex; align-items:center; justify-content:center; gap:8px; border-bottom:2px solid #d4af37; padding-bottom:10px; margin-bottom:14px; }' +
+    '.header img { width:36px; height:36px; object-fit:contain; }' +
+    '.header h2 { font-size:13px; margin:0; color:#064e3b; text-transform:uppercase; font-weight:800; line-height:1.2; }' +
+    '.qr { width:150px; height:150px; margin:10px auto; border:1px solid #ddd; padding:4px; border-radius:8px; display:block; }' +
+    '.name { font-size:16px; font-weight:700; margin:10px 0 4px; color:#111; }' +
+    '.code { font-size:13px; font-weight:700; color:#059669; margin:0 0 4px; letter-spacing:1px; }' +
+    '.role { font-size:12px; color:#555; margin:0; }' +
+    '.footer { margin-top:14px; border-top:1px dashed #ccc; padding-top:8px; font-size:10px; color:#888; }' +
+    '@media print { body { background:#fff; } .card { box-shadow:none; border:2px solid #000; } }' +
+    '</style></head><body>' +
+    '<div class="card">' +
+    '<div class="header"><img src="' + logo + '" onerror="this.style.display=\'none\'"><h2>Yayasan Darul Ulum<br><span style="font-size:11px;font-weight:600;color:#555;">Islamiyyah - Kamang Baru</span></h2></div>' +
+    '<img class="qr" src="' + qrUrl + '">' +
+    '<div class="name">' + s.nama + '</div>' +
+    '<div class="code">' + (isTeacher ? 'NIP' : 'NIS/Barcode') + ': ' + code + '</div>' +
+    '<div class="role">' + (isTeacher ? 'Jabatan' : 'Unit/Kelas') + ': ' + sub + '</div>' +
+    '<div class="footer">Kartu Resmi Presensi Digital</div>' +
+    '</div><script>window.onload = function() { window.print(); }<\/script></body></html>');
+  printWin.document.close();
+}
+
+function showFaceDetail(id) {
+  var s = students.find(function(x) { return x.id === id; });
+  if (!s) return;
+
+  var photoHtml = s.foto
+    ? '<div style="text-align:center;margin-bottom:15px;"><img src="' + formatPhotoUrl(s.foto) + '" style="max-width:100%;max-height:240px;border-radius:12px;object-fit:cover;box-shadow:var(--shadow);" onerror="this.parentElement.innerHTML=\'<div class=\\\'avatar blue\\\' style=\\\'width:80px;height:80px;font-size:28px;margin:0 auto;\\\'>' + getInit(s.nama) + '</div>\'"></div>'
+    : '<div style="text-align:center;margin-bottom:15px;"><div class="avatar blue" style="width:80px;height:80px;font-size:28px;margin:0 auto;">' + getInit(s.nama) + '</div><p style="color:var(--gray);font-size:12px;margin-top:8px;">Foto acuan belum memiliki URL preview</p></div>';
+
+  var m = document.getElementById("modal");
+  m.innerHTML =
+    '<div class="modal"><div class="modal-header"><span class="modal-title">Biometrik Wajah - ' + s.nama + '</span><button class="modal-close" onclick="closeModal()">&times;</button></div>' +
+    '<div class="modal-body">' +
+    photoHtml +
+    '<div style="text-align:center;margin-bottom:15px;">' +
+    '<span class="badge badge-success"><i data-lucide="check-circle" style="width:14px;height:14px;margin-right:4px;"></i> Data Wajah Terdaftar</span>' +
+    '<p style="color:var(--gray);font-size:13px;margin:8px 0 0;">ID: ' + s.id + ' • ' + (s.kelas || s.jabatan || "-") + '</p>' +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;gap:10px;">' +
+    '<button class="btn btn-outline" style="justify-content:center;" onclick="regFace(\'' + s.id + '\',\'' + s.nama.replace(/'/g, "\\'") + '\')"><i data-lucide="camera" style="width:16px;"></i> Ambil Ulang / Update Foto Wajah</button>' +
+    '<button class="btn btn-danger" style="justify-content:center;" onclick="resetFaceData(\'' + s.id + '\')"><i data-lucide="trash-2" style="width:16px;"></i> Hapus / Reset Data Wajah</button>' +
+    '</div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">Tutup</button></div></div>';
+  m.classList.add("active");
+  lucide.createIcons();
+}
+
+function resetFaceData(id) {
+  if (confirm("Yakin ingin menghapus / mereset data wajah ini? Data biometrik di database akan dikosongkan sehingga pengguna dapat mendaftarkan wajah kembali saat absensi pertama.")) {
+    window.callGasAPI(
+      "registerFace",
+      { studentId: id, faceDescriptor: "", fotoURL: "" },
+      function (r) {
+        showToast("Data wajah berhasil direset", "success");
+        closeModal();
+        loadData();
+      },
+      function (err) {
+        showToast("Gagal reset wajah: " + err, "error");
+      }
+    );
+  }
+}
+
+function showNotificationInfo() {
+  var m = document.getElementById("modal");
+  var pendingCount = stats.belumAbsen || 0;
+  var hadirCount = stats.totalHadir || 0;
+  var telatCount = stats.totalTerlambat || 0;
+
+  m.innerHTML =
+    '<div class="modal"><div class="modal-header"><span class="modal-title">Pusat Notifikasi Presensi</span><button class="modal-close" onclick="closeModal()">&times;</button></div>' +
+    '<div class="modal-body">' +
+    '<div style="display:flex;flex-direction:column;gap:12px;">' +
+    '<div style="display:flex;align-items:flex-start;gap:12px;background:#f0fdf4;border:1px solid #bbf7d0;padding:12px;border-radius:10px;">' +
+    '<i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--success);flex-shrink:0;margin-top:2px;"></i>' +
+    '<div><strong style="font-size:13px;color:#166534;">Sistem Presensi Berjalan Normal</strong><p style="margin:2px 0 0;font-size:12px;color:#15803d;">Sinkronisasi database Google Sheets berjalan secara real-time.</p></div>' +
+    '</div>' +
+    '<div style="display:flex;align-items:flex-start;gap:12px;background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:10px;">' +
+    '<i data-lucide="clock" style="width:20px;height:20px;color:var(--warning);flex-shrink:0;margin-top:2px;"></i>' +
+    '<div><strong style="font-size:13px;color:#92400e;">Ringkasan Kehadiran Hari Ini</strong><p style="margin:2px 0 0;font-size:12px;color:#b45309;">Hadir: ' + hadirCount + ' • Terlambat: ' + telatCount + ' • Belum Absen: ' + pendingCount + '</p></div>' +
+    '</div>' +
+    '<div style="display:flex;align-items:flex-start;gap:12px;background:#f0f9ff;border:1px solid #bae6fd;padding:12px;border-radius:10px;">' +
+    '<i data-lucide="shield-check" style="width:20px;height:20px;color:var(--info);flex-shrink:0;margin-top:2px;"></i>' +
+    '<div><strong style="font-size:13px;color:#075985;">Proteksi Anti-Bypass Face Recognition</strong><p style="margin:2px 0 0;font-size:12px;color:#0369a1;">Verifikasi biometrik ketat aktif. Wajah tidak cocok akan otomatis ditolak oleh sistem.</p></div>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">Tutup</button></div></div>';
+  m.classList.add("active");
   lucide.createIcons();
 }
 function renderPengaturan() {

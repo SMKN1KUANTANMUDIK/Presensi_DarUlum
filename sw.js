@@ -1,4 +1,4 @@
-const CACHE_NAME = 'absensi-cache-v5';
+const CACHE_NAME = 'absensi-cache-v6';
 const PRECACHE_URLS = [
   './',
   './index.html',
