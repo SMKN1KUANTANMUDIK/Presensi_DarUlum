@@ -149,7 +149,7 @@ function splitPegawaiEntries(personList) {
         jabatan: regJab,
         isRumahQuran: false,
         roleType: "regular",
-        subLabel: regUnit + " • " + regJab
+        subLabel: "Unit " + regUnit + (regJab !== "-" && regJab !== regUnit ? " • " + regJab : "")
       });
       result.push(regPerson);
 
@@ -169,7 +169,7 @@ function splitPegawaiEntries(personList) {
         jabatan: rqJab,
         isRumahQuran: true,
         roleType: "rumah_quran",
-        subLabel: "Rumah Quran • " + rqJab + " (Bebas)"
+        subLabel: "Unit Rumah Quran • " + rqJab + " (Bebas)"
       });
       result.push(rqPerson);
     } else {
@@ -184,7 +184,7 @@ function splitPegawaiEntries(personList) {
         jabatan: singleJab,
         isRumahQuran: isSingleRQ,
         roleType: isSingleRQ ? "rumah_quran" : "regular",
-        subLabel: singleUnit + (singleJab !== "-" && singleJab !== singleUnit ? " • " + singleJab : "") + (isSingleRQ ? " (Bebas)" : "")
+        subLabel: "Unit " + singleUnit + (singleJab !== "-" && singleJab !== singleUnit ? " • " + singleJab : "") + (isSingleRQ ? " (Bebas)" : "")
       });
       result.push(normalPerson);
     }
@@ -1048,7 +1048,7 @@ function renderLapTable() {
     if (isPegawai) {
       var uLap = getPegawaiUnit(a);
       var jLap = getPegawaiJabatan(a);
-      categoryDisplay = '<span class="badge badge-info" style="font-size:11px;margin-right:4px;">' + uLap + '</span> ' + (jLap !== "-" && jLap !== uLap ? jLap : "");
+      categoryDisplay = '<span class="badge badge-info" style="font-size:11px;margin-right:4px;">Unit ' + uLap + '</span> ' + (jLap !== "-" && jLap !== uLap ? jLap : "") + rqTag;
     } else {
       categoryDisplay = (a.kelas || "-") + rqTag;
     }
@@ -1597,7 +1597,7 @@ function exportRekapExcel() {
 
     var row = [no++, s.nama];
     if (isPegawai) {
-      row.push(s.unit || getPegawaiUnit(s), s.jabatan || getPegawaiJabatan(s));
+      row.push("Unit " + (s.unit || getPegawaiUnit(s)), s.jabatan || getPegawaiJabatan(s));
     } else {
       row.push(s.kelas);
     }
@@ -1820,7 +1820,7 @@ function renderSiswaTable() {
           var jRole = getPegawaiJabatanFromRole(rItem);
           var isRQR = isRumahQuranRole(rItem);
           var tagBadge = isRQR ? ' <span class="badge badge-free" style="font-size:9px;padding:1px 5px;">Bebas</span>' : '';
-          badgesHtml.push('<span style="display:inline-block;margin:1px 0;"><span class="badge badge-info" style="font-size:11px;margin-right:4px;">' + uRole + '</span> ' + (jRole !== "-" && jRole !== uRole ? jRole : "") + tagBadge + '</span>');
+          badgesHtml.push('<span style="display:inline-block;margin:1px 0;"><span class="badge badge-info" style="font-size:11px;margin-right:4px;">Unit ' + uRole + '</span> ' + (jRole !== "-" && jRole !== uRole ? jRole : "") + tagBadge + '</span>');
         }
         sub = badgesHtml.join("<br>");
       } else {

@@ -77,23 +77,31 @@ function showSelfie() {
   var kStr = String(currentStudent.kelas || "");
   var roleHTML = "";
   var isTeacher = (currentStudent.type === "guru" || (currentStudent.id && String(currentStudent.id).indexOf("TCH") === 0));
-  var labelText = isTeacher ? "Jabatan / Unit" : "Kelas / Unit";
+  var labelText = isTeacher ? "Pilih Unit Presensi Hari Ini" : "Pilih Kelas / Unit";
   var catBadge = isTeacher 
     ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="briefcase" style="width:12px;height:12px"></i> PEGAWAI / GURU</span>'
     : '<span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;"><i data-lucide="graduation-cap" style="width:12px;height:12px"></i> SISWA</span>';
 
   if (kStr.indexOf(",") > -1) {
     var roles = kStr.split(",");
-    roleHTML = '<div style="margin:8px auto 14px; max-width:280px; text-align:left;"><label style="font-size:12px; font-weight:600; color:var(--gray); display:block; margin-bottom:4px;">Pilih ' + labelText + ' Saat Absen:</label><select id="role-select" style="width:100%; display:block; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; font-family:inherit; font-size:14px; background:#fff;">';
+    roleHTML = '<div style="margin:8px auto 14px; max-width:320px; text-align:left;">' +
+      '<label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:5px;"><i data-lucide="layers" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;color:var(--primary);"></i> ' + labelText + ':</label>' +
+      '<select id="role-select" style="width:100%; display:block; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; font-family:inherit; font-size:13px; background:#fff; font-weight:500;">';
     for (var i = 0; i < roles.length; i++) {
       var rClean = roles[i].trim();
       var isRQ = rClean.toLowerCase().indexOf("rumah quran") > -1 || rClean.toLowerCase().indexOf("rumah qur'an") > -1;
-      var optLabel = isTeacher ? (isRQ ? '📖 ' + rClean + ' (Jadwal Bebas)' : '💼 ' + rClean + ' (Tugas Reguler)') : rClean;
+      var optLabel = isTeacher 
+        ? (isRQ ? '📖 Unit Rumah Qur\'an (Jadwal Bebas)' : '🏫 Unit ' + rClean + ' (Presensi Reguler)') 
+        : rClean;
       roleHTML += '<option value="' + rClean + '">' + optLabel + '</option>';
     }
-    roleHTML += '</select></div>';
+    roleHTML += '</select>' +
+      '<small style="display:block;margin-top:4px;font-size:11px;color:var(--gray);">Pegawai dapat absen 2 kali terpisah hari ini: untuk Unit Reguler dan Unit Rumah Qur\'an.</small>' +
+      '</div>';
   } else {
-    roleHTML = '<p style="color:var(--gray); margin-top:4px;"><span style="display:inline-block; background:#e0f2fe; color:#0369a1; padding:3px 12px; border-radius:12px; font-size:13px; font-weight:600;">' + (currentStudent.kelas || "-") + '</span></p>';
+    var isSingleRQ = kStr.toLowerCase().indexOf("rumah quran") > -1 || kStr.toLowerCase().indexOf("rumah qur'an") > -1;
+    var unitTag = isTeacher ? (isSingleRQ ? "Unit Rumah Qur'an (Bebas)" : "Unit " + (currentStudent.kelas || "-")) : (currentStudent.kelas || "-");
+    roleHTML = '<p style="color:var(--gray); margin-top:4px;"><span style="display:inline-block; background:#e0f2fe; color:#0369a1; padding:3px 12px; border-radius:12px; font-size:13px; font-weight:600;">' + unitTag + '</span></p>';
   }
 
   c.innerHTML =
@@ -457,11 +465,13 @@ function showSickForm() {
   var roleHTML = "";
   if (kStr.indexOf(",") > -1) {
     var roles = kStr.split(",");
-    roleHTML = '<div class="form-group"><label class="form-label">Pilih ' + labelText + '</label><select class="form-select" id="sick-role-select">';
+    roleHTML = '<div class="form-group"><label class="form-label">' + (isTeacher ? 'Pilih Unit Pengajuan Izin/Sakit' : 'Pilih Kelas') + '</label><select class="form-select" id="sick-role-select">';
     for (var i = 0; i < roles.length; i++) {
       var rClean = roles[i].trim();
       var isRQ = rClean.toLowerCase().indexOf("rumah quran") > -1 || rClean.toLowerCase().indexOf("rumah qur'an") > -1;
-      var optLabel = isTeacher ? (isRQ ? '📖 ' + rClean + ' (Jadwal Bebas)' : '💼 ' + rClean + ' (Tugas Reguler)') : rClean;
+      var optLabel = isTeacher 
+        ? (isRQ ? '📖 Unit Rumah Qur\'an (Jadwal Bebas)' : '🏫 Unit ' + rClean + ' (Presensi Reguler)') 
+        : rClean;
       roleHTML += '<option value="' + rClean + '">' + optLabel + '</option>';
     }
     roleHTML += '</select></div>';
