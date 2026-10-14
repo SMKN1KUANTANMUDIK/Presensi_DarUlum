@@ -26,8 +26,7 @@ var PEGAWAI_UNITS = [
   "Yayasan",
   "Rumah Quran",
   "TK/PAUD",
-  "SDIT",
-  "SMP"
+  "SDIT"
 ];
 
 function getPegawaiUnit(item) {
@@ -37,7 +36,7 @@ function getPegawaiUnit(item) {
   
   if (raw.indexOf(" - ") > -1) {
     var p0 = raw.split(" - ")[0].trim();
-    if (["Yayasan", "Rumah Quran", "TK/PAUD", "SDIT", "SMP"].indexOf(p0) > -1) {
+    if (["Yayasan", "Rumah Quran", "TK/PAUD", "SDIT"].indexOf(p0) > -1) {
       return p0;
     }
   }
@@ -46,7 +45,6 @@ function getPegawaiUnit(item) {
   if (low.indexOf("rumah quran") > -1 || low.indexOf("rumah qur'an") > -1) return "Rumah Quran";
   if (low.indexOf("tk") > -1 || low.indexOf("paud") > -1) return "TK/PAUD";
   if (low.indexOf("sdit") > -1 || low.indexOf("sd ") > -1 || low.endsWith(" sdit") || low.endsWith(" sd")) return "SDIT";
-  if (low.indexOf("smp") > -1) return "SMP";
   
   if (low.indexOf("yayasan") > -1 || low.indexOf("pimpinan") > -1 || low.indexOf("bendahara") > -1 ||
       low.indexOf("operator") > -1 || low.indexOf("keamanan") > -1 || low.indexOf("kebersihan") > -1 ||
@@ -94,8 +92,6 @@ function matchSiswaKelas(item, filterClass) {
     var num = mFilter[1];
     var reg = new RegExp('(^|[^0-9])' + num + '([^0-9]|$)');
     if (reg.test(rawLow)) {
-      if (filterLow.indexOf("sdit") > -1 && rawLow.indexOf("smp") > -1) return false;
-      if (filterLow.indexOf("smp") > -1 && rawLow.indexOf("sdit") > -1) return false;
       return true;
     }
     return false;
