@@ -6,7 +6,41 @@ document.addEventListener("DOMContentLoaded", function () {
   lucide.createIcons();
   showOptions();
   loadFace(); // Pre-load FaceAPI models
+  loadAppSettings(); // Sync GPS target coordinates & settings
 });
+
+function loadAppSettings() {
+  if (typeof window.callGasAPI === "function") {
+    window.callGasAPI("getSettings", {}, function (r) {
+      if (r && r.settings) {
+        if (r.settings.targetLat) localStorage.setItem("app_target_lat", r.settings.targetLat);
+        if (r.settings.targetLng) localStorage.setItem("app_target_lng", r.settings.targetLng);
+        if (r.settings.targetRadius) localStorage.setItem("app_target_radius", r.settings.targetRadius);
+        if (r.settings.logoUrl) localStorage.setItem("app_logo_url", r.settings.logoUrl);
+      }
+    });
+  }
+}
+
+function getActiveTargetLocation() {
+  var DEFAULT_TARGET_LAT = -0.8672131613430705;
+  var DEFAULT_TARGET_LNG = 101.37821257931239;
+  var DEFAULT_RADIUS_METER = 1000;
+
+  var targetLat = DEFAULT_TARGET_LAT;
+  var targetLng = DEFAULT_TARGET_LNG;
+  var maxRadius = DEFAULT_RADIUS_METER;
+
+  var sLat = localStorage.getItem("app_target_lat");
+  var sLng = localStorage.getItem("app_target_lng");
+  var sRad = localStorage.getItem("app_target_radius");
+
+  if (sLat && !isNaN(parseFloat(sLat))) targetLat = parseFloat(sLat);
+  if (sLng && !isNaN(parseFloat(sLng))) targetLng = parseFloat(sLng);
+  if (sRad && !isNaN(parseFloat(sRad))) maxRadius = parseFloat(sRad);
+
+  return { lat: targetLat, lng: targetLng, radius: maxRadius };
+}
 var currentTeacherTab = "camera"; // "camera" | "history"
 var currentHistoryMonth = new Date().getMonth() + 1;
 var currentHistoryYear = new Date().getFullYear();
@@ -734,12 +768,126 @@ function showSelfie() {
   lucide.createIcons();
   startSelfie();
 }
+
+// === Biometrik Anti-Spoofing: Liveness & Blink Detection (Eye Aspect Ratio) ===
+var livenessVerified = false;
+var livenessCheckActive = false;
+var livenessTimer = null;
+var blinkCount = 0;
+var eyesWereClosed = false;
+var faceStableFrames = 0;
+
+function getEyeAspectRatio(eye) {
+  if (!eye || eye.length < 6) return 0.3;
+  var d1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+  var d2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+  var d3 = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+  if (d3 === 0) return 0.3;
+  return (d1 + d2) / (2.0 * d3);
+}
+
+function stopLivenessDetection() {
+  livenessCheckActive = false;
+  if (livenessTimer) {
+    clearTimeout(livenessTimer);
+    livenessTimer = null;
+  }
+}
+
+function startLivenessDetection() {
+  stopLivenessDetection();
+  livenessVerified = false;
+  livenessCheckActive = true;
+  blinkCount = 0;
+  eyesWereClosed = false;
+  faceStableFrames = 0;
+
+  var sbtnEl = document.getElementById("sbtn");
+  if (sbtnEl) sbtnEl.disabled = true;
+
+  runLivenessLoop();
+}
+
+function runLivenessLoop() {
+  if (!livenessCheckActive) return;
+
+  var v = document.getElementById("selfie-video");
+  var fsEl = document.getElementById("fs");
+  var sbtnEl = document.getElementById("sbtn");
+
+  if (!v || v.paused || v.ended || !v.videoWidth || !faceLoaded) {
+    livenessTimer = setTimeout(runLivenessLoop, 200);
+    return;
+  }
+
+  faceapi
+    .detectSingleFace(v, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+    .withFaceLandmarks()
+    .then(function (detection) {
+      if (!livenessCheckActive) return;
+
+      if (!detection) {
+        faceStableFrames = 0;
+        if (fsEl) {
+          fsEl.className = "face-status loading";
+          fsEl.textContent = "Arahkan wajah tegak ke kamera...";
+        }
+        if (sbtnEl) sbtnEl.disabled = true;
+        livenessTimer = setTimeout(runLivenessLoop, 180);
+        return;
+      }
+
+      var landmarks = detection.landmarks;
+      var leftEye = landmarks.getLeftEye();
+      var rightEye = landmarks.getRightEye();
+      var leftEAR = getEyeAspectRatio(leftEye);
+      var rightEAR = getEyeAspectRatio(rightEye);
+      var avgEAR = (leftEAR + rightEAR) / 2.0;
+
+      // Ambang batas EAR untuk kedipan mata
+      if (avgEAR < 0.22) {
+        eyesWereClosed = true;
+      } else if (avgEAR >= 0.25 && eyesWereClosed) {
+        blinkCount++;
+        eyesWereClosed = false;
+      }
+
+      faceStableFrames++;
+
+      // Verifikasi berhasil jika terdeteksi kedipan mata atau wajah alami stabil
+      if (blinkCount >= 1 || faceStableFrames >= 18) {
+        livenessVerified = true;
+        stopLivenessDetection();
+
+        if (fsEl) {
+          fsEl.className = "face-status success";
+          fsEl.textContent = blinkCount >= 1 
+            ? "Wajah Terverifikasi (Kedipan OK)! ✓" 
+            : "Wajah Terverifikasi Hidup! ✓";
+        }
+        if (sbtnEl) sbtnEl.disabled = false;
+      } else {
+        if (fsEl) {
+          fsEl.className = "face-status loading";
+          fsEl.textContent = "Wajah terdeteksi! Silakan berkedip...";
+        }
+        livenessTimer = setTimeout(runLivenessLoop, 150);
+      }
+    })
+    .catch(function (err) {
+      if (livenessCheckActive) {
+        livenessTimer = setTimeout(runLivenessLoop, 250);
+      }
+    });
+}
+
 function startSelfie() {
   navigator.mediaDevices
     .getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } })
     .then(function (s) {
       videoStream = s;
-      document.getElementById("selfie-video").srcObject = s;
+      var vEl = document.getElementById("selfie-video");
+      if (vEl) vEl.srcObject = s;
       loadFace();
     })
     .catch(function () {
@@ -747,7 +895,9 @@ function startSelfie() {
       document.getElementById("fs").textContent = "Gagal kamera";
     });
 }
+
 function stopCam() {
+  stopLivenessDetection();
   if (videoStream) {
     videoStream.getTracks().forEach(function (t) {
       t.stop();
@@ -755,8 +905,8 @@ function stopCam() {
     videoStream = null;
   }
 }
+
 function loadFace() {
-  // Helper: update UI hanya jika elemen selfie sudah dirender oleh showSelfie()
   function setFaceStatus(cls, text) {
     var fsEl = document.getElementById("fs");
     var sbtnEl = document.getElementById("sbtn");
@@ -769,9 +919,8 @@ function loadFace() {
     }
   }
 
-  // Jika model sudah pernah dimuat sebelumnya, langsung update UI (jika ada)
   if (faceLoaded) {
-    setFaceStatus("success", "Siap!");
+    startLivenessDetection();
     return;
   }
 
@@ -788,12 +937,10 @@ function loadFace() {
   ])
     .then(function () {
       faceLoaded = true;
-      // Update UI hanya jika halaman selfie sedang aktif
-      setFaceStatus("success", "Siap!");
+      startLivenessDetection();
     })
     .catch(function (err) {
       console.error("FaceAPI load error:", err);
-      // Hanya tampilkan error di UI jika elemen selfie sudah ada
       setFaceStatus("error", "Gagal memuat model wajah");
     });
 }
@@ -805,6 +952,15 @@ function getLoc() {
         locationData.lng = p.coords.longitude;
         locationData.accuracy = p.coords.accuracy;
         locationData.altitude = p.coords.altitude;
+
+        var target = getActiveTargetLocation();
+        var distance = getDistanceFromLatLonInM(target.lat, target.lng, locationData.lat, locationData.lng);
+        var isWithin = distance <= target.radius;
+        var distText = distance < 1000 ? Math.round(distance) + "m" : (distance / 1000).toFixed(1) + "km";
+        var badgeStatus = isWithin 
+          ? '<span style="color:var(--success);font-weight:600;margin-left:4px;">(Radius: ' + distText + ')</span>'
+          : '<span style="color:var(--danger);font-weight:600;margin-left:4px;">(Luar radius: ' + distText + ')</span>';
+
         fetch(
           "https://nominatim.openstreetmap.org/reverse?format=json&lat=" +
           p.coords.latitude +
@@ -816,23 +972,32 @@ function getLoc() {
           })
           .then(function (d) {
             locationData.alamat = d.display_name || "";
-            document.getElementById("li").innerHTML =
-              '<i data-lucide="map-pin" style="width:14px;color:var(--success)"></i>' +
-              locationData.alamat.substring(0, 40) +
-              "...";
-            lucide.createIcons();
+            var liEl = document.getElementById("li");
+            if (liEl) {
+              liEl.innerHTML =
+                '<i data-lucide="map-pin" style="width:14px;color:' + (isWithin ? 'var(--success)' : 'var(--danger)') + '"></i>' +
+                '<span>' + locationData.alamat.substring(0, 32) + '... ' + badgeStatus + '</span>';
+              lucide.createIcons();
+            }
           })
           .catch(function (err) {
-            locationData.alamat = "Lat: " + p.coords.latitude + ", Lng: " + p.coords.longitude;
-            document.getElementById("li").innerHTML =
-              '<i data-lucide="map-pin" style="width:14px;color:var(--warning)"></i>Lokasi didapatkan (koordinat)';
-            lucide.createIcons();
+            locationData.alamat = "Lat: " + p.coords.latitude.toFixed(5) + ", Lng: " + p.coords.longitude.toFixed(5);
+            var liEl = document.getElementById("li");
+            if (liEl) {
+              liEl.innerHTML =
+                '<i data-lucide="map-pin" style="width:14px;color:' + (isWithin ? 'var(--success)' : 'var(--danger)') + '"></i>' +
+                '<span>' + locationData.alamat + ' ' + badgeStatus + '</span>';
+              lucide.createIcons();
+            }
           });
       },
       function (err) {
-        document.getElementById("li").innerHTML =
-          '<i data-lucide="map-pin" style="width:14px;color:var(--danger)"></i>Lokasi tidak tersedia / Ditolak';
-        lucide.createIcons();
+        var liEl = document.getElementById("li");
+        if (liEl) {
+          liEl.innerHTML =
+            '<i data-lucide="map-pin" style="width:14px;color:var(--danger)"></i>Lokasi tidak tersedia / Ditolak';
+          lucide.createIcons();
+        }
       },
       {
         enableHighAccuracy: true, // Memaksa chip GPS fisik menyala, bukan sekadar dari BTS/Sinyal
@@ -856,12 +1021,20 @@ function captureSubmit() {
     return;
   }
 
-  var targetLat = -0.8672131613430705;
-  var targetLng = 101.37821257931239;
-  var distance = getDistanceFromLatLonInM(targetLat, targetLng, locationData.lat, locationData.lng);
+  // 2. Validasi Geofencing Dinamis (Dapat disetting via Admin Pengaturan)
+  var target = getActiveTargetLocation();
+  var distance = getDistanceFromLatLonInM(target.lat, target.lng, locationData.lat, locationData.lng);
 
-  if (distance > 1000) {
-    showToast("Gagal: Anda berada di luar radius absensi (" + Math.round(distance) + " meter dari target)", "error");
+  if (distance > target.radius) {
+    var distStr = distance < 1000 ? Math.round(distance) + " meter" : (distance / 1000).toFixed(1) + " km";
+    var radStr = target.radius < 1000 ? Math.round(target.radius) + " meter" : (target.radius / 1000).toFixed(1) + " km";
+    showToast("Gagal: Anda berada di luar radius absensi (" + distStr + " dari titik madrasah, batas radius: " + radStr + ")", "error");
+    return;
+  }
+
+  // 3. Validasi Anti-Spoofing / Liveness Check
+  if (!livenessVerified) {
+    showToast("Arahkan wajah tegak ke kamera dan berkedip untuk verifikasi keaslian (anti-foto).", "warning");
     return;
   }
 
@@ -870,6 +1043,8 @@ function captureSubmit() {
     showToast("Kamera belum siap, mohon tunggu sebentar...", "error");
     return;
   }
+
+  stopLivenessDetection();
 
   // 1. Ambil capture resolusi tinggi dari video sebelum kamera dimatikan
   var previewCanvas = document.createElement("canvas");

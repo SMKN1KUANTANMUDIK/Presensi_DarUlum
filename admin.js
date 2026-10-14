@@ -483,6 +483,15 @@ function loadAvailableClasses() {
 }
 
 function loadSettings() {
+  try {
+    var cached = localStorage.getItem("app_settings");
+    if (cached) {
+      var parsed = JSON.parse(cached);
+      Object.assign(appSettings, parsed);
+      applySettingsToUI();
+    }
+  } catch(e) {}
+
   window.callGasAPI("getSettings", {}, function(r) {
     if(r.settings) {
       appSettings = r.settings;
@@ -496,6 +505,13 @@ function loadSettings() {
           localStorage.setItem("app_custom_holidays", JSON.stringify(appSettings.customHolidays));
         } catch(e) {}
       }
+      if (appSettings.targetLat) localStorage.setItem("app_target_lat", appSettings.targetLat);
+      if (appSettings.targetLng) localStorage.setItem("app_target_lng", appSettings.targetLng);
+      if (appSettings.targetRadius) localStorage.setItem("app_target_radius", appSettings.targetRadius);
+      try {
+        localStorage.setItem("app_settings", JSON.stringify(appSettings));
+      } catch(e) {}
+
       // Ambil nama pimpinan yayasan dari data guru/pegawai secara otomatis
       window.callGasAPI("getTeacherList", {}, function(r2) {
           if (r2.teachers) {
@@ -3050,7 +3066,52 @@ function renderPengaturan() {
           '<button class="btn btn-primary" onclick="saveSettings()"><i data-lucide="save" style="width:16px"></i> Simpan Parameter</button>' +
         '</div>' +
       '</div>' +
-      '<!-- Kartu 2: Kalender Libur Indonesia -->' +
+      '<!-- Kartu 2: Titik Lokasi & Radius Presensi (GPS Geofencing) -->' +
+      '<div class="card">' +
+        '<div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">' +
+          '<div style="display:flex;align-items:center;gap:8px;"><i data-lucide="map-pin" style="width:18px;color:var(--primary);"></i><strong style="font-size:15px;">Lokasi & Radius Presensi (GPS)</strong></div>' +
+          '<span class="badge badge-success" style="font-size:10px;padding:3px 8px;">Geofencing Aktif</span>' +
+        '</div>' +
+        '<div class="card-body" style="padding:20px;">' +
+          '<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;line-height:1.5;margin-bottom:14px;">' +
+            '<div style="display:flex;align-items:flex-start;gap:8px;">' +
+              '<i data-lucide="shield-check" style="width:16px;height:16px;color:var(--success);flex-shrink:0;margin-top:2px;"></i>' +
+              '<div>' +
+                '<strong>Validasi Geofencing Presensi</strong><br>' +
+                'Siswa dan pegawai hanya dapat melakukan absensi jika berada dalam radius toleransi dari koordinat madrasah/sekolah:' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">Latitude Target (Lintang)</label>' +
+            '<input type="number" step="any" class="form-input" id="set-target-lat" value="' + (appSettings.targetLat || localStorage.getItem('app_target_lat') || '-0.8672131613430705') + '" placeholder="-0.86721316">' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">Longitude Target (Bujur)</label>' +
+            '<input type="number" step="any" class="form-input" id="set-target-lng" value="' + (appSettings.targetLng || localStorage.getItem('app_target_lng') || '101.37821257931239') + '" placeholder="101.37821258">' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">Radius Toleransi (Meter)</label>' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+              '<input type="number" min="10" max="100000" step="10" class="form-input" id="set-target-radius" value="' + (appSettings.targetRadius || localStorage.getItem('app_target_radius') || '1000') + '" placeholder="1000" style="flex:1;">' +
+              '<span style="font-size:13px;font-weight:600;color:var(--text-muted);white-space:nowrap;">Meter</span>' +
+            '</div>' +
+            '<small style="font-size:11px;color:var(--text-muted);display:block;margin-top:4px;">Contoh: 1000m = 1 km. Absensi ditolak otomatis jika pengguna berada di luar radius.</small>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">' +
+            '<button type="button" class="btn btn-outline" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--bg);" onclick="getAdminCurrentLocation()">' +
+              '<i data-lucide="crosshair" style="width:16px;color:var(--primary);"></i> Ambil Lokasi Saat Ini (GPS Otomatis)' +
+            '</button>' +
+            '<button type="button" class="btn btn-outline" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="openTargetInGoogleMaps()">' +
+              '<i data-lucide="map" style="width:16px;"></i> Pratinjau di Google Maps' +
+            '</button>' +
+            '<button type="button" class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;" onclick="saveSettings()">' +
+              '<i data-lucide="save" style="width:16px"></i> Simpan Lokasi & Radius' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<!-- Kartu 3: Kalender Libur Indonesia -->' +
       '<div class="card">' +
         '<div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">' +
           '<div style="display:flex;align-items:center;gap:8px;"><i data-lucide="calendar-days" style="width:18px;color:var(--primary);"></i><strong style="font-size:15px;">Kalender Libur Multi-Tahun</strong></div>' +
@@ -3093,6 +3154,48 @@ function renderPengaturan() {
     '</div>';
 
   lucide.createIcons();
+}
+
+function getAdminCurrentLocation() {
+  if (!navigator.geolocation) {
+    showToast("Perangkat atau browser tidak mendukung akses GPS", "error");
+    return;
+  }
+  showToast("Mengakses sensor GPS perangkat...", "info");
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      var acc = Math.round(pos.coords.accuracy || 0);
+
+      var latEl = document.getElementById("set-target-lat");
+      var lngEl = document.getElementById("set-target-lng");
+      if (latEl) latEl.value = lat;
+      if (lngEl) lngEl.value = lng;
+
+      showToast("Koordinat GPS berhasil diambil! Akurasi: ±" + acc + " meter", "success");
+    },
+    function(err) {
+      var msg = "Gagal mengambil GPS: " + (err.message || "Akses ditolak");
+      if (err.code === 1) msg = "Izin akses lokasi ditolak oleh browser/pengguna.";
+      else if (err.code === 2) msg = "Sinyal posisi GPS tidak tersedia.";
+      else if (err.code === 3) msg = "Waktu pencarian sinyal GPS habis (timeout).";
+      showToast(msg, "error");
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+  );
+}
+
+function openTargetInGoogleMaps() {
+  var latEl = document.getElementById("set-target-lat");
+  var lngEl = document.getElementById("set-target-lng");
+  var lat = latEl ? latEl.value.trim() : (appSettings.targetLat || localStorage.getItem('app_target_lat') || '-0.8672131613430705');
+  var lng = lngEl ? lngEl.value.trim() : (appSettings.targetLng || localStorage.getItem('app_target_lng') || '101.37821257931239');
+  if (!lat || !lng) {
+    showToast("Isi koordinat Latitude dan Longitude terlebih dahulu", "warning");
+    return;
+  }
+  window.open("https://www.google.com/maps?q=" + encodeURIComponent(lat + "," + lng), "_blank");
 }
 
 function showAddModal() {
@@ -3583,6 +3686,9 @@ function saveSettings() {
   var elJ = document.getElementById("set-jam");
   var elT = document.getElementById("set-th");
   var elP = document.getElementById("set-admin-pin");
+  var elLat = document.getElementById("set-target-lat");
+  var elLng = document.getElementById("set-target-lng");
+  var elRad = document.getElementById("set-target-radius");
 
   var n = elN ? elN.value : (appSettings.adminName || 'Budi Santoso');
   var r = elR ? elR.value : (appSettings.adminRole || 'Administrator');
@@ -3591,6 +3697,14 @@ function saveSettings() {
   var t = elT ? elT.value : (appSettings.faceMatchThreshold || '0.5');
   var p = elP ? elP.value.trim() : ((appSettings && appSettings.adminPin) || localStorage.getItem('app_admin_pin') || '123456');
   if (p) localStorage.setItem('app_admin_pin', p);
+
+  var latVal = elLat ? elLat.value.trim() : (appSettings.targetLat || localStorage.getItem('app_target_lat') || '-0.8672131613430705');
+  var lngVal = elLng ? elLng.value.trim() : (appSettings.targetLng || localStorage.getItem('app_target_lng') || '101.37821257931239');
+  var radVal = elRad ? elRad.value.trim() : (appSettings.targetRadius || localStorage.getItem('app_target_radius') || '1000');
+
+  if (latVal) localStorage.setItem('app_target_lat', latVal);
+  if (lngVal) localStorage.setItem('app_target_lng', lngVal);
+  if (radVal) localStorage.setItem('app_target_radius', radVal);
 
   var customHols = {};
   try {
@@ -3608,6 +3722,9 @@ function saveSettings() {
     adminPin: p,
     jamTerlambat: j, 
     faceMatchThreshold: t,
+    targetLat: latVal,
+    targetLng: lngVal,
+    targetRadius: radVal,
     customHolidays: JSON.stringify(customHols)
   };
   
@@ -3618,6 +3735,9 @@ function saveSettings() {
       showToast("Pengaturan disimpan", "success");
       appSettings = payload;
       appSettings.customHolidays = customHols;
+      try {
+        localStorage.setItem("app_settings", JSON.stringify(appSettings));
+      } catch (e) {}
       applySettingsToUI();
     },
     function(err) {
