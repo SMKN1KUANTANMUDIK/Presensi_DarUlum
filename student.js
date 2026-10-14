@@ -11,6 +11,11 @@ var currentTeacherTab = "camera"; // "camera" | "history"
 var currentHistoryMonth = new Date().getMonth() + 1;
 var currentHistoryYear = new Date().getFullYear();
 
+function isRumahQuranRole(roleStr) {
+  var low = String(roleStr || "").toLowerCase();
+  return low.indexOf("rumah quran") > -1 || low.indexOf("rumah qur'an") > -1;
+}
+
 function showOptions() {
   stopCam();
   var attBox = document.querySelector(".att-box");
@@ -238,7 +243,7 @@ function renderTeacherCameraTab() {
       roleSelectHTML += '<option value="' + rClean + '">' + optLabel + '</option>';
     }
     roleSelectHTML += '</select>' +
-      '<small style="display:block;margin-top:4px;font-size:11px;color:var(--gray);">Pegawai dapat absen 2 kali terpisah hari ini: untuk Unit Reguler dan Unit Rumah Qur\'an.</small>' +
+      '<small style="display:block;margin-top:4px;font-size:11px;color:var(--gray);">Pegawai dapat absen 2 kali terpisah hari ini: untuk Unit Reguler dan Unit Rumah Qur\'an (Semua hari aktif tanpa libur tertentu).</small>' +
       '</div>';
   }
 
@@ -378,6 +383,13 @@ function renderTeacherHistoryContent(recapRes, todayRes, m, y) {
       var sid = String(s.originalId || s.id || "").replace(/#.*$/, "").trim();
       return sid === mySid || s.id === mySid || (myBarcode && String(s.barcode).trim() === myBarcode);
     });
+    matched.forEach(function (ent) {
+      var kClean = String(ent.kelas || "").trim();
+      var jClean = String(ent.jabatan || "").trim();
+      if (isRumahQuranRole(kClean) || isRumahQuranRole(jClean)) {
+        ent.isRumahQuran = true;
+      }
+    });
   }
 
   if (matched.length === 0) {
@@ -424,6 +436,12 @@ function renderTeacherHistoryContent(recapRes, todayRes, m, y) {
 
   // Agregasi Totals Berdasarkan Unit Aktif
   var totals = { H: 0, T: 0, S: 0, I: 0, A: 0 };
+  var isFilterRQ = isRumahQuranRole(currentTeacherFilterUnit);
+  var isCurrentEntRQ = activeEntities.length > 0 && activeEntities.every(function (ent) { 
+    return ent.isRumahQuran || isRumahQuranRole(ent.kelas) || isRumahQuranRole(ent.jabatan); 
+  });
+  var isPureRQ = isFilterRQ || isCurrentEntRQ;
+
   activeEntities.forEach(function (ent) {
     if (ent.totals) {
       totals.H += (ent.totals.H || 0);
@@ -433,6 +451,13 @@ function renderTeacherHistoryContent(recapRes, todayRes, m, y) {
       totals.A += (ent.totals.A || 0);
     }
   });
+
+  // Jika Rumah Qur'an: tidak ada keterlambatan dan tidak ada alpa (semua hari bisa digunakan)
+  if (isPureRQ) {
+    totals.H += (totals.T || 0);
+    totals.T = 0;
+    totals.A = 0;
+  }
 
   // Today Attendance Map
   var todayRecords = [];
@@ -557,20 +582,26 @@ function renderTeacherHistoryContent(recapRes, todayRes, m, y) {
     }
 
     var badgeHTML = "";
+    var isFilterRQ = isRumahQuranRole(currentTeacherFilterUnit);
+    var isCurrentEntRQ = activeEntities.length > 0 && activeEntities.every(function (ent) { 
+      return ent.isRumahQuran || isRumahQuranRole(ent.kelas) || isRumahQuranRole(ent.jabatan); 
+    });
+    var isPureRQ = isFilterRQ || isCurrentEntRQ;
+
     var statusText = "";
     var rowClass = "history-row-item";
     var timeDisplay = "";
 
     if (isToday) rowClass += " today";
-    else if (isNatHoliday) rowClass += " holiday";
-    else if (isWeekend) rowClass += " weekend";
+    else if (!isPureRQ && isNatHoliday) rowClass += " holiday";
+    else if (!isPureRQ && isWeekend) rowClass += " weekend";
 
     if (isFuture) {
       badgeHTML = '<span style="font-size:11px;color:var(--gray);font-style:italic;">Belum berjalan</span>';
-      statusText = isWeekend ? (dow === 0 ? "Minggu (Akhir Pekan)" : "Sabtu (Akhir Pekan)") : (isNatHoliday ? holidayInfo.name : "Hari Belajar");
-    } else if (primaryCode === "H") {
+      statusText = isPureRQ ? "Rumah Qur'an (Semua Hari Aktif)" : (isWeekend ? (dow === 0 ? "Minggu (Akhir Pekan)" : "Sabtu (Akhir Pekan)") : (isNatHoliday ? holidayInfo.name : "Hari Belajar"));
+    } else if (primaryCode === "H" || (isPureRQ && (primaryCode === "T" || primaryCode === "TL1" || primaryCode === "TL2"))) {
       badgeHTML = '<span class="badge badge-success" style="font-size:11px;padding:3px 8px;">Hadir</span>';
-      statusText = "Tepat Waktu";
+      statusText = isPureRQ ? "Hadir (Jadwal Bebas)" : "Tepat Waktu";
     } else if (primaryCode === "TL1") {
       badgeHTML = '<span class="badge badge-tl1" style="font-size:11px;padding:3px 8px;">TL1 (≤ 30m)</span>';
       statusText = "Terlambat Toleransi 1";
@@ -591,15 +622,18 @@ function renderTeacherHistoryContent(recapRes, todayRes, m, y) {
       statusText = "Tidak Mengisi Presensi";
     } else {
       // Code is "-"
-      if (isNatHoliday) {
+      if (isPureRQ) {
+        badgeHTML = '<span class="badge badge-free" style="font-size:11px;padding:3px 8px;">Bebas</span>';
+        statusText = "Rumah Qur'an - Tidak Ada Hari Libur Tertentu (Semua Hari Aktif)";
+      } else if (isNatHoliday) {
         badgeHTML = '<span class="badge badge-holiday" style="font-size:11px;padding:3px 8px;"><i data-lucide="star" style="width:10px;height:10px;vertical-align:-1px;"></i> Libur</span>';
         statusText = "Libur Nasional: " + holidayInfo.name;
       } else if (isWeekend) {
         badgeHTML = '<span class="badge badge-holiday" style="font-size:11px;padding:3px 8px;">Libur</span>';
         statusText = (dow === 0 ? "Minggu (Akhir Pekan)" : "Sabtu (Akhir Pekan)");
-      } else if (activeEntities.some(function (ent) { return ent.isRumahQuran; })) {
+      } else if (activeEntities.some(function (ent) { return ent.isRumahQuran || isRumahQuranRole(ent.kelas) || isRumahQuranRole(ent.jabatan); })) {
         badgeHTML = '<span class="badge badge-free" style="font-size:11px;padding:3px 8px;">Bebas</span>';
-        statusText = "Rumah Qur'an - Jadwal Bebas";
+        statusText = "Rumah Qur'an - Semua Hari Aktif (Jadwal Bebas)";
       } else {
         badgeHTML = '<span class="badge badge-secondary" style="font-size:11px;padding:3px 8px;">-</span>';
         statusText = "-";
@@ -684,9 +718,10 @@ function showSelfie() {
       '<small style="display:block;margin-top:4px;font-size:11px;color:var(--gray);">Pegawai dapat absen 2 kali terpisah hari ini: untuk Unit Reguler dan Unit Rumah Qur\'an.</small>' +
       '</div>';
   } else {
-    var isSingleRQ = kStr.toLowerCase().indexOf("rumah quran") > -1 || kStr.toLowerCase().indexOf("rumah qur'an") > -1;
-    var unitTag = isTeacher ? (isSingleRQ ? "Unit Rumah Qur'an (Bebas)" : "Unit " + (currentStudent.kelas || "-")) : (currentStudent.kelas || "-");
-    roleHTML = '<p style="color:var(--gray); margin-top:4px;"><span style="display:inline-block; background:#e0f2fe; color:#0369a1; padding:3px 12px; border-radius:12px; font-size:13px; font-weight:600;">' + unitTag + '</span></p>';
+    var isSingleRQ = isRumahQuranRole(kStr);
+    var unitTag = isSingleRQ ? "📖 Rumah Qur'an (Semua Hari Aktif • Jadwal Bebas)" : (isTeacher ? "Unit " + (currentStudent.kelas || "-") : (currentStudent.kelas || "-"));
+    var rqNote = isSingleRQ ? '<div style="margin-top:4px;font-size:12px;color:#047857;font-weight:600;"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-1px;margin-right:4px;"></i> Semua Hari Aktif (Tanpa Libur Tertentu)</div>' : '';
+    roleHTML = '<p style="color:var(--gray); margin-top:4px;"><span style="display:inline-block; background:' + (isSingleRQ ? '#ecfdf5;color:#065f46;border:1px solid #a7f3d0' : '#e0f2fe;color:#0369a1') + '; padding:3px 12px; border-radius:12px; font-size:13px; font-weight:600;">' + unitTag + '</span>' + rqNote + '</p>';
   }
 
   c.innerHTML =
@@ -1116,6 +1151,15 @@ function showSuccess(st, tm, fm, isFirstReg, ket) {
   var stLabel = st;
   var stBadge = '<span class="badge badge-success">Hadir (Tepat Waktu)</span>';
 
+  var isCurrentRQ = currentStudent && (
+    (currentStudent.activeRole && isRumahQuranRole(currentStudent.activeRole)) ||
+    (currentStudent.kelas && isRumahQuranRole(currentStudent.kelas))
+  );
+
+  if (isCurrentRQ && (st === "TL1" || st === "TL2" || st === "Terlambat" || st === "Alpa")) {
+    st = "Hadir";
+  }
+
   if (st === "TL1") {
     col = "#d97706";
     title = "Terlambat (TL1)";
@@ -1144,6 +1188,9 @@ function showSuccess(st, tm, fm, isFirstReg, ket) {
     col = "#db2777";
     title = "Pengajuan Sakit Berhasil";
     stBadge = '<span class="badge badge-sakit" style="font-size:12px;padding:4px 10px;">Sakit</span>';
+  } else if (isCurrentRQ) {
+    stLabel = "Hadir (Jadwal Bebas Rumah Qur'an)";
+    stBadge = '<span class="badge badge-success" style="font-size:12px;padding:4px 10px;">Hadir (Jadwal Bebas)</span>';
   }
 
   var isTeacher = (currentStudent.type === "guru" || (currentStudent.id && String(currentStudent.id).indexOf("TCH") === 0));

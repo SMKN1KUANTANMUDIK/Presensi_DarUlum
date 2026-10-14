@@ -1196,7 +1196,7 @@ function showUnattendedModal() {
     }
     listHtml += '</tbody></table></div>';
   }
-  listHtml += '<div style="margin-top:12px;padding:8px 12px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;"><i data-lucide="info" style="width:14px;height:14px;color:var(--primary);"></i> Unit Rumah Qur\'an tidak dimasukkan ke dalam daftar belum absen karena menerapkan Jadwal Bebas.</div>';
+  listHtml += '<div style="margin-top:12px;padding:8px 12px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;"><i data-lucide="info" style="width:14px;height:14px;color:var(--primary);"></i> Unit Rumah Qur\'an tidak dimasukkan ke dalam daftar belum absen karena tidak ada hari libur tertentu (semua hari Senin s.d. Minggu dapat digunakan) dan menerapkan Jadwal Bebas.</div>';
 
   m.innerHTML =
     '<div class="modal"><div class="modal-header"><span class="modal-title">Daftar ' + targetType + ' Belum Absen (' + unattended.length + ')</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body">' + listHtml + '</div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Tutup</button></div></div>';
@@ -1214,10 +1214,13 @@ function renderLaporan() {
     : '';
 
   var dayInfo = getDayInfo(currentFilterDate);
+  var isFilteringRQ = String(filterKelas || "").toLowerCase().indexOf("rumah quran") > -1;
 
   // Status Badge Tanggal
   var dateBadgeHtml = "";
-  if (dayInfo.isNationalHoliday) {
+  if (isFilteringRQ) {
+    dateBadgeHtml = '<span class="badge badge-free" style="gap:5px;font-size:12px;padding:6px 12px;"><i data-lucide="sparkles" style="width:14px;height:14px;"></i> ' + dayInfo.dayName + ' • Rumah Qur\'an Aktif Setiap Hari (Bebas)</span>';
+  } else if (dayInfo.isNationalHoliday) {
     dateBadgeHtml = '<span class="badge badge-libur" style="gap:5px;font-size:12px;padding:6px 12px;"><i data-lucide="party-popper" style="width:14px;height:14px;"></i> ' + dayInfo.dayName + ' • Libur: ' + dayInfo.holidayName + '</span>';
   } else if (dayInfo.isWeekend) {
     dateBadgeHtml = '<span class="badge badge-libur" style="gap:5px;font-size:12px;padding:6px 12px;"><i data-lucide="calendar-off" style="width:14px;height:14px;"></i> ' + dayInfo.dayName + ' • Libur Akhir Pekan</span>';
@@ -1225,36 +1228,37 @@ function renderLaporan() {
     dateBadgeHtml = '<span class="badge badge-success" style="gap:5px;font-size:12px;padding:6px 12px;"><i data-lucide="check-circle-2" style="width:14px;height:14px;"></i> ' + dayInfo.dayName + ' • Hari Efektif Belajar</span>';
   }
 
-  // Banner Libur Nasional atau Libur Akhir Pekan
+  // Banner Libur Nasional atau Libur Akhir Pekan (tidak ditampilkan jika sedang memfilter Rumah Qur'an karena RQ aktif setiap hari)
   var holidayBannerHtml = "";
-  if (dayInfo.isNationalHoliday) {
-    holidayBannerHtml = '<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#92400e;">' +
-      '<i data-lucide="party-popper" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
-      '<div style="font-size:13px;line-height:1.5;">' +
-      '<strong style="color:#b45309;">Hari Libur Resmi: ' + dayInfo.holidayName + '</strong>' +
-      '<p style="margin:2px 0 0;color:#78350f;">Sesuai Kalender Libur Indonesia (SKB 3 Menteri), hari ini adalah hari libur nasional / cuti bersama. Presensi reguler tidak diwajibkan dan default ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>.' +
-      (activeType === 'siswa' ? '<br><em>Siswa Rumah Qur\'an dapat tetap absen secara mandiri karena menerapkan Jadwal Bebas.</em>' : '') +
-      '</p></div></div>';
-  } else if (dayInfo.isWeekend) {
-    holidayBannerHtml = '<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#92400e;">' +
-      '<i data-lucide="info" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
-      '<div style="font-size:13px;line-height:1.5;">' +
-      '<strong style="color:#b45309;">Sabtu & Minggu adalah Hari Libur Akhir Pekan</strong>' +
-      '<p style="margin:2px 0 0;color:#78350f;">Pada hari libur akhir pekan, presensi reguler tidak diwajibkan dan default ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>. Alpa hanya dihitung jika pada hari efektif belajar (Senin s/d Jumat) tidak mengisi absensi sama sekali.' +
-      (activeType === 'siswa' ? '<br><em>Siswa Rumah Qur\'an dapat tetap absen secara mandiri karena menerapkan Jadwal Bebas.</em>' : '') +
-      '</p></div></div>';
+  if (!isFilteringRQ) {
+    if (dayInfo.isNationalHoliday) {
+      holidayBannerHtml = '<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#92400e;">' +
+        '<i data-lucide="party-popper" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
+        '<div style="font-size:13px;line-height:1.5;">' +
+        '<strong style="color:#b45309;">Hari Libur Resmi: ' + dayInfo.holidayName + '</strong>' +
+        '<p style="margin:2px 0 0;color:#78350f;">Sesuai Kalender Libur Indonesia (SKB 3 Menteri), hari ini adalah hari libur nasional / cuti bersama. Presensi reguler tidak diwajibkan dan default ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>.' +
+        (activeType === 'siswa' ? '<br><em>Siswa & guru Rumah Qur\'an tidak memiliki hari libur tertentu dan dapat absen kapan saja setiap hari.</em>' : '') +
+        '</p></div></div>';
+    } else if (dayInfo.isWeekend) {
+      holidayBannerHtml = '<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#92400e;">' +
+        '<i data-lucide="info" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>' +
+        '<div style="font-size:13px;line-height:1.5;">' +
+        '<strong style="color:#b45309;">Sabtu & Minggu adalah Hari Libur Akhir Pekan</strong>' +
+        '<p style="margin:2px 0 0;color:#78350f;">Pada hari libur akhir pekan, presensi unit reguler tidak diwajibkan dan default ketidakhadiran <strong>TIDAK dicatat sebagai Alpa</strong>.' +
+        (activeType === 'siswa' ? '<br><em>Siswa & guru Rumah Qur\'an tidak memiliki hari libur tertentu dan dapat absen kapan saja setiap hari.</em>' : '') +
+        '</p></div></div>';
+    }
   }
 
   // Banner Rumah Qur'an jika sedang memfilter Rumah Qur'an atau unit bebas
-  var isFilteringRQ = String(filterKelas || "").toLowerCase().indexOf("rumah quran") > -1;
   var rumahQuranBannerHtml = isFilteringRQ
     ? '<div id="rq-banner-box" style="margin-top:14px;padding:12px 16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;display:flex;align-items:flex-start;gap:12px;color:#065f46;">' +
       '<i data-lucide="sparkles" style="width:20px;height:20px;color:#059669;flex-shrink:0;margin-top:2px;"></i>' +
       '<div style="font-size:13px;line-height:1.5;">' +
-      '<strong style="color:#047857;">Unit Rumah Qur\'an — Jadwal Bebas (Fleksibel)</strong>' +
-      '<p style="margin:2px 0 0;color:#064e3b;">Rumah Qur\'an tidak terikat dengan jadwal absensi reguler lainnya. Siswa dapat hadir kapan saja tanpa batasan terlambat, dan ketidakhadiran <strong>tidak pernah dikenakan status Alpa</strong>.</p>' +
+      '<strong style="color:#047857;">Unit Rumah Qur\'an — Semua Hari Aktif & Jadwal Bebas</strong>' +
+      '<p style="margin:2px 0 0;color:#064e3b;">Unit Rumah Qur\'an <strong>tidak memiliki hari libur tertentu (semua hari Senin s.d. Minggu termasuk hari libur dapat digunakan untuk absensi)</strong>. Pegawai dan siswa dapat hadir kapan saja tanpa batasan terlambat (selalu Hadir), dan ketidakhadiran <strong>tidak pernah dikenakan status Alpa (-)</strong>.</p>' +
       '</div></div>'
-    : '<div id="rq-banner-box" style="display:none;margin-top:14px;padding:12px 16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;align-items:flex-start;gap:12px;color:#065f46;"><i data-lucide="sparkles" style="width:20px;height:20px;color:#059669;flex-shrink:0;margin-top:2px;"></i><div style="font-size:13px;line-height:1.5;"><strong style="color:#047857;">Unit Rumah Qur\'an — Jadwal Bebas (Fleksibel)</strong><p style="margin:2px 0 0;color:#064e3b;">Rumah Qur\'an tidak terikat dengan jadwal absensi reguler lainnya. Siswa dapat hadir kapan saja tanpa batasan terlambat, dan ketidakhadiran <strong>tidak pernah dikenakan status Alpa</strong>.</p></div></div>';
+    : '<div id="rq-banner-box" style="display:none;margin-top:14px;padding:12px 16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;align-items:flex-start;gap:12px;color:#065f46;"><i data-lucide="sparkles" style="width:20px;height:20px;color:#059669;flex-shrink:0;margin-top:2px;"></i><div style="font-size:13px;line-height:1.5;"><strong style="color:#047857;">Unit Rumah Qur\'an — Semua Hari Aktif & Jadwal Bebas</strong><p style="margin:2px 0 0;color:#064e3b;">Unit Rumah Qur\'an <strong>tidak memiliki hari libur tertentu (semua hari Senin s.d. Minggu dapat digunakan)</strong>. Pegawai dan siswa dapat hadir kapan saja tanpa batasan terlambat, dan ketidakhadiran <strong>tidak pernah dikenakan status Alpa (-)</strong>.</p></div></div>';
 
   c.innerHTML =
     '<div class="page-header">' +
@@ -1490,12 +1494,17 @@ function renderLapTable() {
     var emptyTitle = "";
     var emptySub = "";
 
-    if (dayInfo.isNationalHoliday) {
+    var isFilterRQ = String(filterKelas || "").toLowerCase().indexOf("rumah quran") > -1;
+
+    if (isFilterRQ) {
+      emptyTitle = "Belum Ada Presensi Rumah Qur'an";
+      emptySub = "Unit Rumah Qur'an tidak memiliki hari libur tertentu (semua hari Senin s.d. Minggu dapat digunakan). Belum ada " + (activeType === "guru" ? "pegawai" : "siswa") + " yang mengisi absensi pada tanggal " + formatDate(currentFilterDate) + ".";
+    } else if (dayInfo.isNationalHoliday) {
       emptyTitle = "Hari Libur Resmi (" + dayInfo.holidayName + ")";
-      emptySub = "Presensi reguler tidak diwajibkan pada hari libur nasional / cuti bersama (bukan Alpa). Siswa Rumah Qur'an berjadwal bebas.";
+      emptySub = "Presensi reguler tidak diwajibkan pada hari libur nasional / cuti bersama (bukan Alpa). Siswa & guru Rumah Qur'an dapat tetap absen karena semua hari aktif.";
     } else if (dayInfo.isWeekend) {
       emptyTitle = "Hari Libur Akhir Pekan (" + dayInfo.dayName + ")";
-      emptySub = "Presensi reguler tidak diwajibkan pada hari Sabtu & Minggu, dan ketidakhadiran bukan Alpa. Siswa Rumah Qur'an berjadwal bebas.";
+      emptySub = "Presensi reguler tidak diwajibkan pada hari Sabtu & Minggu, dan ketidakhadiran bukan Alpa. Siswa & guru Rumah Qur'an dapat tetap absen karena semua hari aktif.";
     } else if (attendance.length === 0) {
       emptyTitle = "Belum Ada Presensi Tercatat";
       emptySub = "Tidak ada data presensi pada tanggal " + formatDate(currentFilterDate) + ".";
@@ -1517,20 +1526,25 @@ function renderLapTable() {
   var h = "";
   for (var i = 0; i < data.length; i++) {
     var a = data[i];
-    var isRQ = String(a.kelas || "").toLowerCase().indexOf("rumah quran") > -1;
+    var isRQ = isRumahQuranRole(a.kelas) || (isPegawai && isRumahQuranRole(getPegawaiUnit(a)));
     var rqTag = isRQ ? ' <span class="badge badge-free" style="font-size:10px;padding:2px 6px;margin-left:4px;">Jadwal Bebas</span>' : '';
     var dateFormatted = getDayInfo(a.tanggal).dayName + ', ' + formatDate(a.tanggal);
 
+    var displayStatus = a.status;
+    if (isRQ && (displayStatus === "TL1" || displayStatus === "TL2" || displayStatus === "Terlambat" || displayStatus === "Alpa")) {
+      displayStatus = "Hadir";
+    }
+
     var bc = "secondary";
-    if (a.status === "Hadir") bc = "success";
-    else if (a.status === "TL1") bc = "tl1";
-    else if (a.status === "TL2") bc = "tl2";
-    else if (a.status === "Terlambat") bc = "warning";
-    else if (a.status === "Izin") bc = "izin";
-    else if (a.status === "Sakit") bc = "sakit";
-    else if (a.status === "Alpa") bc = "alpa";
-    else if (a.status === "Libur") bc = "libur";
-    var tc = (a.status === "TL1" || a.status === "TL2" || a.status === "Terlambat" || a.status === "Alpa") ? ' class="time-late"' : "";
+    if (displayStatus === "Hadir") bc = "success";
+    else if (displayStatus === "TL1") bc = "tl1";
+    else if (displayStatus === "TL2") bc = "tl2";
+    else if (displayStatus === "Terlambat") bc = "warning";
+    else if (displayStatus === "Izin") bc = "izin";
+    else if (displayStatus === "Sakit") bc = "sakit";
+    else if (displayStatus === "Alpa") bc = "alpa";
+    else if (displayStatus === "Libur") bc = "libur";
+    var tc = (!isRQ && (displayStatus === "TL1" || displayStatus === "TL2" || displayStatus === "Terlambat" || displayStatus === "Alpa")) ? ' class="time-late"' : "";
     var v =
       a.faceMatch > 0.5
         ? '<button class="verify-btn verified" onclick="showAttendanceDetail(' + i + ')" title="Wajah Cocok (Klik untuk detail)"><i data-lucide="camera" style="width:16px"></i></button>'
@@ -1575,7 +1589,7 @@ function renderLapTable() {
       '</td><td><span class="badge badge-' +
       bc +
       '">' +
-      a.status +
+      displayStatus +
       "</span>" + ketNote + "</td><td>" +
       v +
       '</td><td style="text-align:center;padding-right:20px;"><button class="action-btn" onclick="showAttendanceDetail(' + i + ')" title="Lihat Detail Absensi (Titik Tiga)"><i data-lucide="more-vertical" style="width:18px"></i></button></td></tr>';
@@ -1795,7 +1809,7 @@ function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
     if (hasNonRQ) {
       isRumahQuran = false;
     } else {
-      isRumahQuran = isRumahQuranRole(roleStr) || unitStr.toLowerCase() === "rumah quran";
+      isRumahQuran = isRumahQuranRole(roleStr) || isRumahQuranRole(unitStr);
     }
   }
 
@@ -1847,16 +1861,20 @@ function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
 
     var finalCode = "-";
     if (rawCode && rawCode !== "-" && rawCode !== "A") {
-      // Kehadiran tercatat: Hadir (H), Terlambat (T, TL1, TL2), Sakit (S), Izin (I)
-      finalCode = rawCode;
+      // Kehadiran tercatat: untuk Rumah Qur'an tidak ada batasan jam terlambat, semua kehadiran di hari apapun (Senin s.d. Minggu) adalah Hadir (H)
+      if (isRumahQuran && (rawCode === "T" || rawCode === "TL1" || rawCode === "TL2")) {
+        finalCode = "H";
+      } else {
+        finalCode = rawCode;
+      }
     } else if (isRumahQuran) {
-      // Rumah Qur'an adalah jadwal bebas (tidak pernah otomatis dicatat Alpa)
+      // Rumah Qur'an tidak ada hari libur tertentu (semua hari bisa digunakan & tidak pernah otomatis dicatat Alpa)
       finalCode = "-";
     } else if (isHoliday) {
-      // Sabtu, Minggu, atau Hari Libur Nasional/Cuti Bersama (default bukan Alpa)
+      // Reguler: Sabtu, Minggu, atau Hari Libur Nasional/Cuti Bersama (default bukan Alpa)
       finalCode = "-";
     } else if (isPastOrToday) {
-      // Alpa HANYA jika pada hari efektif belajar (Senin-Jumat non-libur) tidak mengisi absensi sama sekali
+      // Reguler: Alpa HANYA jika pada hari efektif belajar (Senin-Jumat non-libur) tidak mengisi absensi sama sekali
       finalCode = "A";
     } else {
       // Hari masa depan yang belum berjalan
@@ -1934,7 +1952,7 @@ function showRekapTable() {
     '<ul style="margin:4px 0 0 18px;padding:0;color:#78350f;">' +
     '<li><strong>Hari Libur Nasional & Akhir Pekan (Sabtu/Minggu):</strong> Kolom bertanda merah muda atau tanda bintang (<span style="color:#dc2626;">★</span>). Default absensi <strong>bukan Alpa (-)</strong>.</li>' +
     '<li><strong>Alpa (A):</strong> HANYA jika pada <strong>hari efektif belajar (Senin s/d Jumat bukan hari libur)</strong> tidak mengisi absensi sama sekali.</li>' +
-    '<li><strong>Rumah Qur\'an:</strong> Memiliki <strong>Jadwal Bebas (Fleksibel)</strong>, dapat absen kapan saja tanpa batasan terlambat, dan tidak pernah dicatat Alpa (-).</li>' +
+    '<li><strong>Rumah Qur\'an:</strong> <strong>Tidak ada hari libur tertentu (semua hari Senin s/d Minggu dapat digunakan)</strong>, bebas absen kapan saja tanpa batasan jam terlambat (selalu Hadir), dan tidak pernah dikenakan status Alpa (-).</li>' +
     '</ul></div></div></div>';
 
   var printHeader = 
@@ -2039,11 +2057,11 @@ function showRekapTable() {
 
       var cls = "";
       if (code === "H") cls = "day-h";
-      else if (code === "T" || code === "TL1" || code === "TL2") cls = "day-t";
+      else if (code === "T" || code === "TL1" || code === "TL2") cls = isRQ ? "day-h" : "day-t";
       else if (code === "S") cls = "day-s";
       else if (code === "I") cls = "day-i";
-      else if (code === "A") cls = "day-a";
-      else if (isHolCell) cls = "day-weekend";
+      else if (code === "A") cls = isRQ ? "day-dash" : "day-a";
+      else if (isHolCell && !isRQ) cls = "day-weekend";
       else cls = "day-dash";
 
       var displayCellCode = code;
@@ -3717,7 +3735,12 @@ function exportPDF(orientation) {
           var v = a.faceMatch > 0.5 ? "Wajah Cocok" : "Belum Terverifikasi";
           var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
           var catVal = isPegawai ? (getPegawaiUnit(a) + " - " + getPegawaiJabatan(a)) : (a.kelas || "-");
-          data.push([i + 1, a.nama || "-", catVal, tglFormatted, formatTime(a.waktu), a.status || "-", v]);
+          var isRowRQ = isRumahQuranRole(catVal) || isRumahQuranRole(a.kelas);
+          var statusVal = a.status || "-";
+          if (isRowRQ && (statusVal === "TL1" || statusVal === "TL2" || statusVal === "Terlambat" || statusVal === "Alpa")) {
+            statusVal = "Hadir";
+          }
+          data.push([i + 1, a.nama || "-", catVal, tglFormatted, formatTime(a.waktu), statusVal, v]);
         }
       }
 
@@ -3797,6 +3820,12 @@ function exportExcel() {
     for (var i = 0; i < filteredData.length; i++) {
       var a = filteredData[i];
       var tglFormatted = getDayInfo(a.tanggal || currentFilterDate).dayName + ", " + formatDate(a.tanggal || currentFilterDate);
+      var catVal = isPegawai ? getPegawaiUnit(a) : (a.kelas || "-");
+      var isRowRQ = isRumahQuranRole(catVal) || isRumahQuranRole(a.kelas);
+      var statusVal = a.status || "-";
+      if (isRowRQ && (statusVal === "TL1" || statusVal === "TL2" || statusVal === "Terlambat" || statusVal === "Alpa")) {
+        statusVal = "Hadir";
+      }
       var row = [i + 1, a.nama || "-"];
       if (isPegawai) {
         row.push(getPegawaiUnit(a), getPegawaiJabatan(a));
@@ -3806,7 +3835,7 @@ function exportExcel() {
       row.push(
         tglFormatted,
         formatTime(a.waktu),
-        a.status || "-",
+        statusVal,
         a.faceMatch > 0.5 ? "Ya (Cocok)" : "Tidak"
       );
       data.push(row);
