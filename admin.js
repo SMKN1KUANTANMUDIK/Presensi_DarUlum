@@ -2450,7 +2450,6 @@ function submitEdit(id) {
     if (!bc || !nm) { showToast("Lengkapi NIP dan Nama Lengkap", "error"); return; }
     window.callGasAPI("editTeacher", { id: id, nip: bc, nama: nm, jabatan: kl, email: em, dayOff: doEditVal }, function (r) {
         showToast("Pegawai berhasil diupdate", "success");
-        if (s) s.dayOff = doEditVal;
         closeModal();
         loadData();
       }, function(err) { showToast("Gagal update pegawai: " + err, "error"); }
