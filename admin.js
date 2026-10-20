@@ -399,7 +399,6 @@ function toggleAuthPin() {
   }
 }
 
-// ✅ PERBAIKAN: Menghapus pintu belakang (backdoor) PIN "123456" dan "admin"
 function handleAdminAuthSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
   var inp = document.getElementById("auth-pin-input");
@@ -1050,15 +1049,16 @@ function renderLapTable() {
   for (var i = 0; i < data.length; i++) {
     var a = data[i];
     var isRQ = isRumahQuranRole(a.kelas) || (isPegawai && isRumahQuranRole(getPegawaiUnit(a)));
-        var rqTag = isRQ ? ' <span class="badge badge-free" style="font-size:10px;padding:2px 6px;margin-left:4px;">Jadwal Bebas</span>' : '';
+    var rqTag = isRQ ? ' <span class="badge badge-free" style="font-size:10px;padding:2px 6px;margin-left:4px;">Jadwal Bebas</span>' : '';
     
-    // Indikator Day Off di Tabel Laporan
+    // FIX: Indikator Day Off di Tabel Laporan (Akurat dengan parsing tanggal manual)
     var dOffTag = '';
     if (isPegawai && !isRQ) {
       var tData = students.find(function(t) { return String(t.id).trim() === String(a.studentId).trim(); });
       if (tData && tData.dayOff) {
         var dNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-        var tDate = new Date(a.tanggal);
+        var dParts = String(a.tanggal).split("-");
+        var tDate = new Date(parseInt(dParts[0], 10), parseInt(dParts[1], 10) - 1, parseInt(dParts[2], 10));
         var tDayName = dNames[tDate.getDay()];
         if (String(tData.dayOff).toLowerCase().indexOf(tDayName.toLowerCase()) > -1) {
           dOffTag = ' <span class="badge badge-warning" style="font-size:10px;padding:2px 6px;margin-left:4px;">Day Off (' + tDayName + ')</span>';
@@ -1257,7 +1257,6 @@ function loadRekapData() {
   });
 }
 
-// ✅ PERBAIKAN: isHoliday diganti dengan isWeekend || isNationalHoliday
 function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
   var isRumahQuran = false;
   if (s.isRumahQuran !== undefined) {
@@ -1456,20 +1455,29 @@ function renderRekapCards(visibleStudents, rekapData) {
       var isNatH = !!(holidayInfo && holidayInfo.isHoliday);
       var isHol = isWk || isNatH;
 
+      // FIX: Tambahkan indikator Day Off
+      var isDOff = false;
+      if (isPegawai && s.dayOff) {
+        var dNamesCard = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        if (String(s.dayOff).toLowerCase().indexOf(dNamesCard[dow].toLowerCase()) > -1) isDOff = true;
+      }
+
       var chipCls = "";
       if (dCode === "H") chipCls = "day-h";
       else if (dCode === "T" || dCode === "TL1" || dCode === "TL2") chipCls = isRQ ? "day-h" : "day-t";
       else if (dCode === "S") chipCls = "day-s";
       else if (dCode === "I") chipCls = "day-i";
       else if (dCode === "A") chipCls = isRQ ? "day-dash" : "day-a";
+      else if (isDOff && !isRQ) chipCls = "day-weekend"; // Prioritas Day Off
       else if (isHol && !isRQ) chipCls = "day-weekend";
       else chipCls = "day-dash";
 
       var holName = isNatH ? holidayInfo.name : (isWk ? (dow === 0 ? "Minggu (Akhir Pekan)" : "Sabtu (Akhir Pekan)") : "");
       var statusDetail = dCode === "H" ? "Hadir" : (dCode === "T" || dCode.startsWith("TL") ? "Terlambat (" + dCode + ")" : (dCode === "S" ? "Sakit" : (dCode === "I" ? "Izin" : (dCode === "A" ? "Alpa" : "Tidak ada absensi"))));
+      if (isDOff && dCode === "-") statusDetail = "Day Off (" + dayNamesShort[dow] + ")"; // Ubah tooltip
       var escapedHolName = holName ? holName.replace(/'/g, "\\'") : "";
 
-      h += '<div class="rekap-day-chip ' + chipCls + '" onclick="showRekapDayDetail(' + d + ', \'' + dayNamesShort[dow] + '\', \'' + statusDetail + '\', \'' + escapedHolName + '\')" title="' + d + ' ' + dayNamesShort[dow] + ': ' + statusDetail + (holName ? ' (' + holName + ')' : '') + '"><span class="day-num">' + d + '<br>' + dayNamesShort[dow] + '</span><span class="day-code">' + (isNatH && dCode === '-' ? '★' : dCode) + '</span></div>';
+      h += '<div class="rekap-day-chip ' + chipCls + '" onclick="showRekapDayDetail(' + d + ', \'' + dayNamesShort[dow] + '\', \'' + statusDetail + '\', \'' + escapedHolName + '\')" title="' + d + ' ' + dayNamesShort[dow] + ': ' + statusDetail + (holName ? ' (' + holName + ')' : '') + '"><span class="day-num">' + d + '<br>' + dayNamesShort[dow] + '</span><span class="day-code">' + (isDOff && dCode === '-' ? 'OFF' : (isNatH && dCode === '-' ? '★' : dCode)) + '</span></div>';
     }
     h += '</div></div></div>';
   }
@@ -1477,7 +1485,6 @@ function renderRekapCards(visibleStudents, rekapData) {
   return h;
 }
 
-// ✅ PERBAIKAN: isHolCell diganti dengan (isWk || isNatH)
 function renderRekapTableHtml(visibleStudents, rekapData, isPrintOnly) {
   var isPegawai = activeType === "guru";
   var dayNamesShort = ["M", "S", "S", "R", "K", "J", "S"];
@@ -1558,7 +1565,10 @@ function renderRekapTableHtml(visibleStudents, rekapData, isPrintOnly) {
 
       var cellTitle = isDOffCell ? ' title="Day Off (' + dayNamesIndo2[dow2] + ')"' : (isNatH ? ' title="Libur Nasional"' : '');
       var displayCellCode = code;
-      var cellFontSize = (code === "TL1" || code === "TL2") ? 'style="font-size:9px;"' : '';
+      if (isDOffCell && !isRQ && code === "-") {
+        displayCellCode = "OFF"; // FIX: Tampilkan OFF di sel
+      }
+      var cellFontSize = (displayCellCode === "OFF") ? 'style="font-size:8px;"' : ((code === "TL1" || code === "TL2") ? 'style="font-size:9px;"' : '');
       h += '<td class="' + cls + '"' + cellTitle + '><strong ' + cellFontSize + '>' + displayCellCode + "</strong></td>";
     }
     h += '<td class="col-summary-h">' + (sTotals.H || 0) + '</td><td class="col-summary-t">' + (sTotals.T || 0) + '</td><td class="col-summary-s">' + (sTotals.S || 0) + '</td><td class="col-summary-i">' + (sTotals.I || 0) + '</td><td class="col-summary-a">' + (sTotals.A || 0) + '</td></tr>';
@@ -2512,7 +2522,6 @@ function runSetup() {
   });
 }
 
-// ✅ PERBAIKAN: Menghapus simpan PIN di localStorage (Keamanan)
 function saveSettings() {
   var elN = document.getElementById("set-admin-nama");
   var elR = document.getElementById("set-admin-role");
@@ -2530,7 +2539,6 @@ function saveSettings() {
   var j = elJ ? elJ.value : (appSettings.jamTerlambat || '07:15');
   var t = elT ? elT.value : (appSettings.faceMatchThreshold || '0.5');
   var p = elP ? elP.value.trim() : ((appSettings && appSettings.adminPin) || "123456");
-  // if (p) localStorage.setItem('app_admin_pin', p); // DIHAPUS DEMI KEAMANAN
 
   var latVal = elLat ? elLat.value.trim() : (appSettings.targetLat || localStorage.getItem('app_target_lat') || '-0.8672131613430705');
   var lngVal = elLng ? elLng.value.trim() : (appSettings.targetLng || localStorage.getItem('app_target_lng') || '101.37821257931239');
