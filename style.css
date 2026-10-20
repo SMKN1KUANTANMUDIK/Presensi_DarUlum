@@ -3037,6 +3037,18 @@ h1, h2, h3, h4, h5, h6 {
     align-items: center !important;
     justify-content: center !important;
   }
+  .kop-logo-right-box {
+    position: absolute !important;
+    right: 0 !important;
+    left: auto !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 64px !important;
+    height: 64px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
   .kop-logo {
     width: 64px !important;
     height: 64px !important;
@@ -3235,7 +3247,8 @@ h1, h2, h3, h4, h5, h6 {
   body.print-mode-portrait .rekap-table small {
     font-size: 5.5pt !important;
   }
-  body.print-mode-portrait .kop-logo-box {
+  body.print-mode-portrait .kop-logo-box,
+  body.print-mode-portrait .kop-logo-right-box {
     width: 54px !important;
     height: 54px !important;
   }
@@ -3282,7 +3295,8 @@ h1, h2, h3, h4, h5, h6 {
   body.print-mode-landscape .rekap-table small {
     font-size: 6.5pt !important;
   }
-  body.print-mode-landscape .kop-logo-box {
+  body.print-mode-landscape .kop-logo-box,
+  body.print-mode-landscape .kop-logo-right-box {
     width: 68px !important;
     height: 68px !important;
   }

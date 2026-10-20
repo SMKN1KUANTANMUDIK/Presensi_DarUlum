@@ -603,6 +603,67 @@ function getAppLogoUrl() {
   return "icon-192.png";
 }
 
+function getUnitReportBranding(unitOrClass) {
+  var raw = String(unitOrClass || "").trim();
+  var low = raw.toLowerCase();
+
+  // 1. Rumah Quran: icon-193.png
+  if (low.indexOf("rumah quran") > -1 || low.indexOf("rumah qur'an") > -1 || low === "rq") {
+    return {
+      unitKey: "rq",
+      unitName: "Rumah Qur'an Darul Ulum",
+      kopCabang: "RUMAH QUR'AN DARUL ULUM",
+      subDesc: "Pendidikan Al-Qur'an & Tahfizh Yayasan Darul Ulum Islamiyyah",
+      rightLogo: "icon-193.png"
+    };
+  }
+
+  // 2. PAUD / TK: icon-194.png
+  if (low.indexOf("tk") > -1 || low.indexOf("paud") > -1) {
+    return {
+      unitKey: "tk",
+      unitName: "PAUD - TK Cinta Qur'an",
+      kopCabang: "PAUD - TK CINTA QUR'AN",
+      subDesc: "Pendidikan Anak Usia Dini & Taman Kanak-Kanak Islamiyyah",
+      rightLogo: "icon-194.png"
+    };
+  }
+
+  // 3. SDIT: icon-195.png (dengan fallback icon-194.png)
+  if (low.indexOf("sdit") > -1 || low.indexOf("sd ") > -1 || low.indexOf("kelas") > -1) {
+    var clsDetail = "";
+    var mCls = raw.match(/kelas\s*\d+/i);
+    if (mCls) clsDetail = " (" + mCls[0] + ")";
+    return {
+      unitKey: "sdit",
+      unitName: "SDIT Tahfizhul Qur'an" + clsDetail,
+      kopCabang: "SDIT TAHFIZHUL QUR'AN DARUL ULUM",
+      subDesc: "Sekolah Dasar Islam Terpadu Yayasan Darul Ulum Islamiyyah",
+      rightLogo: "icon-195.png"
+    };
+  }
+
+  // 4. Yayasan
+  if (low.indexOf("yayasan") > -1) {
+    return {
+      unitKey: "yayasan",
+      unitName: "Yayasan Darul Ulum Islamiyyah",
+      kopCabang: "PENGURUS YAYASAN DARUL ULUM ISLAMIYYAH",
+      subDesc: "Kamang Baru - Kabupaten Sijunjung, Sumatera Barat",
+      rightLogo: null
+    };
+  }
+
+  // 5. Default / Semua Unit Kerja / Semua Kelas
+  return {
+    unitKey: "all",
+    unitName: activeType === "guru" ? "Semua Unit Kerja" : "Semua Kelas",
+    kopCabang: "KAMANG BARU - KABUPATEN SIJUNJUNG",
+    subDesc: "Kamang Baru - Kabupaten Sijunjung, Sumatera Barat",
+    rightLogo: null
+  };
+}
+
 function getIndonesianMonth(m) {
   var names = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
   return names[m - 1] || "";
@@ -1392,23 +1453,30 @@ function renderLaporan() {
     '<!-- Card Tabel Kehadiran -->' +
     '<div class="card">' +
       '<div class="card-body" style="padding:0;">' +
-        '<div class="print-header print-only">' +
-          '<div class="kop-surat">' +
-            '<div class="kop-logo-box">' +
-              '<img src="' + getAppLogoUrl() + '" alt="Logo Yayasan" onerror="this.onerror=null;this.src=\'icon-192.png\';" class="kop-logo">' +
+        (function() {
+          var brandLap = getUnitReportBranding(filterKelas);
+          var rightLogoLapHtml = brandLap.rightLogo
+            ? '<div class="kop-logo-right-box"><img src="' + brandLap.rightLogo + '" alt="' + brandLap.kopCabang + '" class="kop-logo" onerror="this.onerror=null;this.src=\'icon-194.png\';"></div>'
+            : '';
+          return '<div class="print-header print-only">' +
+            '<div class="kop-surat">' +
+              '<div class="kop-logo-box">' +
+                '<img src="' + getAppLogoUrl() + '" alt="Logo Yayasan" onerror="this.onerror=null;this.src=\'icon-192.png\';" class="kop-logo">' +
+              '</div>' +
+              '<div class="kop-text">' +
+                '<h1 class="kop-instansi">YAYASAN DARUL ULUM ISLAMIYYAH</h1>' +
+                '<h2 class="kop-cabang">' + brandLap.kopCabang + '</h2>' +
+                '<p class="kop-alamat">Alamat: Jl. Lintas Sumatera, Kamang Baru, Kec. Kamang Baru, Kab. Sijunjung, Sumatera Barat</p>' +
+              '</div>' +
+              rightLogoLapHtml +
             '</div>' +
-            '<div class="kop-text">' +
-              '<h1 class="kop-instansi">YAYASAN DARUL ULUM ISLAMIYYAH</h1>' +
-              '<h2 class="kop-cabang">KAMANG BARU - KABUPATEN SIJUNJUNG</h2>' +
-              '<p class="kop-alamat">Alamat: Jl. Lintas Sumatera, Kamang Baru, Kec. Kamang Baru, Kab. Sijunjung, Sumatera Barat</p>' +
+            '<div class="kop-line"></div>' +
+            '<div class="kop-doc-info">' +
+              '<h3 class="kop-doc-title">LAPORAN KEHADIRAN HARIAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h3>' +
+              '<p class="kop-doc-meta">Hari / Tanggal: <strong>' + dayInfo.dayName + ', ' + formatFullDate(currentFilterDate) + '</strong> &nbsp;|&nbsp; ' + (activeType == "guru" ? "Unit Kerja" : "Kelas") + ': <strong>' + brandLap.unitName + '</strong></p>' +
             '</div>' +
-          '</div>' +
-          '<div class="kop-line"></div>' +
-          '<div class="kop-doc-info">' +
-            '<h3 class="kop-doc-title">LAPORAN KEHADIRAN HARIAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h3>' +
-            '<p class="kop-doc-meta">Hari / Tanggal: <strong>' + dayInfo.dayName + ', ' + formatFullDate(currentFilterDate) + '</strong> &nbsp;|&nbsp; ' + (activeType == "guru" ? "Unit Kerja" : "Kelas") + ': <strong>' + (filterKelas || "Semua") + '</strong></p>' +
-          '</div>' +
-        '</div>' +
+          '</div>';
+        })() +
         '<div class="table-responsive">' +
           '<table class="table">' +
             '<thead>' +
@@ -1988,7 +2056,15 @@ function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
     var hMgr = (typeof window !== "undefined" && window.HolidayManager) ? window.HolidayManager : (typeof global !== "undefined" && global.HolidayManager ? global.HolidayManager : null);
     var holidayInfo = hMgr ? hMgr.getHoliday(isoKey) : null;
     var isNationalHoliday = !!(holidayInfo && holidayInfo.isHoliday);
-    var isHoliday = isWeekend || isNationalHoliday;
+    var dayNamesIndoRecap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    var currentDayNameRecap = dayNamesIndoRecap[dow];
+    var isTeacherDayOff = false;
+    if (activeType === "guru" && s.dayOff) {
+      var dOffArr = String(s.dayOff).split(",").map(function(x) { return x.trim().toLowerCase(); });
+      if (dOffArr.indexOf(currentDayNameRecap.toLowerCase()) > -1) {
+        isTeacherDayOff = true;
+      }
+    }
 
     var isPastOrToday = false;
     if (targetYear < todayYear) {
@@ -2012,8 +2088,8 @@ function calculateStudentRecap(s, rekapData, targetMonth, targetYear) {
     } else if (isRumahQuran) {
       // Rumah Qur'an tidak ada hari libur tertentu (semua hari bisa digunakan & tidak pernah otomatis dicatat Alpa)
       finalCode = "-";
-    } else if (isHoliday) {
-      // Reguler: Sabtu, Minggu, atau Hari Libur Nasional/Cuti Bersama (default bukan Alpa)
+    } else if (isHoliday || isTeacherDayOff) {
+      // Reguler: Sabtu, Minggu, Libur Nasional, atau Day Off guru: default bukan Alpa
       finalCode = "-";
     } else if (isPastOrToday) {
       // Reguler: Alpa HANYA jika pada hari efektif belajar (Senin-Jumat non-libur) tidak mengisi absensi sama sekali
@@ -2065,6 +2141,11 @@ function showRekapTable() {
   }
 
   // 3. Official Print Header
+  var brandRekap = getUnitReportBranding(filterKelas);
+  var rightLogoRekapHtml = brandRekap.rightLogo
+    ? '<div class="kop-logo-right-box"><img src="' + brandRekap.rightLogo + '" alt="' + brandRekap.kopCabang + '" class="kop-logo" onerror="this.onerror=null;this.src=\'icon-194.png\';"></div>'
+    : '';
+
   var printHeader = 
     '<div class="print-header print-only">' +
       '<div class="kop-surat">' +
@@ -2073,14 +2154,15 @@ function showRekapTable() {
         '</div>' +
         '<div class="kop-text">' +
           '<h1 class="kop-instansi">YAYASAN DARUL ULUM ISLAMIYYAH</h1>' +
-          '<h2 class="kop-cabang">KAMANG BARU - KABUPATEN SIJUNJUNG</h2>' +
+          '<h2 class="kop-cabang">' + brandRekap.kopCabang + '</h2>' +
           '<p class="kop-alamat">Alamat: Jl. Lintas Sumatera, Kamang Baru, Kec. Kamang Baru, Kab. Sijunjung, Sumatera Barat</p>' +
         '</div>' +
+        rightLogoRekapHtml +
       '</div>' +
       '<div class="kop-line"></div>' +
       '<div class="kop-doc-info">' +
         '<h3 class="kop-doc-title">REKAPITULASI KEHADIRAN BULANAN ' + (activeType == "guru" ? "PEGAWAI" : "SISWA") + '</h3>' +
-        '<p class="kop-doc-meta">Periode: <strong>' + getIndonesianMonth(currentRekapMonth) + ' ' + currentRekapYear + '</strong> &nbsp;|&nbsp; ' + (activeType == "guru" ? "Unit Kerja" : "Kelas") + ': <strong>' + (filterKelas || "Semua") + '</strong></p>' +
+        '<p class="kop-doc-meta">Periode: <strong>' + getIndonesianMonth(currentRekapMonth) + ' ' + currentRekapYear + '</strong> &nbsp;|&nbsp; ' + (activeType == "guru" ? "Unit Kerja" : "Kelas") + ': <strong>' + brandRekap.unitName + '</strong></p>' +
       '</div>' +
     '</div>';
 
@@ -2373,7 +2455,14 @@ function renderRekapTableHtml(visibleStudents, rekapData, isPrintOnly) {
       var isWk = (dow2 === 0 || dow2 === 6);
       var isoKey2 = currentRekapYear + '-' + String(currentRekapMonth).padStart(2, '0') + '-' + String(d2).padStart(2, '0');
       var isNatH = window.HolidayManager ? window.HolidayManager.isHolidayDate(isoKey2) : false;
-      var isHolCell = isWk || isNatH;
+      var dayNamesIndo2 = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      var isDOffCell = false;
+      if (isPegawai && s.dayOff) {
+        var dOffList2 = String(s.dayOff).split(",").map(function(x) { return x.trim().toLowerCase(); });
+        if (dOffList2.indexOf(dayNamesIndo2[dow2].toLowerCase()) > -1) {
+          isDOffCell = true;
+        }
+      }
 
       var cls = "";
       if (code === "H") cls = "day-h";
@@ -2381,12 +2470,14 @@ function renderRekapTableHtml(visibleStudents, rekapData, isPrintOnly) {
       else if (code === "S") cls = "day-s";
       else if (code === "I") cls = "day-i";
       else if (code === "A") cls = isRQ ? "day-dash" : "day-a";
+      else if (isDOffCell && !isRQ) cls = "day-weekend";
       else if (isHolCell && !isRQ) cls = "day-weekend";
       else cls = "day-dash";
 
+      var cellTitle = isDOffCell ? ' title="Day Off (' + dayNamesIndo2[dow2] + ')"' : '';
       var displayCellCode = code;
       var cellFontSize = (code === "TL1" || code === "TL2") ? 'style="font-size:9px;"' : '';
-      h += '<td class="' + cls + '"><strong ' + cellFontSize + '>' + displayCellCode + "</strong></td>";
+      h += '<td class="' + cls + '"' + cellTitle + '><strong ' + cellFontSize + '>' + displayCellCode + "</strong></td>";
     }
 
     h +=
@@ -2602,7 +2693,8 @@ function exportRekapPDF(orientation) {
 
   showToast("Menyiapkan PDF Rekap Bulanan...", "info");
 
-  fetchLogoBase64(function(logoDataUrl) {
+  var brand = getUnitReportBranding(filterKelas);
+  fetchBothLogosBase64(brand.rightLogo, function(logoDataUrl, rightLogoDataUrl) {
     try {
       var doc = new JsPDF(orientation, "pt", "a4");
       var pageWidth = doc.internal.pageSize.getWidth ? doc.internal.pageSize.getWidth() : doc.internal.pageSize.width;
@@ -2613,6 +2705,11 @@ function exportRekapPDF(orientation) {
         try {
           doc.addImage(logoDataUrl, 'PNG', margin, 18, 38, 38);
         } catch (imgErr) {}
+      }
+      if (rightLogoDataUrl) {
+        try {
+          doc.addImage(rightLogoDataUrl, 'PNG', pageWidth - margin - 38, 18, 38, 38);
+        } catch (rImgErr) {}
       }
 
       var monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -2626,11 +2723,11 @@ function exportRekapPDF(orientation) {
 
       doc.setFontSize(orientation === "p" ? 8.5 : 9.5);
       doc.setFont("helvetica", "bold");
-      doc.text("YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU", pageWidth / 2, 40, { align: "center" });
+      doc.text("YAYASAN DARUL ULUM ISLAMIYYAH - " + brand.kopCabang, pageWidth / 2, 40, { align: "center" });
 
       doc.setFontSize(orientation === "p" ? 7.5 : 8.5);
       doc.setFont("helvetica", "normal");
-      doc.text("Periode: " + monthName + " " + currentRekapYear + "  |  " + (isPegawai ? "Unit Kerja" : "Kelas") + ": " + (filterKelas || "Semua"), pageWidth / 2, 51, { align: "center" });
+      doc.text("Periode: " + monthName + " " + currentRekapYear + "  |  " + (isPegawai ? "Unit Kerja" : "Kelas") + ": " + brand.unitName, pageWidth / 2, 51, { align: "center" });
 
       doc.setLineWidth(1);
       doc.line(margin, 58, pageWidth - margin, 58);
@@ -2931,6 +3028,9 @@ function renderSiswaTable() {
           var isRQR = isRumahQuranRole(rItem);
           var tagBadge = isRQR ? ' <span class="badge badge-free" style="font-size:9px;padding:1px 5px;">Bebas</span>' : '';
           badgesHtml.push('<span style="display:inline-block;margin:1px 0;"><span class="badge badge-info" style="font-size:11px;margin-right:4px;">Unit ' + uRole + '</span> ' + (jRole !== "-" && jRole !== uRole ? jRole : "") + tagBadge + '</span>');
+        }
+        if (s.dayOff) {
+          badgesHtml.push('<span class="badge badge-warning" style="font-size:10px;padding:2px 6px;margin-top:3px;display:inline-block;"><i data-lucide="coffee" style="width:11px;height:11px;vertical-align:-1px;margin-right:2px;"></i> Day Off: ' + s.dayOff + '</span>');
         }
         sub = badgesHtml.join("<br>");
       } else {
@@ -3500,6 +3600,17 @@ function showAddModal() {
         '<small style="color:var(--gray);font-size:11px;display:block;margin-top:4px;line-height:1.4;">' +
         'Centang jika pegawai ini juga mengajar di Rumah Qur\'an. Sistem akan memisahkan absensi tugas reguler dan tugas Rumah Qur\'an secara mandiri agar rekap tugas reguler tetap mencatat Alpa jika tidak hadir.' +
         '</small>' +
+        '</div>' +
+        '<div class="form-group" style="margin-top:12px;">' +
+        '<label class="form-label" style="font-weight:600;">Hari Day Off / Libur Rutin Pegawai</label>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">' +
+        ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'].map(function(d){
+          return '<label style="display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;background:var(--bg);">' +
+                 '<input type="checkbox" name="add-dayoff" value="' + d + '" style="accent-color:var(--primary);cursor:pointer;"> ' + d +
+                 '</label>';
+        }).join('') +
+        '</div>' +
+        '<small style="color:var(--gray);font-size:11px;display:block;margin-top:4px;">Centang hari libur rutin pegawai (misal: Jumat). Guru tidak wajib absen pada hari day off dan tidak dihitung Alpa pada rekap bulanan.</small>' +
         '</div>';
     } else {
       var classOptions = "";
@@ -3686,13 +3797,18 @@ function submitAdd() {
       kl += ", Guru Rumah Quran";
     }
 
+    var doBoxes = document.querySelectorAll('input[name="add-dayoff"]:checked');
+    var doArr = [];
+    doBoxes.forEach(function(b) { doArr.push(b.value); });
+    var doVal = doArr.join(", ");
+
     if (!bc || !nm) {
       showToast("Lengkapi NIP dan Nama Lengkap", "error");
       return;
     }
     window.callGasAPI(
       "addTeacher",
-      { nip: bc, nama: nm, jabatan: kl, email: em },
+      { nip: bc, nama: nm, jabatan: kl, email: em, dayOff: doVal },
       function (r) {
         showToast("Pegawai berhasil ditambahkan", "success");
         closeModal();
@@ -3786,6 +3902,18 @@ function editSiswa(id) {
       '<small style="color:var(--gray);font-size:11px;display:block;margin-top:4px;line-height:1.4;">' +
       'Centang jika pegawai ini juga mengajar di Rumah Qur\'an. Absensi tugas reguler dan tugas Rumah Qur\'an akan dipisahkan secara otomatis agar rekap tugas reguler tetap mencatat Alpa jika tidak hadir.' +
       '</small>' +
+      '</div>' +
+      '<div class="form-group" style="margin-top:12px;">' +
+      '<label class="form-label" style="font-weight:600;">Hari Day Off / Libur Rutin Pegawai</label>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">' +
+      ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'].map(function(d){
+        var isChk = (s.dayOff || '').toLowerCase().indexOf(d.toLowerCase()) > -1 ? 'checked' : '';
+        return '<label style="display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;background:var(--bg);">' +
+               '<input type="checkbox" name="edit-dayoff" value="' + d + '" ' + isChk + ' style="accent-color:var(--primary);cursor:pointer;"> ' + d +
+               '</label>';
+      }).join('') +
+      '</div>' +
+      '<small style="color:var(--gray);font-size:11px;display:block;margin-top:4px;">Centang hari libur rutin pegawai (misal: Jumat). Guru tidak wajib absen pada hari day off dan tidak dihitung Alpa pada rekap bulanan.</small>' +
       '</div>';
   } else {
     var curClass = (s.kelas || "").trim();
@@ -3867,15 +3995,21 @@ function submitEdit(id) {
       kl += ", Guru Rumah Quran";
     }
 
+    var doEditBoxes = document.querySelectorAll('input[name="edit-dayoff"]:checked');
+    var doEditArr = [];
+    doEditBoxes.forEach(function(b) { doEditArr.push(b.value); });
+    var doEditVal = doEditArr.join(", ");
+
     if (!bc || !nm) {
       showToast("Lengkapi NIP dan Nama Lengkap", "error");
       return;
     }
     window.callGasAPI(
       "editTeacher",
-      { id: id, nip: bc, nama: nm, jabatan: kl, email: em },
+      { id: id, nip: bc, nama: nm, jabatan: kl, email: em, dayOff: doEditVal },
       function (r) {
         showToast("Pegawai berhasil diupdate", "success");
+        if (s) s.dayOff = doEditVal;
         closeModal();
         loadData();
       },
@@ -4107,14 +4241,13 @@ function downloadCsvFallback(aoaData, filename) {
   }
 }
 
-function fetchLogoBase64(callback) {
-  var logoUrl = getAppLogoUrl();
-  if (!logoUrl) {
+function fetchImageBase64(url, callback) {
+  if (!url) {
     callback(null);
     return;
   }
-  if (logoUrl.indexOf("data:") === 0) {
-    callback(logoUrl);
+  if (url.indexOf("data:") === 0) {
+    callback(url);
     return;
   }
   
@@ -4141,7 +4274,6 @@ function fetchLogoBase64(callback) {
       var dataUrl = canvas.toDataURL("image/png");
       callback(dataUrl);
     } catch (e) {
-      console.warn("Canvas toDataURL security/CORS restriction:", e);
       callback(null);
     }
   };
@@ -4152,7 +4284,7 @@ function fetchLogoBase64(callback) {
     callback(null);
   };
   try {
-    img.src = logoUrl;
+    img.src = url;
   } catch (e) {
     if (!finished) {
       finished = true;
@@ -4160,6 +4292,22 @@ function fetchLogoBase64(callback) {
       callback(null);
     }
   }
+}
+
+function fetchLogoBase64(callback) {
+  fetchImageBase64(getAppLogoUrl(), callback);
+}
+
+function fetchBothLogosBase64(rightLogoUrl, callback) {
+  fetchLogoBase64(function(leftData) {
+    if (rightLogoUrl) {
+      fetchImageBase64(rightLogoUrl, function(rightData) {
+        callback(leftData, rightData);
+      });
+    } else {
+      callback(leftData, null);
+    }
+  });
 }
 
 function exportPDF(orientation) {
@@ -4172,7 +4320,8 @@ function exportPDF(orientation) {
 
   showToast("Menyiapkan file PDF...", "info");
 
-  fetchLogoBase64(function(logoDataUrl) {
+  var brand = getUnitReportBranding(filterKelas);
+  fetchBothLogosBase64(brand.rightLogo, function(logoDataUrl, rightLogoDataUrl) {
     try {
       var doc = new JsPDF(orientation, "pt", "a4");
       var pageWidth = doc.internal.pageSize.getWidth ? doc.internal.pageSize.getWidth() : doc.internal.pageSize.width;
@@ -4186,23 +4335,30 @@ function exportPDF(orientation) {
           console.warn("Gagal render logo ke PDF:", imgErr);
         }
       }
+      if (rightLogoDataUrl) {
+        try {
+          doc.addImage(rightLogoDataUrl, 'PNG', pageWidth - margin - 48, 22, 48, 48);
+        } catch (rImgErr) {
+          console.warn("Gagal render logo unit ke PDF:", rImgErr);
+        }
+      }
 
       // Kop Surat
       var isPegawai = activeType === "guru";
       doc.setFontSize(orientation === "p" ? 13 : 15);
       doc.setFont("helvetica", "bold");
       var docTitle = "LAPORAN KEHADIRAN " + (isPegawai ? "PEGAWAI" : "SISWA");
-      if (filterKelas && filterKelas !== "Semua") docTitle += " (" + (isPegawai ? "UNIT: " : "KELAS: ") + filterKelas.toUpperCase() + ")";
+      if (filterKelas && filterKelas !== "Semua") docTitle += " (" + (isPegawai ? "UNIT: " : "KELAS: ") + brand.unitName.toUpperCase() + ")";
       doc.text(docTitle, pageWidth / 2, 38, { align: "center" });
 
       doc.setFontSize(orientation === "p" ? 9 : 10);
       doc.setFont("helvetica", "bold");
-      doc.text("YAYASAN DARUL ULUM ISLAMIYYAH - KAMANG BARU", pageWidth / 2, 52, { align: "center" });
+      doc.text("YAYASAN DARUL ULUM ISLAMIYYAH - " + brand.kopCabang, pageWidth / 2, 52, { align: "center" });
 
       doc.setFontSize(orientation === "p" ? 8.5 : 9.5);
       doc.setFont("helvetica", "normal");
       var dayInfo = getDayInfo(currentFilterDate);
-      doc.text("Hari / Tanggal: " + dayInfo.dayName + ", " + formatFullDate(currentFilterDate), pageWidth / 2, 66, { align: "center" });
+      doc.text("Hari / Tanggal: " + dayInfo.dayName + ", " + formatFullDate(currentFilterDate) + "  |  " + (isPegawai ? "Unit Kerja" : "Kelas") + ": " + brand.unitName, pageWidth / 2, 66, { align: "center" });
 
       // Garis Bawah Kop
       doc.setLineWidth(1.5);

@@ -626,13 +626,24 @@ function renderTeacherHistoryContent(recapRes, todayRes, m, y) {
     var rowClass = "history-row-item";
     var timeDisplay = "";
 
+    var dayNamesIndoHistory = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    var curDayName = dayNamesIndoHistory[dow];
+    var isTeacherDayOff = false;
+    if (currentStudent && currentStudent.dayOff) {
+      var dOffArrHist = String(currentStudent.dayOff).split(",").map(function(x) { return x.trim().toLowerCase(); });
+      if (dOffArrHist.indexOf(curDayName.toLowerCase()) > -1) {
+        isTeacherDayOff = true;
+      }
+    }
+
     if (isToday) rowClass += " today";
+    else if (!isPureRQ && isTeacherDayOff) rowClass += " holiday";
     else if (!isPureRQ && isNatHoliday) rowClass += " holiday";
     else if (!isPureRQ && isWeekend) rowClass += " weekend";
 
     if (isFuture) {
       badgeHTML = '<span style="font-size:11px;color:var(--gray);font-style:italic;">Belum berjalan</span>';
-      statusText = isPureRQ ? "Rumah Qur'an (Semua Hari Aktif)" : (isWeekend ? (dow === 0 ? "Minggu (Akhir Pekan)" : "Sabtu (Akhir Pekan)") : (isNatHoliday ? holidayInfo.name : "Hari Belajar"));
+      statusText = isPureRQ ? "Rumah Qur'an (Semua Hari Aktif)" : (isTeacherDayOff ? ("Jadwal Day Off (" + curDayName + ")") : (isWeekend ? (dow === 0 ? "Minggu (Akhir Pekan)" : "Sabtu (Akhir Pekan)") : (isNatHoliday ? holidayInfo.name : "Hari Belajar")));
     } else if (primaryCode === "H" || (isPureRQ && (primaryCode === "T" || primaryCode === "TL1" || primaryCode === "TL2"))) {
       badgeHTML = '<span class="badge badge-success" style="font-size:11px;padding:3px 8px;">Hadir</span>';
       statusText = isPureRQ ? "Hadir (Jadwal Bebas)" : "Tepat Waktu";
@@ -659,6 +670,9 @@ function renderTeacherHistoryContent(recapRes, todayRes, m, y) {
       if (isPureRQ) {
         badgeHTML = '<span class="badge badge-free" style="font-size:11px;padding:3px 8px;">Bebas</span>';
         statusText = "Rumah Qur'an - Tidak Ada Hari Libur Tertentu (Semua Hari Aktif)";
+      } else if (isTeacherDayOff) {
+        badgeHTML = '<span class="badge badge-warning" style="font-size:11px;padding:3px 8px;">Day Off</span>';
+        statusText = "Jadwal Day Off (" + curDayName + ")";
       } else if (isNatHoliday) {
         badgeHTML = '<span class="badge badge-holiday" style="font-size:11px;padding:3px 8px;"><i data-lucide="star" style="width:10px;height:10px;vertical-align:-1px;"></i> Libur</span>';
         statusText = "Libur Nasional: " + holidayInfo.name;

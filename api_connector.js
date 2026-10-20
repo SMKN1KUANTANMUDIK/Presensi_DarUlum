@@ -1,50 +1,55 @@
-// Konektor API ke Google Apps Script
-// Ganti URL ini dengan URL "Execute as Me" -> "Anyone" dari Deployment Google Script Anda.
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwlPwuDkn089I9sbkzg8JfzNiSq30DouPk-zPXhOBF7Ixiid8o1C57HLVu8ldDo4gI/exec";
+// Konektor API ke Google Apps Script.
+// Catatan: URL Web App bukan mekanisme autentikasi. Endpoint yang dapat diakses "Anyone"
+// harus dilindungi validasi/otorisasi di backend sebelum dipakai untuk data produksi.
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwQ4K1Q3HAb9oE0o9UXtLCPBtPth85iixUbwToYiqbx9SHNoP6RYRKj2zatXB57BHU/exec";
 
 window.lastApiError = null;
 
 window.callGasAPI = function (action, payload, onSuccess, onError) {
-    if (!payload) payload = {};
-    payload.action = action;
+    const requestData = Object.assign({}, payload || {}, { action: action });
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), 60000) : null;
 
-    // Gunakan POST untuk kirim data aman & ukurannya besar (seperti foto Base64)
     fetch(GAS_URL, {
         method: "POST",
-        // 'text/plain' mencegah masalah preflight CORS di beberapa kondisi Google Script
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(requestData),
+        signal: controller ? controller.signal : undefined
     })
-        .then(response => response.text())
-        .then(text => {
-            try {
-                var data = JSON.parse(text);
-                window.lastApiError = null;
-                if (data.success === false) {
-                    if (onError) onError(data.error);
-                } else {
-                    if (onSuccess) onSuccess(data);
-                }
-            } catch (errJson) {
-                var errDetail = "";
-                if (text.includes("accounts.google.com") || text.includes("<html") || text.includes("ServiceLogin")) {
-                    errDetail = "Akses Google Apps Script mewajibkan Login Google (Redirect 302). Solusi: Di Google Script Editor, pilih Deploy > Manage deployments > Edit > Ubah 'Who has access' menjadi 'Anyone' (Siapa saja, bahkan anonim) dan 'Execute as' menjadi 'Me'.";
-                } else {
-                    errDetail = "Respon server bukan format JSON yang valid: " + errJson.message;
-                }
-                window.lastApiError = errDetail;
-                console.error("API Call Error:", errDetail, text.slice(0, 300));
-                if (onError) onError(errDetail);
-            }
-        })
-        .catch(err => {
-            var errMsg = err.toString();
-            var detail = "Koneksi ke backend gagal: " + errMsg;
-            if (errMsg.includes("Failed to fetch") || errMsg.includes("NetworkError")) {
-                detail = "Google Apps Script meminta Login Google (Redirect 302). Solusi: Di Google Script Editor, pilih Deploy > Manage deployments > Edit > Ubah 'Who has access' (Siapa yang memiliki akses) menjadi 'Anyone' (Siapa saja). Jika memakai akun belajar.id / sekolah, gunakan akun Gmail biasa (@gmail.com) karena akun instansi membatasi akses publik.";
-            }
+    .then(response => {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.text();
+    })
+    .then(text => {
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (errJson) {
+            const loginPage = /accounts\.google\.com|<html|ServiceLogin/i.test(text);
+            const detail = loginPage
+                ? "Backend mengembalikan halaman login Google. Periksa deployment Web App dan izin aksesnya."
+                : "Respons backend bukan JSON yang valid.";
+            throw new Error(detail);
+        }
+
+        window.lastApiError = null;
+        if (data && data.success === false) {
+            const detail = data.error || "Permintaan API gagal.";
             window.lastApiError = detail;
-            console.error("API Call Error:", detail, err);
-            if (onError) onError(detail);
-        });
+            if (typeof onError === "function") onError(detail);
+            return;
+        }
+        if (typeof onSuccess === "function") onSuccess(data);
+    })
+    .catch(err => {
+        const detail = err && err.name === "AbortError"
+            ? "Permintaan ke backend melewati batas waktu 60 detik. Coba lagi."
+            : "Koneksi/backend gagal: " + (err && err.message ? err.message : String(err));
+        window.lastApiError = detail;
+        console.error("API Call Error:", detail);
+        if (typeof onError === "function") onError(detail);
+    })
+    .finally(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+    });
 };
