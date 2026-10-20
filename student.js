@@ -1046,6 +1046,26 @@ function captureSubmit() {
     return;
   }
 
+  // Validasi Khusus Pegawai: Cek Day Off
+  if (currentStudent && String(currentStudent.id).indexOf("TCH") === 0) {
+    var selectedRole = currentStudent.kelas;
+    var roleSelect = document.getElementById("role-select");
+    if (roleSelect) selectedRole = roleSelect.value;
+
+    // Hanya blokir jika yang dipilih adalah unit REGULER (bukan Rumah Quran)
+    var isSelectedRQ = isRumahQuranRole(selectedRole);
+    if (!isSelectedRQ && currentStudent.dayOff) {
+      var dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      var todayName = dayNames[new Date().getDay()];
+      var dOffArr = String(currentStudent.dayOff).split(",").map(function(x) { return x.trim().toLowerCase(); });
+      
+      if (dOffArr.indexOf(todayName.toLowerCase()) > -1) {
+        showToast("Anda sedang Day Off (" + todayName + "). Absensi unit reguler tidak dapat dilakukan.", "error");
+        return; // Hentikan proses absen
+      }
+    }
+  }
+
   // 3. Validasi Anti-Spoofing / Liveness Check
   if (!livenessVerified) {
     showToast("Arahkan wajah tegak ke kamera dan berkedip untuk verifikasi keaslian (anti-foto).", "warning");

@@ -1050,7 +1050,22 @@ function renderLapTable() {
   for (var i = 0; i < data.length; i++) {
     var a = data[i];
     var isRQ = isRumahQuranRole(a.kelas) || (isPegawai && isRumahQuranRole(getPegawaiUnit(a)));
-    var rqTag = isRQ ? ' <span class="badge badge-free" style="font-size:10px;padding:2px 6px;margin-left:4px;">Jadwal Bebas</span>' : '';
+        var rqTag = isRQ ? ' <span class="badge badge-free" style="font-size:10px;padding:2px 6px;margin-left:4px;">Jadwal Bebas</span>' : '';
+    
+    // Indikator Day Off di Tabel Laporan
+    var dOffTag = '';
+    if (isPegawai && !isRQ) {
+      var tData = students.find(function(t) { return String(t.id).trim() === String(a.studentId).trim(); });
+      if (tData && tData.dayOff) {
+        var dNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        var tDate = new Date(a.tanggal);
+        var tDayName = dNames[tDate.getDay()];
+        if (String(tData.dayOff).toLowerCase().indexOf(tDayName.toLowerCase()) > -1) {
+          dOffTag = ' <span class="badge badge-warning" style="font-size:10px;padding:2px 6px;margin-left:4px;">Day Off (' + tDayName + ')</span>';
+        }
+      }
+    }
+    
     var dateFormatted = getDayInfo(a.tanggal).dayName + ', ' + formatDate(a.tanggal);
     var displayStatus = a.status;
     if (isRQ && (displayStatus === "TL1" || displayStatus === "TL2" || displayStatus === "Terlambat" || displayStatus === "Alpa")) displayStatus = "Hadir";
@@ -1074,7 +1089,7 @@ function renderLapTable() {
       var isCross = (filterKelas && filterKelas !== "Semua" && uLap.toLowerCase() !== filterKelas.toLowerCase());
       var crossBadge = isCross ? ' <span class="badge badge-warning" style="font-size:10px;padding:2px 6px;" title="Pegawai merangkap di beberapa unit reguler dan mengisi absensi via Unit ' + uLap + '">Absen via Unit ' + uLap + '</span>' : '';
       var unitLabel = isCross ? filterKelas : uLap;
-      categoryDisplay = '<span class="badge badge-info" style="font-size:11px;margin-right:4px;">Unit ' + unitLabel + '</span> ' + (jLap !== "-" && jLap !== unitLabel ? jLap : "") + crossBadge + rqTag;
+      categoryDisplay = '<span class="badge badge-info" style="font-size:11px;margin-right:4px;">Unit ' + unitLabel + '</span> ' + (jLap !== "-" && jLap !== unitLabel ? jLap : "") + crossBadge + rqTag + dOffTag;
     } else {
       categoryDisplay = (a.kelas || "-") + rqTag;
     }
