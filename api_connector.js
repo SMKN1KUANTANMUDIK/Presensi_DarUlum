@@ -1,7 +1,7 @@
 // Konektor API ke Google Apps Script.
 // Catatan: URL Web App bukan mekanisme autentikasi. Endpoint yang dapat diakses "Anyone"
 // harus dilindungi validasi/otorisasi di backend sebelum dipakai untuk data produksi.
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwe7RaE-GmXjuieCxr1b0Hcwsps6IOZogCR3sCj79xQ8H6zHuvkt1Jj8R07vPyvwKE/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwoEz18f77lOgZzk6tRWt5fKv0tm3h2WhhODgq0dSC3sMKrkItbCvWoB9eTEzvOtwI/exec";
 
 window.lastApiError = null;
 
