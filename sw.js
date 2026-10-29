@@ -1,77 +1,147 @@
-const CACHE_NAME = 'absensi-cache-v14';
-const PRECACHE_URLS = [
-  './',
-  './index.html',
-  './admin.html',
-  './style.css',
-  './holidays.js',
-  './student.js',
-  './admin.js',
-  './api_connector.js',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+/* =========================================================
+   Service Worker — Presensi SMKN 1 Kuantan Mudik
+   Semua URL dihitung relatif terhadap lokasi file ini,
+   jadi aplikasi tetap bisa dipasang walau di-hosting di subfolder.
+========================================================= */
+
+const VERSION = 'v2.9.0';
+const CACHE = `presensi-${VERSION}`;
+const SCOPE = self.registration ? self.registration.scope : self.location.href;
+const url = (p) => new URL(p, SCOPE).href;
+
+const OFFLINE_URL = url('offline.html');
+
+// Shell minimal — aset ber-hash (js/css) dicache otomatis saat pertama dibuka
+const PRECACHE = [
+  url('./'),
+  url('index.html'),
+  url('manifest.webmanifest'),
+  url('offline.html'),
+  url('icons/icon-192.png'),
+  url('icons/icon-512.png'),
+  url('logo_sekolah.png'),
 ];
 
-self.addEventListener('install', event => {
-  self.skipWaiting(); // Force new Service Worker to activate immediately
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(PRECACHE_URLS))
-      .catch(err => console.log('Precache failed', err))
-  );
-});
+const GAS_ORIGINS = ['script.google.com', 'script.googleusercontent.com'];
+const CDN_ORIGINS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
+const ASSET_RE = /\.(?:css|js|mjs|png|jpe?g|svg|gif|ico|webp|woff2?|ttf|otf)$/i;
 
-self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+/* ---------------- install ---------------- */
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME)
-          .map(name => caches.delete(name))
+    (async () => {
+      const cache = await caches.open(CACHE);
+      await Promise.allSettled(
+        PRECACHE.map((u) =>
+          cache.add(new Request(u, { cache: 'reload' })).catch(() => {
+            console.warn('[SW] gagal precache', u);
+          })
+        )
       );
-    })
+      await self.skipWaiting();
+    })()
   );
 });
 
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  if (event.request.url.indexOf('script.google.com') !== -1) return;
+/* ---------------- activate ---------------- */
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+      await self.clients.claim();
+    })()
+  );
+});
 
-  // 1. Cache-First Strategy untuk CDN dan Web Fonts
-  if (event.request.url.indexOf('jsdelivr.net') !== -1 || 
-      event.request.url.indexOf('unpkg.com') !== -1 ||
-      event.request.url.indexOf('fonts.googleapis.com') !== -1 ||
-      event.request.url.indexOf('fonts.gstatic.com') !== -1) {
-    event.respondWith(
-      caches.match(event.request).then(cachedResponse => {
-        if (cachedResponse) return cachedResponse;
-        return fetch(event.request).then(response => {
-          if (!response || response.status !== 200) return response;
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
-          return response;
-        });
-      })
-    );
+/* ---------------- message ---------------- */
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
+/* ---------------- fetch ---------------- */
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  let target;
+  try {
+    target = new URL(request.url);
+  } catch {
     return;
   }
 
-  // 2. Network-First Strategy untuk HTML/JS/CSS Lokal
-  // Ini akan mencegah isu aplikasi tersangkut di versi lawas (cache)
-  event.respondWith(
-    fetch(event.request).then(response => {
-      // Jika berhasil ambil versi terbaru dari internet, simpan ke cache
-      if (response && response.status === 200) {
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseToCache);
-        });
-      }
-      return response;
-    }).catch(() => {
-      // Jika koneksi internet putus (Offline), fallback ke data cache
-      return caches.match(event.request);
-    })
-  );
+  if (!target.protocol.startsWith('http')) return;
+
+  // API Apps Script → biarkan browser (redirect/opaque)
+  if (GAS_ORIGINS.includes(target.hostname)) return;
+
+  const sameOrigin = target.origin === self.location.origin;
+  const isCdn = CDN_ORIGINS.includes(target.hostname);
+  if (!sameOrigin && !isCdn) return;
+
+  // Navigasi halaman (SPA) → network-first, fallback ke index.html cache
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstPage(request));
+    return;
+  }
+
+  // Aset statis → stale-while-revalidate
+  if (ASSET_RE.test(target.pathname) || isCdn) {
+    event.respondWith(staleWhileRevalidate(request));
+    return;
+  }
+
+  event.respondWith(networkFirst(request));
 });
+
+/* ---------------- strategi ---------------- */
+async function networkFirstPage(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const res = await fetch(request);
+    if (res?.ok) cache.put(request, res.clone());
+    return res;
+  } catch {
+    return (
+      (await cache.match(request)) ||
+      (await cache.match(url('index.html'))) ||
+      (await cache.match(OFFLINE_URL)) ||
+      new Response('<h1>Offline</h1>', { status: 503, headers: { 'Content-Type': 'text/html' } })
+    );
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+
+  const network = fetch(request)
+    .then((res) => {
+      if (res?.ok) cache.put(request, res.clone());
+      return res;
+    })
+    .catch(() => null);
+
+  if (cached) {
+    network.catch(() => {});
+    return cached;
+  }
+
+  const fresh = await network;
+  if (fresh) return fresh;
+
+  return new Response('', { status: 504, statusText: 'Offline' });
+}
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const res = await fetch(request);
+    if (res?.ok) cache.put(request, res.clone());
+    return res;
+  } catch {
+    const cached = await cache.match(request);
+    return cached || new Response('', { status: 504, statusText: 'Offline' });
+  }
+}

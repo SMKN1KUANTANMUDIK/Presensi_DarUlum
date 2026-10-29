@@ -1,163 +1,99 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="id" class="h-full">
 <head>
-  <meta charset='UTF-8'>
-  <meta name='viewport' content='width=device-width,initial-scale=1'>
-  <title>Yayasan Darul Ulum Islamiyyah - Portal Absensi</title>
-  <meta name="theme-color" content="#059669">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+  <title>Presensi — SMKN 1 Kuantan Mudik</title>
+
+  <meta name="description" content="Sistem Monitoring Presensi Siswa Realtime SMKN 1 Kuantan Mudik" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Presensi" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="application-name" content="Presensi" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap"
-    rel="stylesheet">
-  <script src='https://unpkg.com/lucide@latest'></script>
-  <script src='https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js'></script>
-  <script src='https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js'></script>
-  <link rel="stylesheet" href="style.css?v=10">
-</head>
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
 
-<body>
-  <div class='student-page'>
-    <!-- Kotak Utama Presensi Siswa & Pegawai -->
-    <div class='att-box'>
-      <div class='att-header' id='student-header'>
-        <div id='student-logo-container'
-          style='display:flex; justify-content:center; align-items:center; margin-bottom:14px;'>
-          <img src='icon-192.png' alt='Logo Yayasan Darul Ulum Islamiyyah'
-            style='width:72px; height:72px; object-fit:contain; border-radius:16px; box-shadow:0 6px 16px rgba(0,0,0,0.08); background:#ffffff; padding:5px;'>
-        </div>
-        <h1>Yayasan Darul Ulum Islamiyyah</h1>
-        <p>Portal Absensi Digital</p>
-      </div>
-      <div class='att-body' id='student-content'></div>
-    </div>
-
-    <!-- Tombol Login Admin di Paling Bawah Halaman -->
-    <div class="portal-bottom-bar">
-      <button class="btn-admin-login-bottom" onclick="openAdminLoginModal()" id="btn-login-admin" title="Login ke Admin Portal">
-        <i data-lucide="shield-check" style="width:16px;height:16px;"></i>
-        <span>Login Admin Portal</span>
-      </button>
-      <p class="portal-copyright">Yayasan Darul Ulum Islamiyyah &copy; 2026</p>
-    </div>
-  </div>
-
-  <!-- Modal Dialog Login Admin -->
-  <div class="modal-overlay" id="admin-login-modal">
-    <div class="login-card-modal">
-      <div class="login-modal-header">
-        <div class="login-icon-circle">
-          <i data-lucide="shield-check" style="width:28px;height:28px;"></i>
-        </div>
-        <h2>Login Admin Portal</h2>
-        <p>Yayasan Darul Ulum Islamiyyah</p>
-      </div>
-      <form id="admin-login-form" onsubmit="handleAdminLoginSubmit(event)">
-        <div class="form-group" style="text-align:left;margin-bottom:16px;">
-          <label class="form-label" style="font-weight:600;font-size:13px;display:block;margin-bottom:6px;color:var(--text);">PIN / Kata Sandi Admin</label>
-          <div style="position:relative;display:flex;align-items:center;">
-            <i data-lucide="lock" style="position:absolute;left:14px;width:18px;height:18px;color:var(--gray);pointer-events:none;"></i>
-            <input type="password" id="admin-pin-input" class="form-input" placeholder="Masukkan PIN (default: 123456)" autocomplete="current-password" style="padding-left:42px;padding-right:42px;height:46px;font-size:15px;width:100%;box-sizing:border-box;" required>
-            <button type="button" class="btn-toggle-pin" onclick="togglePinVisibility()" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--gray);padding:6px;display:flex;align-items:center;">
-              <i data-lucide="eye" id="eye-icon" style="width:18px;height:18px;"></i>
-            </button>
-          </div>
-          <div id="login-error-msg" style="display:none;color:#dc2626;font-size:12px;margin-top:8px;font-weight:600;padding:6px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;text-align:left;">
-            <i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;"></i> PIN salah. Silakan coba lagi (Default: 123456).
-          </div>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:22px;">
-          <button type="button" class="btn btn-outline" style="flex:1;justify-content:center;" onclick="closeAdminLoginModal()">Batal</button>
-          <button type="submit" class="btn btn-primary" style="flex:1.5;justify-content:center;">
-            <i data-lucide="log-in" style="width:16px;height:16px;"></i> Masuk
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class='toast-container' id='toasts'></div>
-
-  <script src="holidays.js?v=12"></script>
-  <script src="api_connector.js?v=12"></script>
-  <script src="student.js?v=12"></script>
+  <!-- Terapkan tema sebelum paint pertama supaya tidak ada kedipan putih -->
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('SW terdaftar!', reg.scope))
-          .catch(err => console.error('SW gagal:', err));
-      });
-    }
-
-    function openAdminLoginModal() {
-      var m = document.getElementById("admin-login-modal");
-      if (m) {
-        m.classList.add("active");
-        var inp = document.getElementById("admin-pin-input");
-        if (inp) {
-          inp.value = "";
-          setTimeout(function() { inp.focus(); }, 120);
-        }
-        var err = document.getElementById("login-error-msg");
-        if (err) err.style.display = "none";
-        lucide.createIcons();
-      }
-    }
-
-    function closeAdminLoginModal() {
-      var m = document.getElementById("admin-login-modal");
-      if (m) m.classList.remove("active");
-    }
-
-    function togglePinVisibility() {
-      var inp = document.getElementById("admin-pin-input");
-      var icon = document.getElementById("eye-icon");
-      if (inp) {
-        if (inp.type === "password") {
-          inp.type = "text";
-          if (icon) icon.setAttribute("data-lucide", "eye-off");
-        } else {
-          inp.type = "password";
-          if (icon) icon.setAttribute("data-lucide", "eye");
-        }
-        lucide.createIcons();
-      }
-    }
-
-    function handleAdminLoginSubmit(e) {
-      if (e && e.preventDefault) e.preventDefault();
-      var inp = document.getElementById("admin-pin-input");
-      var val = inp ? inp.value.trim() : "";
-      var savedPin = localStorage.getItem("app_admin_pin") || "123456";
-      
-      if (val === savedPin || val === "123456" || val.toLowerCase() === "admin") {
-        sessionStorage.setItem("admin_logged_in", "true");
-        sessionStorage.setItem("admin_login_time", Date.now());
-        window.location.href = "admin.html";
-      } else {
-        var err = document.getElementById("login-error-msg");
-        if (err) {
-          err.style.display = "block";
-          err.innerHTML = '<i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;"></i> PIN salah. Silakan coba lagi (Default: 123456).';
-          lucide.createIcons();
-        }
-        if (inp) {
-          inp.select();
-        }
-      }
-    }
-
-    // Auto-open modal jika URL memuat parameter ?login=1
-    document.addEventListener("DOMContentLoaded", function() {
-      if (window.location.search.includes("login=1") || window.location.search.includes("admin=1")) {
-        openAdminLoginModal();
-      }
-    });
+    (function () {
+      try {
+        var saved = localStorage.getItem('presensi-theme');
+        var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      } catch (e) {}
+    })();
   </script>
-</body>
+  <script type="module" crossorigin src="./assets/index-DhtE0ouf.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/style-Dgn_Ko6f.css">
+</head>
+<body class="h-full bg-canvas text-ink antialiased">
+  <div id="root" class="min-h-full"></div>
 
+  <!--
+    Jaring pengaman: kalau aplikasi dibuka langsung dari file:// (double click),
+    browser memblokir ES module sehingga React tidak bisa jalan. Tampilkan
+    petunjuk yang jelas, bukan halaman kosong.
+  -->
+  <script>
+    (function () {
+      function showHelp(message) {
+        if (document.getElementById('boot-help')) return;
+        var box = document.createElement('div');
+        box.id = 'boot-help';
+        box.style.cssText =
+          'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;' +
+          'padding:20px;background:#f4f6fb;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#0b1220;text-align:center;box-sizing:border-box';
+        box.innerHTML =
+          '<div style="box-sizing:border-box;width:100%;max-width:380px;background:#fff;border:1px solid #e4eaf3;border-radius:24px;padding:26px 22px;box-shadow:0 24px 60px -30px rgba(15,23,42,.45)">' +
+          '<div style="width:52px;height:52px;margin:0 auto 16px;border-radius:16px;background:#e8efff;display:flex;align-items:center;justify-content:center;font-size:26px">⚠️</div>' +
+          '<h1 style="font-size:19px;margin:0 0 8px">Aplikasi perlu dibuka lewat server</h1>' +
+          '<p style="font-size:13.5px;line-height:1.6;color:#64748b;margin:0 0 18px">' +
+          message +
+          '</p>' +
+          '<div style="background:#f1f5f9;border-radius:14px;padding:12px 14px;text-align:left;font-size:12.5px;line-height:1.7;color:#0b1220">' +
+          '<div><b>1.</b> Buka terminal di folder aplikasi</div>' +
+          '<div><b>2.</b> Jalankan <code style="background:#e2e8f0;padding:1px 6px;border-radius:6px">npm run serve</code></div>' +
+          '<div><b>3.</b> Buka <code style="background:#e2e8f0;padding:1px 6px;border-radius:6px">http://localhost:8080</code></div>' +
+          '</div>' +
+          '<p style="font-size:11.5px;color:#94a3b8;margin:16px 0 0">Atau unggah folder <b>dist</b> ke hosting HTTPS (Netlify / GitHub Pages) agar bisa dipasang di HP.</p>' +
+          '<button onclick="location.reload()" style="margin-top:14px;width:100%;border:0;border-radius:12px;background:#2563eb;color:#fff;font-size:13.5px;font-weight:700;padding:11px 14px;cursor:pointer">Muat ulang halaman</button>' +
+          '</div>';
+        document.body.appendChild(box);
+      }
+
+      if (location.protocol === 'file:') {
+        showHelp('Halaman ini dibuka langsung dari file komputer (<b>file://</b>). Browser memblokir pemuatan aplikasi dan pemasangan PWA pada alamat seperti ini.');
+        return;
+      }
+
+      window.addEventListener('load', function () {
+        // Beri waktu cukup untuk jaringan lambat / HP kelas bawah.
+        setTimeout(function () {
+          var root = document.getElementById('root');
+          if (root && root.children.length === 0 && !document.getElementById('boot-help')) {
+            showHelp('Aplikasi gagal dimuat. Periksa koneksi internet lalu muat ulang halaman. Jika masih gagal, pastikan semua file hasil build (folder dist) terunggah lengkap.');
+          }
+        }, 6000);
+      });
+    })();
+  </script>
+
+</body>
 </html>
