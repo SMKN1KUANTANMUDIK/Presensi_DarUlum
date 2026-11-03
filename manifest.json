@@ -1,23 +1,55 @@
 {
-  "name": "Absensi Yayasan Darul Ulum",
+  "name": "Absensi Darul Ulum Islamiyyah",
   "short_name": "Absensi DU",
   "description": "Portal Absensi Digital Yayasan Darul Ulum Islamiyyah Sijunjung",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#059669",
-  "theme_color": "#059669",
+  "orientation": "portrait",
+  "background_color": "#0a4428",
+  "theme_color": "#0a4428",
+  "lang": "id",
   "icons": [
     {
       "src": "./icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Absensi Siswa",
+      "short_name": "Absensi",
+      "description": "Buka portal absensi siswa",
+      "url": "./index.html",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Admin Portal",
+      "short_name": "Admin",
+      "description": "Login ke admin portal",
+      "url": "./index.html?admin=1",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["education", "productivity"]
 }

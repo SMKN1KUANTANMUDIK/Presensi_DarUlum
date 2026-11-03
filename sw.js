@@ -1,9 +1,16 @@
-const CACHE_NAME = 'absensi-cache-v14';
+/* ================================================================
+   Darul Ulum Islamiyyah — Service Worker
+   Strategy: Cache-First for assets, Network-First for app shell
+   ================================================================ */
+
+const CACHE_VERSION = 'absensi-v21';
 const PRECACHE_URLS = [
   './',
   './index.html',
   './admin.html',
   './style.css',
+  './student.css',
+  './admin.css',
   './holidays.js',
   './student.js',
   './admin.js',
@@ -13,43 +20,64 @@ const PRECACHE_URLS = [
   './icon-512.png'
 ];
 
+/* ---- Install ---- */
 self.addEventListener('install', event => {
-  self.skipWaiting(); // Force new Service Worker to activate immediately
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches.open(CACHE_VERSION)
       .then(cache => cache.addAll(PRECACHE_URLS))
-      .catch(err => console.log('Precache failed', err))
+      .catch(err => console.warn('[SW] Precache sebagian gagal:', err))
   );
 });
 
+/* ---- Activate — purge old caches ---- */
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME)
-          .map(name => caches.delete(name))
-      );
-    })
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then(keys =>
+        Promise.all(
+          keys
+            .filter(key => key !== CACHE_VERSION)
+            .map(key => caches.delete(key))
+        )
+      )
+    ])
   );
 });
 
+/* ---- Fetch ---- */
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  if (event.request.url.indexOf('script.google.com') !== -1) return;
+  const { request } = event;
 
-  // 1. Cache-First Strategy untuk CDN dan Web Fonts
-  if (event.request.url.indexOf('jsdelivr.net') !== -1 || 
-      event.request.url.indexOf('unpkg.com') !== -1 ||
-      event.request.url.indexOf('fonts.googleapis.com') !== -1 ||
-      event.request.url.indexOf('fonts.gstatic.com') !== -1) {
+  /* Skip non-GET */
+  if (request.method !== 'GET') return;
+
+  /* Skip Google Apps Script API calls — must always be fresh */
+  if (request.url.includes('script.google.com')) return;
+
+  /* Skip cross-origin navigations */
+  if (request.mode === 'navigate' && !request.url.startsWith(self.location.origin)) return;
+
+  const url = new URL(request.url);
+
+  /* ---- Cache-First: CDN assets & web fonts ---- */
+  const isCdn =
+    url.hostname.includes('jsdelivr.net') ||
+    url.hostname.includes('unpkg.com') ||
+    url.hostname.includes('cdnjs.cloudflare.com') ||
+    url.hostname.includes('fonts.googleapis.com') ||
+    url.hostname.includes('fonts.gstatic.com');
+
+  if (isCdn) {
     event.respondWith(
-      caches.match(event.request).then(cachedResponse => {
-        if (cachedResponse) return cachedResponse;
-        return fetch(event.request).then(response => {
-          if (!response || response.status !== 200) return response;
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+      caches.match(request).then(cached => {
+        if (cached) return cached;
+        return fetch(request).then(response => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_VERSION).then(cache => cache.put(request, clone));
+          }
           return response;
         });
       })
@@ -57,21 +85,16 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 2. Network-First Strategy untuk HTML/JS/CSS Lokal
-  // Ini akan mencegah isu aplikasi tersangkut di versi lawas (cache)
+  /* ---- Network-First: local HTML, JS, CSS ---- */
   event.respondWith(
-    fetch(event.request).then(response => {
-      // Jika berhasil ambil versi terbaru dari internet, simpan ke cache
-      if (response && response.status === 200) {
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseToCache);
-        });
-      }
-      return response;
-    }).catch(() => {
-      // Jika koneksi internet putus (Offline), fallback ke data cache
-      return caches.match(event.request);
-    })
+    fetch(request)
+      .then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_VERSION).then(cache => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });

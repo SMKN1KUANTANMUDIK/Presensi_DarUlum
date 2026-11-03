@@ -1,63 +1,74 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-  <meta charset='UTF-8'>
-  <meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>
-  <title>Yayasan Darul Ulum Islamiyyah - Portal Absensi</title>
-  <meta name="theme-color" content="#064e3b">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Yayasan Darul Ulum Islamiyyah — Portal Absensi</title>
   <meta name="description" content="Portal Absensi Digital Yayasan Darul Ulum Islamiyyah">
+  <meta name="theme-color" content="#0a4428">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap"
-    rel="stylesheet">
-  <script src='https://unpkg.com/lucide@latest'></script>
-  <script src='https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js'></script>
-  <script src='https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js'></script>
-  <link rel="stylesheet" href="style.css?v=12">
-</head>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css?v=21">
+  <link rel="stylesheet" href="student.css?v=21">
+
+  <!-- External libs -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
+</head>
 <body>
-  <div class='student-page'>
-    <!-- Kotak Utama Presensi Siswa & Pegawai -->
-    <div class='att-box'>
-      <div class='att-header' id='student-header'>
+
+  <!-- =====================================================
+       PORTAL ABSENSI UTAMA
+  ====================================================== -->
+  <div class="student-page">
+
+    <!-- Kotak Presensi -->
+    <div class="att-box" id="att-box">
+      <div class="att-header" id="student-header">
         <div class="att-header-glow left"></div>
         <div class="att-header-glow right"></div>
-        <div id='student-logo-container'
-          style='display:flex;justify-content:center;align-items:center;margin-bottom:14px;position:relative;z-index:1;'>
-          <!-- Gold ring container -->
-          <div style='
-            width:80px;height:80px;
-            border-radius:50%;
-            background:conic-gradient(rgba(201,162,39,0.6) 0deg, rgba(245,230,163,0.9) 90deg, rgba(201,162,39,0.6) 180deg, rgba(139,106,16,0.4) 270deg, rgba(201,162,39,0.6) 360deg);
-            display:flex;align-items:center;justify-content:center;
-            box-shadow:0 5px 0 rgba(2,20,10,0.30),0 2px 16px rgba(201,162,39,0.25);
-          '>
-            <img src='icon-192.png' alt='Logo Yayasan Darul Ulum Islamiyyah'
-              style='width:66px;height:66px;object-fit:contain;border-radius:50%;background:#fff;padding:6px;'>
+
+        <div id="student-logo-container">
+          <div class="logo-ring">
+            <img src="icon-192.png" alt="Logo Yayasan Darul Ulum Islamiyyah">
           </div>
         </div>
+
         <h1>Darul Ulum Islamiyyah</h1>
         <p>Portal Absensi Digital</p>
       </div>
-      <div class='att-body' id='student-content'></div>
+
+      <div class="att-body" id="student-content"></div>
     </div>
 
-    <!-- Tombol Login Admin di Paling Bawah Halaman -->
+    <!-- Tombol Login Admin -->
     <div class="portal-bottom-bar">
-      <button class="btn-admin-login-bottom" onclick="openAdminLoginModal()" id="btn-login-admin" title="Login ke Admin Portal">
+      <button
+        class="btn-admin-login-bottom"
+        id="btn-login-admin"
+        onclick="openAdminLoginModal()"
+        title="Login ke Admin Portal"
+      >
         <i data-lucide="shield-check" style="width:15px;height:15px;"></i>
         <span>Login Admin Portal</span>
       </button>
       <p class="portal-copyright">Yayasan Darul Ulum Islamiyyah &copy; 2026</p>
     </div>
-  </div>
 
-  <!-- Modal Dialog Login Admin -->
+  </div><!-- /.student-page -->
+
+
+  <!-- =====================================================
+       MODAL LOGIN ADMIN
+  ====================================================== -->
   <div class="modal-overlay" id="admin-login-modal">
     <div class="login-card-modal">
       <div class="login-modal-header">
@@ -67,93 +78,117 @@
         <h2>Admin Portal</h2>
         <p>Yayasan Darul Ulum Islamiyyah</p>
       </div>
+
       <form id="admin-login-form" onsubmit="handleAdminLoginSubmit(event)">
-        <div class="form-group" style="text-align:left;margin-bottom:16px;">
-          <label class="form-label">PIN / Kata Sandi Admin</label>
-          <div style="position:relative;display:flex;align-items:center;">
+        <div class="form-group" style="text-align:left; margin-bottom:16px;">
+          <label class="form-label" for="admin-pin-input">PIN / Kata Sandi Admin</label>
+          <div style="position:relative; display:flex; align-items:center;">
             <i data-lucide="lock" style="position:absolute;left:14px;width:17px;height:17px;color:var(--text-muted);pointer-events:none;z-index:1;"></i>
-            <input type="password" id="admin-pin-input" class="form-input" placeholder="Masukkan PIN (default: 123456)" autocomplete="current-password" style="padding-left:44px;padding-right:44px;height:50px;font-size:15px;width:100%;box-sizing:border-box;" required>
-            <button type="button" onclick="togglePinVisibility()" style="position:absolute;right:12px;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:6px;display:flex;align-items:center;z-index:1;">
+            <input
+              type="password"
+              id="admin-pin-input"
+              class="form-input"
+              placeholder="Masukkan PIN (default: 123456)"
+              autocomplete="current-password"
+              style="padding-left:44px; padding-right:44px; height:50px; font-size:15px;"
+              required
+            >
+            <button
+              type="button"
+              onclick="togglePinVisibility()"
+              aria-label="Tampilkan/Sembunyikan PIN"
+              style="position:absolute;right:12px;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:6px;display:flex;align-items:center;z-index:1;"
+            >
               <i data-lucide="eye" id="eye-icon" style="width:17px;height:17px;"></i>
             </button>
           </div>
-          <div id="login-error-msg" style="display:none;color:#991b1b;font-size:12px;margin-top:8px;font-weight:700;padding:8px 12px;background:var(--clay-red);border:2px solid #fca5a5;border-radius:10px;text-align:left;font-family:Nunito,sans-serif;">
-            <i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;margin-right:4px;"></i> PIN salah. Coba lagi (Default: 123456)
+
+          <div
+            id="login-error-msg"
+            role="alert"
+            style="display:none; color:var(--red-700); font-size:12px; margin-top:8px; font-weight:700; padding:8px 12px; background:var(--red-50); border:1px solid rgba(220,53,69,.25); border-radius:10px; text-align:left;"
+          >
+            <i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;margin-right:4px;"></i>
+            PIN salah. Coba lagi (Default: 123456)
           </div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:20px;">
-          <button type="button" class="btn btn-outline" style="flex:1;justify-content:center;" onclick="closeAdminLoginModal()">Batal</button>
-          <button type="submit" class="btn btn-primary" style="flex:1.5;justify-content:center;">
-            <i data-lucide="log-in" style="width:16px;height:16px;"></i> Masuk
+
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button type="button" class="btn btn-outline" style="flex:1; justify-content:center;" onclick="closeAdminLoginModal()">Batal</button>
+          <button type="submit" class="btn btn-primary" style="flex:1.5; justify-content:center;">
+            <i data-lucide="log-in" style="width:16px;height:16px;"></i>
+            Masuk
           </button>
         </div>
       </form>
     </div>
-  </div>
+  </div><!-- /#admin-login-modal -->
 
-  <div class='toast-container' id='toasts'></div>
 
+  <div class="toast-container" id="toasts"></div>
+
+  <!-- =====================================================
+       SCRIPTS
+  ====================================================== -->
   <script src="holidays.js?v=12"></script>
   <script src="api_connector.js?v=12"></script>
-  <script src="student.js?v=13"></script>
+  <script src="student.js?v=21"></script>
+
   <script>
+    /* ---- PWA Service Worker ---- */
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('SW terdaftar!', reg.scope))
-          .catch(err => console.error('SW gagal:', err));
+          .then(reg => console.log('[SW] Terdaftar:', reg.scope))
+          .catch(err => console.error('[SW] Gagal:', err));
       });
     }
 
+    /* ---- Admin Login Modal ---- */
     function openAdminLoginModal() {
-      var m = document.getElementById("admin-login-modal");
-      if (m) {
-        m.classList.add("active");
-        var inp = document.getElementById("admin-pin-input");
-        if (inp) {
-          inp.value = "";
-          setTimeout(function() { inp.focus(); }, 120);
-        }
-        var err = document.getElementById("login-error-msg");
-        if (err) err.style.display = "none";
-        lucide.createIcons();
-      }
+      var modal = document.getElementById('admin-login-modal');
+      if (!modal) return;
+      modal.classList.add('active');
+      var inp = document.getElementById('admin-pin-input');
+      if (inp) { inp.value = ''; setTimeout(function() { inp.focus(); }, 120); }
+      var err = document.getElementById('login-error-msg');
+      if (err) err.style.display = 'none';
+      lucide.createIcons();
     }
 
     function closeAdminLoginModal() {
-      var m = document.getElementById("admin-login-modal");
-      if (m) m.classList.remove("active");
+      var modal = document.getElementById('admin-login-modal');
+      if (modal) modal.classList.remove('active');
     }
 
     function togglePinVisibility() {
-      var inp = document.getElementById("admin-pin-input");
-      var icon = document.getElementById("eye-icon");
-      if (inp) {
-        if (inp.type === "password") {
-          inp.type = "text";
-          if (icon) icon.setAttribute("data-lucide", "eye-off");
-        } else {
-          inp.type = "password";
-          if (icon) icon.setAttribute("data-lucide", "eye");
-        }
-        lucide.createIcons();
+      var inp  = document.getElementById('admin-pin-input');
+      var icon = document.getElementById('eye-icon');
+      if (!inp) return;
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        if (icon) icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        inp.type = 'password';
+        if (icon) icon.setAttribute('data-lucide', 'eye');
       }
+      lucide.createIcons();
     }
 
     function handleAdminLoginSubmit(e) {
       if (e && e.preventDefault) e.preventDefault();
-      var inp = document.getElementById("admin-pin-input");
-      var val = inp ? inp.value.trim() : "";
-      var savedPin = localStorage.getItem("app_admin_pin") || "123456";
-      
-      if (val === savedPin || val === "123456" || val.toLowerCase() === "admin") {
-        sessionStorage.setItem("admin_logged_in", "true");
-        sessionStorage.setItem("admin_login_time", Date.now());
-        window.location.href = "admin.html";
+      var inp = document.getElementById('admin-pin-input');
+      var val = inp ? inp.value.trim() : '';
+      var savedPin = localStorage.getItem('app_admin_pin') || '123456';
+
+      if (val === savedPin || val === '123456' || val.toLowerCase() === 'admin') {
+        sessionStorage.setItem('admin_logged_in', 'true');
+        sessionStorage.setItem('admin_login_time', Date.now());
+        window.location.href = 'admin.html';
       } else {
-        var err = document.getElementById("login-error-msg");
+        var err = document.getElementById('login-error-msg');
         if (err) {
-          err.style.display = "block";
+          err.style.display = 'block';
           err.innerHTML = '<i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;"></i> PIN salah. Coba lagi (Default: 123456)';
           lucide.createIcons();
         }
@@ -161,13 +196,17 @@
       }
     }
 
-    // Auto-open modal jika URL memuat parameter ?login=1
-    document.addEventListener("DOMContentLoaded", function() {
-      if (window.location.search.includes("login=1") || window.location.search.includes("admin=1")) {
+    /* Close modal on backdrop click */
+    document.getElementById('admin-login-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeAdminLoginModal();
+    });
+
+    /* Auto-open on ?login=1 or ?admin=1 */
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.location.search.includes('login=1') || window.location.search.includes('admin=1')) {
         openAdminLoginModal();
       }
     });
   </script>
 </body>
-
 </html>
