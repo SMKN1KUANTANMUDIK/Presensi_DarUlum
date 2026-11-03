@@ -1,22 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 
 <head>
   <meta charset='UTF-8'>
-  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>
   <title>Yayasan Darul Ulum Islamiyyah - Portal Absensi</title>
-  <meta name="theme-color" content="#059669">
+  <meta name="theme-color" content="#064e3b">
+  <meta name="description" content="Portal Absensi Digital Yayasan Darul Ulum Islamiyyah">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap"
     rel="stylesheet">
   <script src='https://unpkg.com/lucide@latest'></script>
   <script src='https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js'></script>
   <script src='https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js'></script>
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 
 <body>
@@ -24,12 +25,14 @@
     <!-- Kotak Utama Presensi Siswa & Pegawai -->
     <div class='att-box'>
       <div class='att-header' id='student-header'>
+        <div class="att-header-glow left"></div>
+        <div class="att-header-glow right"></div>
         <div id='student-logo-container'
-          style='display:flex; justify-content:center; align-items:center; margin-bottom:14px;'>
+          style='display:flex; justify-content:center; align-items:center; margin-bottom:12px; position:relative; z-index:1;'>
           <img src='icon-192.png' alt='Logo Yayasan Darul Ulum Islamiyyah'
-            style='width:72px; height:72px; object-fit:contain; border-radius:16px; box-shadow:0 6px 16px rgba(0,0,0,0.08); background:#ffffff; padding:5px;'>
+            style='width:64px; height:64px; object-fit:contain; border-radius:16px; box-shadow:0 5px 0 rgba(0,0,0,0.28), 0 2px 14px rgba(0,0,0,0.15); background:#ffffff; padding:5px; border:2.5px solid rgba(212,175,55,0.45);'>
         </div>
-        <h1>Yayasan Darul Ulum Islamiyyah</h1>
+        <h1>Darul Ulum Islamiyyah</h1>
         <p>Portal Absensi Digital</p>
       </div>
       <div class='att-body' id='student-content'></div>
@@ -38,7 +41,7 @@
     <!-- Tombol Login Admin di Paling Bawah Halaman -->
     <div class="portal-bottom-bar">
       <button class="btn-admin-login-bottom" onclick="openAdminLoginModal()" id="btn-login-admin" title="Login ke Admin Portal">
-        <i data-lucide="shield-check" style="width:16px;height:16px;"></i>
+        <i data-lucide="shield-check" style="width:15px;height:15px;"></i>
         <span>Login Admin Portal</span>
       </button>
       <p class="portal-copyright">Yayasan Darul Ulum Islamiyyah &copy; 2026</p>
@@ -50,26 +53,26 @@
     <div class="login-card-modal">
       <div class="login-modal-header">
         <div class="login-icon-circle">
-          <i data-lucide="shield-check" style="width:28px;height:28px;"></i>
+          <i data-lucide="shield-check" style="width:26px;height:26px;"></i>
         </div>
-        <h2>Login Admin Portal</h2>
+        <h2>Admin Portal</h2>
         <p>Yayasan Darul Ulum Islamiyyah</p>
       </div>
       <form id="admin-login-form" onsubmit="handleAdminLoginSubmit(event)">
         <div class="form-group" style="text-align:left;margin-bottom:16px;">
-          <label class="form-label" style="font-weight:600;font-size:13px;display:block;margin-bottom:6px;color:var(--text);">PIN / Kata Sandi Admin</label>
+          <label class="form-label">PIN / Kata Sandi Admin</label>
           <div style="position:relative;display:flex;align-items:center;">
-            <i data-lucide="lock" style="position:absolute;left:14px;width:18px;height:18px;color:var(--gray);pointer-events:none;"></i>
-            <input type="password" id="admin-pin-input" class="form-input" placeholder="Masukkan PIN (default: 123456)" autocomplete="current-password" style="padding-left:42px;padding-right:42px;height:46px;font-size:15px;width:100%;box-sizing:border-box;" required>
-            <button type="button" class="btn-toggle-pin" onclick="togglePinVisibility()" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--gray);padding:6px;display:flex;align-items:center;">
-              <i data-lucide="eye" id="eye-icon" style="width:18px;height:18px;"></i>
+            <i data-lucide="lock" style="position:absolute;left:14px;width:17px;height:17px;color:var(--text-muted);pointer-events:none;z-index:1;"></i>
+            <input type="password" id="admin-pin-input" class="form-input" placeholder="Masukkan PIN (default: 123456)" autocomplete="current-password" style="padding-left:44px;padding-right:44px;height:50px;font-size:15px;width:100%;box-sizing:border-box;" required>
+            <button type="button" onclick="togglePinVisibility()" style="position:absolute;right:12px;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:6px;display:flex;align-items:center;z-index:1;">
+              <i data-lucide="eye" id="eye-icon" style="width:17px;height:17px;"></i>
             </button>
           </div>
-          <div id="login-error-msg" style="display:none;color:#dc2626;font-size:12px;margin-top:8px;font-weight:600;padding:6px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;text-align:left;">
-            <i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;"></i> PIN salah. Silakan coba lagi (Default: 123456).
+          <div id="login-error-msg" style="display:none;color:#991b1b;font-size:12px;margin-top:8px;font-weight:700;padding:8px 12px;background:var(--clay-red);border:2px solid #fca5a5;border-radius:10px;text-align:left;font-family:Nunito,sans-serif;">
+            <i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;margin-right:4px;"></i> PIN salah. Coba lagi (Default: 123456)
           </div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:22px;">
+        <div style="display:flex;gap:10px;margin-top:20px;">
           <button type="button" class="btn btn-outline" style="flex:1;justify-content:center;" onclick="closeAdminLoginModal()">Batal</button>
           <button type="submit" class="btn btn-primary" style="flex:1.5;justify-content:center;">
             <i data-lucide="log-in" style="width:16px;height:16px;"></i> Masuk
@@ -83,7 +86,7 @@
 
   <script src="holidays.js?v=12"></script>
   <script src="api_connector.js?v=12"></script>
-  <script src="student.js?v=12"></script>
+  <script src="student.js?v=13"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -142,12 +145,10 @@
         var err = document.getElementById("login-error-msg");
         if (err) {
           err.style.display = "block";
-          err.innerHTML = '<i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;"></i> PIN salah. Silakan coba lagi (Default: 123456).';
+          err.innerHTML = '<i data-lucide="alert-circle" style="width:13px;height:13px;vertical-align:-1px;"></i> PIN salah. Coba lagi (Default: 123456)';
           lucide.createIcons();
         }
-        if (inp) {
-          inp.select();
-        }
+        if (inp) inp.select();
       }
     }
 

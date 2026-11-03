@@ -56,10 +56,27 @@ function showOptions() {
   if (attBox) attBox.classList.remove("wide");
   var c = document.getElementById("student-content");
   c.innerHTML =
-    '<button class="opt-btn" onclick="startScanner()"><div class="opt-icon blue"><i data-lucide="scan-barcode"></i></div><div class="opt-text"><h3>Scan Barcode</h3><p>Pindai kartu pelajar / NIP</p></div></button>' +
-    '<button class="opt-btn" onclick="showManual()"><div class="opt-icon green"><i data-lucide="keyboard"></i></div><div class="opt-text"><h3>Input Manual</h3><p>Ketik barcode / NIP</p></div></button>' +
-    '<button class="opt-btn" onclick="showRiwayatManual()"><div class="opt-icon orange"><i data-lucide="history"></i></div><div class="opt-text"><h3>Riwayat Absen Pegawai</h3><p>Cek rekap kehadiran & riwayat NIP</p></div></button>' +
-    '<button class="opt-btn" onclick="showSick()"><div class="opt-icon purple"><i data-lucide="thermometer"></i></div><div class="opt-text"><h3>Sakit / Izin</h3><p>Form tidak hadir</p></div></button>';
+    '<p style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Pilih Jenis Presensi</p>' +
+    '<button class="opt-btn" onclick="startScanner()">' +
+      '<div class="opt-icon blue"><i data-lucide="scan-barcode"></i></div>' +
+      '<div class="opt-text"><h3>Scan Barcode / QR</h3><p>Pindai kartu pelajar atau NIP</p></div>' +
+      '<i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);margin-left:auto;flex-shrink:0;"></i>' +
+    '</button>' +
+    '<button class="opt-btn" onclick="showManual()">' +
+      '<div class="opt-icon green"><i data-lucide="keyboard"></i></div>' +
+      '<div class="opt-text"><h3>Input Manual</h3><p>Ketik barcode / NIS / NIP</p></div>' +
+      '<i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);margin-left:auto;flex-shrink:0;"></i>' +
+    '</button>' +
+    '<button class="opt-btn" onclick="showRiwayatManual()">' +
+      '<div class="opt-icon orange"><i data-lucide="history"></i></div>' +
+      '<div class="opt-text"><h3>Riwayat Pegawai</h3><p>Cek rekap kehadiran NIP</p></div>' +
+      '<i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);margin-left:auto;flex-shrink:0;"></i>' +
+    '</button>' +
+    '<button class="opt-btn" onclick="showSick()">' +
+      '<div class="opt-icon purple"><i data-lucide="thermometer"></i></div>' +
+      '<div class="opt-text"><h3>Sakit / Izin</h3><p>Form pengajuan tidak hadir</p></div>' +
+      '<i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);margin-left:auto;flex-shrink:0;"></i>' +
+    '</button>';
   lucide.createIcons();
 }
 
@@ -287,14 +304,18 @@ function renderTeacherCameraTab() {
       '<a onclick="switchTeacherTab(\'history\')">Lihat Riwayat &rarr;</a>' +
     '</div>' +
     roleSelectHTML +
-    '<div class="camera-box"><video id="selfie-video" class="camera-video" autoplay playsinline></video></div>' +
-    '<div class="face-status loading" id="fs">Memuat kamera...</div>' +
-    '<div class="loc-info" id="li"><i data-lucide="map-pin" style="width:14px"></i>Mendeteksi lokasi...</div>' +
-    '<button class="btn btn-success" style="width:100%" id="sbtn" disabled onclick="captureSubmit()">' +
-      '<i data-lucide="camera" style="width:16px"></i> Absen Sekarang' +
+    '<div class="camera-box">' +
+      '<video id="selfie-video" class="camera-video" autoplay playsinline></video>' +
+      '<div class="camera-overlay-guide"><div class="camera-face-guide" id="face-guide-circle"></div></div>' +
+    '</div>' +
+    '<div class="face-status loading" id="fs"><i data-lucide="scan-face" style="width:16px;height:16px;flex-shrink:0;animation:spin 2s linear infinite;"></i><span>Memuat kamera...</span></div>' +
+    '<div class="liveness-progress-bar"><div class="liveness-progress-fill" id="liveness-bar" style="width:0%"></div></div>' +
+    '<div class="loc-info" id="li"><i data-lucide="map-pin" style="width:14px;flex-shrink:0;"></i><span>Mendeteksi lokasi GPS...</span></div>' +
+    '<button class="btn btn-success" style="width:100%;margin-top:8px;" id="sbtn" disabled onclick="captureSubmit()">' +
+      '<i data-lucide="camera" style="width:18px"></i> Absen Sekarang' +
     '</button>' +
     '<button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="stopCam();showOptions()">' +
-      'Batal' +
+      '<i data-lucide="arrow-left" style="width:16px"></i> Batal' +
     '</button>';
 
   lucide.createIcons();
@@ -773,23 +794,34 @@ function showSelfie() {
   }
 
   c.innerHTML =
-    '<div style="text-align:center;margin-bottom:20px">' + catBadge + '<div class="avatar blue" style="width:60px;height:60px;font-size:20px;margin:0 auto 10px">' +
+    '<div style="text-align:center;margin-bottom:16px">' + catBadge + '<div class="avatar blue" style="width:56px;height:56px;font-size:20px;margin:8px auto 8px">' +
     getInit(currentStudent.nama) +
-    "</div><h3>" +
+    "</div><h3 style='margin:0 0 4px;font-size:17px;font-family:Nunito,sans-serif;'>" +
     currentStudent.nama +
     '</h3>' + roleHTML +
-    '</div><div class="camera-box"><video id="selfie-video" class="camera-video" autoplay playsinline></video></div><div class="face-status loading" id="fs">Memuat...</div><div class="loc-info" id="li"><i data-lucide="map-pin" style="width:14px"></i>Mendeteksi lokasi...</div><button class="btn btn-success" style="width:100%" id="sbtn" disabled onclick="captureSubmit()"><i data-lucide="camera" style="width:16px"></i> Absen Sekarang</button><button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="stopCam();showOptions()">Batal</button>';
+    '</div>' +
+    '<div class="camera-box">' +
+      '<video id="selfie-video" class="camera-video" autoplay playsinline></video>' +
+      '<div class="camera-overlay-guide"><div class="camera-face-guide" id="face-guide-circle"></div></div>' +
+    '</div>' +
+    '<div class="face-status loading" id="fs"><i data-lucide="scan-face" style="width:16px;height:16px;flex-shrink:0;animation:spin 2s linear infinite;"></i><span>Memuat kamera & model AI...</span></div>' +
+    '<div class="liveness-progress-bar"><div class="liveness-progress-fill" id="liveness-bar" style="width:0%"></div></div>' +
+    '<div class="loc-info" id="li"><i data-lucide="map-pin" style="width:14px;flex-shrink:0;"></i><span>Mendeteksi lokasi GPS...</span></div>' +
+    '<button class="btn btn-success" style="width:100%;margin-top:8px;" id="sbtn" disabled onclick="captureSubmit()"><i data-lucide="camera" style="width:18px"></i> Absen Sekarang</button>' +
+    '<button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="stopCam();showOptions()"><i data-lucide="arrow-left" style="width:16px"></i> Batal</button>';
   lucide.createIcons();
   startSelfie();
 }
 
-// === Biometrik Anti-Spoofing: Liveness & Blink Detection (Eye Aspect Ratio) ===
+// === Face Detection: Stability-based (tanpa kedip) ===
+// Anti-spoofing menggunakan multi-frame face confidence + geometry check
 var livenessVerified = false;
 var livenessCheckActive = false;
 var livenessTimer = null;
-var blinkCount = 0;
-var eyesWereClosed = false;
 var faceStableFrames = 0;
+var STABLE_FRAMES_REQUIRED = 12; // ~1.8 detik pada 150ms interval
+var faceDetectAttempts = 0;
+var lastFaceBox = null;
 
 function getEyeAspectRatio(eye) {
   if (!eye || eye.length < 6) return 0.3;
@@ -808,17 +840,23 @@ function stopLivenessDetection() {
   }
 }
 
+function _updateProgressBar(ratio) {
+  var bar = document.getElementById("liveness-bar");
+  if (bar) bar.style.width = Math.round(ratio * 100) + "%";
+}
+
 function startLivenessDetection() {
   stopLivenessDetection();
   livenessVerified = false;
   livenessCheckActive = true;
-  blinkCount = 0;
-  eyesWereClosed = false;
   faceStableFrames = 0;
+  faceDetectAttempts = 0;
+  lastFaceBox = null;
 
   var sbtnEl = document.getElementById("sbtn");
   if (sbtnEl) sbtnEl.disabled = true;
 
+  _updateProgressBar(0);
   runLivenessLoop();
 }
 
@@ -828,11 +866,14 @@ function runLivenessLoop() {
   var v = document.getElementById("selfie-video");
   var fsEl = document.getElementById("fs");
   var sbtnEl = document.getElementById("sbtn");
+  var guideEl = document.getElementById("face-guide-circle");
 
   if (!v || v.paused || v.ended || !v.videoWidth || !faceLoaded) {
     livenessTimer = setTimeout(runLivenessLoop, 200);
     return;
   }
+
+  faceDetectAttempts++;
 
   faceapi
     .detectSingleFace(v, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
@@ -841,49 +882,68 @@ function runLivenessLoop() {
       if (!livenessCheckActive) return;
 
       if (!detection) {
-        faceStableFrames = 0;
+        faceStableFrames = Math.max(0, faceStableFrames - 1);
+        _updateProgressBar(faceStableFrames / STABLE_FRAMES_REQUIRED);
+
+        if (guideEl) guideEl.classList.remove("face-detected");
         if (fsEl) {
           fsEl.className = "face-status loading";
-          fsEl.textContent = "Arahkan wajah tegak ke kamera...";
+          var tips = faceDetectAttempts < 5
+            ? "Posisikan wajah di tengah kamera..."
+            : "Pastikan pencahayaan cukup & wajah terlihat jelas";
+          fsEl.innerHTML = '<i data-lucide="scan-face" style="width:16px;height:16px;flex-shrink:0;animation:spin 2s linear infinite;"></i><span>' + tips + '</span>';
+          lucide.createIcons();
         }
         if (sbtnEl) sbtnEl.disabled = true;
         livenessTimer = setTimeout(runLivenessLoop, 180);
         return;
       }
 
-      var landmarks = detection.landmarks;
-      var leftEye = landmarks.getLeftEye();
-      var rightEye = landmarks.getRightEye();
-      var leftEAR = getEyeAspectRatio(leftEye);
-      var rightEAR = getEyeAspectRatio(rightEye);
-      var avgEAR = (leftEAR + rightEAR) / 2.0;
-
-      // Ambang batas EAR untuk kedipan mata
-      if (avgEAR < 0.22) {
-        eyesWereClosed = true;
-      } else if (avgEAR >= 0.25 && eyesWereClosed) {
-        blinkCount++;
-        eyesWereClosed = false;
+      // Cek apakah wajah dalam posisi yang stabil (tidak terlalu bergerak)
+      var box = detection.detection.box;
+      var isStable = true;
+      if (lastFaceBox) {
+        var dx = Math.abs(box.x - lastFaceBox.x);
+        var dy = Math.abs(box.y - lastFaceBox.y);
+        var dw = Math.abs(box.width - lastFaceBox.width);
+        // Jika wajah bergerak terlalu banyak, kurangi stable counter
+        if (dx > 20 || dy > 20 || dw > 20) {
+          isStable = false;
+          faceStableFrames = Math.max(0, faceStableFrames - 1);
+        }
       }
+      lastFaceBox = box;
 
-      faceStableFrames++;
+      if (isStable) faceStableFrames++;
+      _updateProgressBar(Math.min(1, faceStableFrames / STABLE_FRAMES_REQUIRED));
 
-      // Verifikasi berhasil jika terdeteksi kedipan mata atau wajah alami stabil
-      if (blinkCount >= 1 || faceStableFrames >= 18) {
+      // Tampilkan guide hijau saat wajah terdeteksi
+      if (guideEl) guideEl.classList.add("face-detected");
+
+      if (faceStableFrames >= STABLE_FRAMES_REQUIRED) {
         livenessVerified = true;
         stopLivenessDetection();
+        _updateProgressBar(1);
 
+        if (guideEl) guideEl.classList.add("face-detected");
         if (fsEl) {
           fsEl.className = "face-status success";
-          fsEl.textContent = blinkCount >= 1 
-            ? "Wajah Terverifikasi (Kedipan OK)! ✓" 
-            : "Wajah Terverifikasi Hidup! ✓";
+          fsEl.innerHTML = '<i data-lucide="check-circle" style="width:16px;height:16px;flex-shrink:0;"></i><span>Wajah Terverifikasi! Siap absen ✓</span>';
+          lucide.createIcons();
         }
-        if (sbtnEl) sbtnEl.disabled = false;
+        if (sbtnEl) {
+          sbtnEl.disabled = false;
+          // Sedikit animasi agar user tahu tombol aktif
+          sbtnEl.style.animation = "none";
+          sbtnEl.offsetHeight; // trigger reflow
+          sbtnEl.style.animation = "";
+        }
       } else {
+        var pct = Math.round((faceStableFrames / STABLE_FRAMES_REQUIRED) * 100);
         if (fsEl) {
           fsEl.className = "face-status loading";
-          fsEl.textContent = "Wajah terdeteksi! Silakan berkedip...";
+          fsEl.innerHTML = '<i data-lucide="scan-face" style="width:16px;height:16px;flex-shrink:0;"></i><span>Wajah terdeteksi, tahan posisi... ' + pct + '%</span>';
+          lucide.createIcons();
         }
         livenessTimer = setTimeout(runLivenessLoop, 150);
       }
@@ -923,13 +983,16 @@ function stopCam() {
 function loadFace() {
   function setFaceStatus(cls, text) {
     var fsEl = document.getElementById("fs");
-    var sbtnEl = document.getElementById("sbtn");
     if (fsEl) {
       fsEl.className = "face-status " + cls;
-      fsEl.textContent = text;
-    }
-    if (sbtnEl && cls === "success") {
-      sbtnEl.disabled = false;
+      if (cls === "loading") {
+        fsEl.innerHTML = '<i data-lucide="scan-face" style="width:16px;height:16px;flex-shrink:0;animation:spin 2s linear infinite;"></i><span>' + text + '</span>';
+      } else if (cls === "success") {
+        fsEl.innerHTML = '<i data-lucide="check-circle" style="width:16px;height:16px;flex-shrink:0;"></i><span>' + text + '</span>';
+      } else {
+        fsEl.innerHTML = '<i data-lucide="alert-circle" style="width:16px;height:16px;flex-shrink:0;"></i><span>' + text + '</span>';
+      }
+      lucide.createIcons();
     }
   }
 
@@ -937,6 +1000,8 @@ function loadFace() {
     startLivenessDetection();
     return;
   }
+
+  setFaceStatus("loading", "Memuat AI pengenalan wajah...");
 
   Promise.all([
     faceapi.nets.tinyFaceDetector.loadFromUri(
@@ -955,7 +1020,7 @@ function loadFace() {
     })
     .catch(function (err) {
       console.error("FaceAPI load error:", err);
-      setFaceStatus("error", "Gagal memuat model wajah");
+      setFaceStatus("error", "Gagal memuat model wajah. Cek koneksi internet.");
     });
 }
 function getLoc() {
@@ -971,9 +1036,9 @@ function getLoc() {
         var distance = getDistanceFromLatLonInM(target.lat, target.lng, locationData.lat, locationData.lng);
         var isWithin = distance <= target.radius;
         var distText = distance < 1000 ? Math.round(distance) + "m" : (distance / 1000).toFixed(1) + "km";
-        var badgeStatus = isWithin 
-          ? '<span style="color:var(--success);font-weight:600;margin-left:4px;">(Radius: ' + distText + ')</span>'
-          : '<span style="color:var(--danger);font-weight:600;margin-left:4px;">(Luar radius: ' + distText + ')</span>';
+        var distBadge = isWithin 
+          ? '<span style="background:#a7f3d0;color:#065f46;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:800;margin-left:6px;">✓ ' + distText + '</span>'
+          : '<span style="background:#fca5a5;color:#991b1b;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:800;margin-left:6px;">⚠ ' + distText + ' (di luar radius)</span>';
 
         fetch(
           "https://nominatim.openstreetmap.org/reverse?format=json&lat=" +
@@ -981,42 +1046,44 @@ function getLoc() {
           "&lon=" +
           p.coords.longitude,
         )
-          .then(function (r) {
-            return r.json();
-          })
+          .then(function (r) { return r.json(); })
           .then(function (d) {
             locationData.alamat = d.display_name || "";
             var liEl = document.getElementById("li");
             if (liEl) {
+              liEl.className = "loc-info " + (isWithin ? "loc-ok" : "loc-out");
               liEl.innerHTML =
-                '<i data-lucide="map-pin" style="width:14px;color:' + (isWithin ? 'var(--success)' : 'var(--danger)') + '"></i>' +
-                '<span>' + locationData.alamat.substring(0, 32) + '... ' + badgeStatus + '</span>';
+                '<i data-lucide="map-pin" style="width:15px;flex-shrink:0;"></i>' +
+                '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + locationData.alamat.substring(0, 35) + '...</span>' +
+                distBadge;
               lucide.createIcons();
             }
           })
-          .catch(function (err) {
+          .catch(function () {
             locationData.alamat = "Lat: " + p.coords.latitude.toFixed(5) + ", Lng: " + p.coords.longitude.toFixed(5);
             var liEl = document.getElementById("li");
             if (liEl) {
+              liEl.className = "loc-info " + (isWithin ? "loc-ok" : "loc-out");
               liEl.innerHTML =
-                '<i data-lucide="map-pin" style="width:14px;color:' + (isWithin ? 'var(--success)' : 'var(--danger)') + '"></i>' +
-                '<span>' + locationData.alamat + ' ' + badgeStatus + '</span>';
+                '<i data-lucide="map-pin" style="width:15px;flex-shrink:0;"></i>' +
+                '<span>' + locationData.alamat + '</span>' +
+                distBadge;
               lucide.createIcons();
             }
           });
       },
-      function (err) {
+      function () {
         var liEl = document.getElementById("li");
         if (liEl) {
-          liEl.innerHTML =
-            '<i data-lucide="map-pin" style="width:14px;color:var(--danger)"></i>Lokasi tidak tersedia / Ditolak';
+          liEl.className = "loc-info loc-out";
+          liEl.innerHTML = '<i data-lucide="map-pin-off" style="width:15px;flex-shrink:0;"></i><span>Lokasi tidak tersedia / Ditolak browser</span>';
           lucide.createIcons();
         }
       },
       {
-        enableHighAccuracy: true, // Memaksa chip GPS fisik menyala, bukan sekadar dari BTS/Sinyal
-        maximumAge: 0,            // Jangan gunakan lokasi cache yang lama (mencegah Fake GPS diam)
-        timeout: 10000            // Maksimal waktu cari sinyal satelit
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000
       }
     );
   }
@@ -1066,7 +1133,7 @@ function captureSubmit() {
 
   // 3. Validasi Anti-Spoofing / Liveness Check
   if (!livenessVerified) {
-    showToast("Arahkan wajah tegak ke kamera dan berkedip untuk verifikasi keaslian (anti-foto).", "warning");
+    showToast("Posisikan wajah ke kamera dan tahan diam sebentar untuk verifikasi.", "warning");
     return;
   }
 
@@ -1091,15 +1158,15 @@ function captureSubmit() {
   if (camBox) {
     camBox.innerHTML = 
       '<img id="frozen-capture" src="' + previewUrl + '" class="camera-video" style="object-fit:cover; display:block;">' +
-      '<div class="camera-badge"><i data-lucide="camera" style="width:14px;height:14px;"></i> Foto Terambil</div>' +
+      '<div class="camera-badge"><i data-lucide="camera" style="width:14px;height:14px;"></i> Foto Diambil</div>' +
       '<div class="camera-flash" id="cam-flash"></div>';
     lucide.createIcons();
 
     // Efek flash kamera saat memotret
     var flashEl = document.getElementById("cam-flash");
     if (flashEl) {
-      flashEl.style.opacity = "0.75";
-      setTimeout(function() { flashEl.style.opacity = "0"; }, 150);
+      flashEl.style.opacity = "0.8";
+      setTimeout(function() { flashEl.style.opacity = "0"; }, 120);
     }
   }
 
@@ -1110,12 +1177,12 @@ function captureSubmit() {
   var sbtnEl = document.getElementById("sbtn");
   if (fsEl) {
     fsEl.className = "face-status loading";
-    fsEl.innerHTML = '<i data-lucide="loader" style="width:14px;height:14px;display:inline-block;animation:spin 1s linear infinite;margin-right:6px;vertical-align:-2px;"></i> Memverifikasi wajah...';
+    fsEl.innerHTML = '<i data-lucide="scan-face" style="width:14px;height:14px;display:inline-block;animation:spin 1s linear infinite;flex-shrink:0;"></i><span> Memverifikasi identitas wajah...</span>';
     lucide.createIcons();
   }
   if (sbtnEl) {
     sbtnEl.disabled = true;
-    sbtnEl.innerHTML = '<i data-lucide="loader" style="width:16px;height:16px;display:inline-block;animation:spin 1s linear infinite;margin-right:6px;vertical-align:-2px;"></i> Memproses Absen...';
+    sbtnEl.innerHTML = '<i data-lucide="loader" style="width:16px;height:16px;display:inline-block;animation:spin 1s linear infinite;"></i> Memproses...';
     lucide.createIcons();
   }
 
@@ -1135,16 +1202,17 @@ function captureSubmit() {
       if (!d) {
         if (fsEl) {
           fsEl.className = "face-status error";
-          fsEl.textContent = "Wajah tidak terdeteksi. Silakan coba lagi.";
+          fsEl.innerHTML = '<i data-lucide="alert-circle" style="width:16px;flex-shrink:0;"></i><span>Wajah tidak terdeteksi. Pastikan wajah terlihat jelas.</span>';
+          lucide.createIcons();
         }
         if (sbtnEl) {
           sbtnEl.disabled = false;
-          sbtnEl.innerHTML = '<i data-lucide="camera" style="width:16px;"></i> Absen Sekarang';
+          sbtnEl.innerHTML = '<i data-lucide="camera" style="width:18px;"></i> Coba Lagi';
           lucide.createIcons();
         }
         // Kembalikan video aktif jika tidak terdeteksi
         if (camBox) {
-          camBox.innerHTML = '<video id="selfie-video" class="camera-video" autoplay playsinline></video>';
+          camBox.innerHTML = '<video id="selfie-video" class="camera-video" autoplay playsinline></video><div class="camera-overlay-guide"><div class="camera-face-guide" id="face-guide-circle"></div></div>';
           startSelfie();
         }
         return;
@@ -1171,18 +1239,19 @@ function captureSubmit() {
 
         // Validasi Anti-Bypass: Jika wajah tidak cocok, tolak absensi dan jangan kirim ke server
         if (fm < 0.5) {
-          showToast("Wajah tidak cocok ! Silakan coba lagi", "error");
+          showToast("Wajah tidak cocok. Pastikan wajah Anda jelas dan coba lagi.", "error");
           if (fsEl) {
             fsEl.className = "face-status error";
-            fsEl.textContent = "Wajah tidak cocok ! Silakan coba lagi";
+            fsEl.innerHTML = '<i data-lucide="user-x" style="width:16px;flex-shrink:0;"></i><span>Wajah tidak cocok. Silakan coba lagi.</span>';
+            lucide.createIcons();
           }
           if (sbtnEl) {
             sbtnEl.disabled = false;
-            sbtnEl.innerHTML = '<i data-lucide="camera" style="width:16px;"></i> Absen Sekarang';
+            sbtnEl.innerHTML = '<i data-lucide="camera" style="width:18px;"></i> Coba Lagi';
             lucide.createIcons();
           }
           if (camBox) {
-            camBox.innerHTML = '<video id="selfie-video" class="camera-video" autoplay playsinline></video>';
+            camBox.innerHTML = '<video id="selfie-video" class="camera-video" autoplay playsinline></video><div class="camera-overlay-guide"><div class="camera-face-guide" id="face-guide-circle"></div></div>';
             startSelfie();
           }
           return;
@@ -1214,7 +1283,7 @@ function captureSubmit() {
 
       if (fsEl) {
         fsEl.className = "face-status loading";
-        fsEl.innerHTML = '<i data-lucide="loader" style="width:14px;height:14px;display:inline-block;animation:spin 1s linear infinite;margin-right:6px;vertical-align:-2px;"></i> Menyimpan absensi ke database...';
+        fsEl.innerHTML = '<i data-lucide="loader" style="width:14px;height:14px;display:inline-block;animation:spin 1s linear infinite;flex-shrink:0;"></i><span> Menyimpan absensi ke database...</span>';
         lucide.createIcons();
       }
 
@@ -1236,15 +1305,16 @@ function captureSubmit() {
       console.error("FaceAPI detection error:", err);
       if (fsEl) {
         fsEl.className = "face-status error";
-        fsEl.textContent = "Error deteksi wajah, silakan coba lagi";
+        fsEl.innerHTML = '<i data-lucide="alert-circle" style="width:16px;flex-shrink:0;"></i><span>Error deteksi wajah, silakan coba lagi</span>';
+        lucide.createIcons();
       }
       if (sbtnEl) {
         sbtnEl.disabled = false;
-        sbtnEl.innerHTML = '<i data-lucide="camera" style="width:16px;"></i> Absen Sekarang';
+        sbtnEl.innerHTML = '<i data-lucide="camera" style="width:18px;"></i> Coba Lagi';
         lucide.createIcons();
       }
       if (camBox) {
-        camBox.innerHTML = '<video id="selfie-video" class="camera-video" autoplay playsinline></video>';
+        camBox.innerHTML = '<video id="selfie-video" class="camera-video" autoplay playsinline></video><div class="camera-overlay-guide"><div class="camera-face-guide" id="face-guide-circle"></div></div>';
         startSelfie();
       }
     });
@@ -1418,45 +1488,60 @@ function showSuccess(st, tm, fm, isFirstReg, ket) {
 
   var ketHtml = ket ? '<p style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;"><strong>Keterangan:</strong> ' + ket + '</p>' : '';
 
-  var iconName = (st === "Alpa") ? "alert-circle" : (st === "TL1" || st === "TL2" ? "clock" : "check");
+  var iconName = (st === "Alpa") ? "alert-circle" : (st === "TL1" || st === "TL2" ? "clock" : "check-circle");
 
   var teacherHistoryBtn = isTeacher 
     ? '<button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showTeacherPortal(\'history\')"><i data-lucide="history" style="width:16px"></i> Lihat Riwayat Absen Saya</button>'
     : '';
 
   c.innerHTML =
-    '<div class="success-screen"><div class="success-icon" style="background:' +
-    col +
-    '"><i data-lucide="' + iconName + '" style="width:40px;height:40px;color:#fff;"></i></div><h2 style="color:' +
-    col +
-    ';margin-bottom:8px">' + title + '</h2>' +
-    catBadge +
-    '<br><strong>' +
-    currentStudent.nama +
-    '</strong><p style="color:var(--gray);margin-top:2px;">' +
-    roleDisplay +
-    '</p><div style="background:var(--bg);padding:15px;border-radius:8px;margin:20px 0;text-align:left"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>Status Absensi:</strong> ' +
-    stBadge +
-    '</div><p><strong>Waktu:</strong> ' +
-    (tm || "--:--") +
-    ' WIB</p><p><strong>Verifikasi:</strong> ' +
-    verifDisplay +
-    '</p>' +
-    ketHtml +
-    '</div><button class="btn btn-primary" style="width:100%" onclick="showOptions()">Selesai</button>' +
-    teacherHistoryBtn +
+    '<div class="success-screen">' +
+      '<div class="success-icon" style="background:' + col + ';border-color:' + col + '33;">' +
+        '<i data-lucide="' + iconName + '" style="width:44px;height:44px;color:#fff;"></i>' +
+      '</div>' +
+      '<h2 style="color:' + col + ';margin-bottom:6px;font-family:Nunito,sans-serif;font-size:22px;">' + title + '</h2>' +
+      catBadge +
+      '<div style="margin:8px 0 0;">' +
+        '<strong style="font-size:16px;font-family:Nunito,sans-serif;">' + currentStudent.nama + '</strong>' +
+        '<p style="color:var(--text-muted);margin-top:2px;font-size:13px;">' + roleDisplay + '</p>' +
+      '</div>' +
+      '<div class="success-info-card">' +
+        '<div class="success-info-row">' +
+          '<span style="color:var(--text-muted);font-weight:600;">Status</span>' +
+          stBadge +
+        '</div>' +
+        '<div class="success-info-row">' +
+          '<span style="color:var(--text-muted);font-weight:600;">Waktu</span>' +
+          '<strong>' + (tm || "--:--") + ' WIB</strong>' +
+        '</div>' +
+        '<div class="success-info-row">' +
+          '<span style="color:var(--text-muted);font-weight:600;">Verifikasi</span>' +
+          '<span style="font-size:12px;font-weight:700;color:var(--text);">' + verifDisplay + '</span>' +
+        '</div>' +
+        (ketHtml ? '<div class="success-info-row"><span style="color:var(--text-muted);font-weight:600;">Keterangan</span><span style="font-size:12px;font-weight:600;">' + (ket || '') + '</span></div>' : '') +
+      '</div>' +
+      '<button class="btn btn-primary" style="width:100%" onclick="showOptions()">' +
+        '<i data-lucide="check" style="width:18px"></i> Selesai' +
+      '</button>' +
+      teacherHistoryBtn +
     '</div>';
   lucide.createIcons();
 }
 function showToast(m, t) {
   var tc = document.getElementById("toasts");
   var d = document.createElement("div");
-  d.className = "toast " + (t === "error" ? "error" : "");
-  d.textContent = m;
+  var icon = t === "error" ? "alert-circle" : (t === "warning" ? "alert-triangle" : "check-circle");
+  d.className = "toast " + (t || "");
+  d.innerHTML = '<i data-lucide="' + icon + '" style="width:18px;height:18px;flex-shrink:0;"></i><span>' + m + '</span>';
   tc.appendChild(d);
+  lucide.createIcons();
   setTimeout(function () {
-    d.remove();
-  }, 3000);
+    d.style.animation = "none";
+    d.style.opacity = "0";
+    d.style.transform = "translateX(120%)";
+    d.style.transition = "all 0.3s ease";
+    setTimeout(function() { d.remove(); }, 300);
+  }, 3500);
 }
 function getInit(n) {
   if (!n) return "?";
